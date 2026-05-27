@@ -30,6 +30,7 @@ class CommentarySource(BaseModel):
     content_hash: str
     matched_by: Literal["deterministic", "llm"]
     confidence: float
+    body: str | None = None  # verbatim copied page body; rendered, not stored in frontmatter
 
 
 class Action(BaseModel):
@@ -114,6 +115,7 @@ class WikiItem(BaseModel):
     commentary_sources: list[CommentarySource] = []
     tracking: bool = True
     last_synced: dt.datetime | None = None
+    summary: str | None = None  # plain-language summary prose (body content)
 
 
 class Bill(WikiItem):
@@ -154,6 +156,11 @@ class EnforcementAction(WikiItem):
     penalties: str | None = None
     status: str | None = None
     docket: str | None = None
+    # Body-content prose sections (rendered, not stored in frontmatter):
+    background: str | None = None
+    allegations: str | None = None
+    outcome: str | None = None
+    significance: str | None = None
 
 
 WikiItemUnion = Annotated[Bill | EnforcementAction, Field(discriminator="type")]

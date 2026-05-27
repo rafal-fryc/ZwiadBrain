@@ -140,3 +140,10 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** Squash keeps `main` readable; phase-boundary tags map the phase system onto version history for easy rollback.
 **Trade-offs:** Interim branch commits are lost on squash.
 **Revisit if:** The project gains other contributors or production deployments (then: branch + PR for every change).
+
+## 2026-05-26 — 20. Frontmatter holds metadata only; the page body holds rendered content
+**Chosen:** A committed page's YAML frontmatter carries only metadata/watchlist fields (the source of truth that `reindex` reads); rendered content — summary prose, status timeline, amendments, legislative history, full-text links, and the verbatim copied commentary — lives in the Markdown body, regenerated from the model each run. Each commentary source's verbatim `body` is excluded from frontmatter even though its bookkeeping (`commentary_sources`) is recorded there.
+**Alternatives:** Serialize the full model (timelines + commentary text) into frontmatter; or parse the rendered body back into the model.
+**Why:** Keeps frontmatter small, diff-readable, and a clean watchlist index; large structured data is re-fetched from authoritative sources each run, so it need not round-trip through the page. A single deterministic renderer driven by the model guarantees byte-identical output for unchanged input (clean `git status`).
+**Trade-offs:** A page body cannot be parsed back into a full model — only its metadata. Intentional: models are rebuilt from sources, not from rendered prose.
+**Revisit if:** A use case needs full model reconstruction from a page alone (offline, no source access).

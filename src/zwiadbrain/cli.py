@@ -4,9 +4,13 @@ Commands are added per phase (scan, backfill, render, reindex, sync-lawbrain,
 review, lawbrain-status). For now the app only reports its version.
 """
 
+from pathlib import Path
+from typing import Annotated
+
 import typer
 
 from zwiadbrain import __version__
+from zwiadbrain.store import Store
 
 app = typer.Typer(
     name="zwiadbrain",
@@ -28,6 +32,19 @@ def root() -> None:
 def version() -> None:
     """Print the installed ZwiadBrain version."""
     typer.echo(__version__)
+
+
+@app.command()
+def reindex(
+    wiki: Annotated[Path, typer.Option(help="Wiki root to index.")] = Path("wiki"),
+    db: Annotated[Path, typer.Option(help="SQLite index path.")] = Path(
+        "data/cache/index.sqlite"
+    ),
+) -> None:
+    """Rebuild the SQLite index/watchlist from committed wiki frontmatter."""
+    with Store(db) as store:
+        count = store.reindex(wiki)
+    typer.echo(f"reindexed {count} pages from {wiki}")
 
 
 def main() -> None:

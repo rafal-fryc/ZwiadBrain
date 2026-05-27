@@ -147,3 +147,38 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** Keeps frontmatter small, diff-readable, and a clean watchlist index; large structured data is re-fetched from authoritative sources each run, so it need not round-trip through the page. A single deterministic renderer driven by the model guarantees byte-identical output for unchanged input (clean `git status`).
 **Trade-offs:** A page body cannot be parsed back into a full model — only its metadata. Intentional: models are rebuilt from sources, not from rendered prose.
 **Revisit if:** A use case needs full model reconstruction from a page alone (offline, no source access).
+
+## 2026-05-27 — 21. Federal bill id = `{congress}-{type}-{number}`
+**Chosen:** A federal bill's page id (and filename slug) is `{congress}-{type}-{number}` lowercased, e.g. `118-hr-8818`.
+**Alternatives:** `{type}-{number}` (e.g. `hr-8818`); include a leading `us-` like state ids.
+**Why:** Bill numbers recur every congress (118th HR 1 ≠ 117th HR 1), so the congress must be in the id for uniqueness; jurisdiction is already encoded by the `federal/bills/` path, so a `us-` prefix is redundant. Congress-first sorts pages by congress.
+**Trade-offs:** Slightly longer slug; differs from the bare `hr-1` used in early Phase-01/02 test fixtures (those are synthetic).
+**Revisit if:** A cross-congress canonical bill identity is needed (then add an alias).
+
+## 2026-05-27 — 22. `Source.fetch` returns a mapped `Bill`; enrich is the source-agnostic seam
+**Chosen:** Each source maps its own API onto the common `Bill` inside `fetch(native_id) -> Bill`; `pipeline/enrich.py` is source-agnostic and owns cross-source post-processing (currently stamping `last_synced`; the classify gate and change-hash policy attach here later). `pipeline/discover.py` holds the keyword recall filter + since-window helper.
+**Alternatives:** `fetch` returns raw source JSON and `enrich.py` does all per-source mapping (one growing dispatcher); or fold discover/enrich into the source.
+**Why:** Keeping per-source mapping in the source preserves clean layering (pipeline depends on sources, never the reverse) and a single typed contract (`Bill`), so the pipeline never branches on source-specific JSON. The plan's module names are honored: the source is the transport+mapping client, the pipeline owns orchestration.
+**Trade-offs:** `enrich.py` is thin in Phase 03 (just `last_synced`); the per-field mapping lives per-source rather than in one place.
+**Revisit if:** Several sources end up sharing substantial mapping logic that wants a common home.
+
+## 2026-05-27 — 23. Phase-03 Summary = official CRS summary (provisional)
+**Chosen:** `Bill.summary` is populated from the latest official Congress (CRS) summary, HTML-stripped, in Phase 03. The Claude plain-language summarizer overwrites it in a later phase. (User decision.)
+**Alternatives:** Leave `summary` empty until the Claude summarizer phase (no Summary section yet).
+**Why:** It is real authoritative data, makes rendered pages immediately useful, and uses the `/summaries` endpoint the enrich step already fetches — without fabricating an LLM summary.
+**Trade-offs:** The Summary section temporarily carries official prose rather than the intended plain-language rewrite; the field is overwritten later (same field, no migration).
+**Revisit if:** Official summaries prove misleading on the page before the summarizer lands.
+
+## 2026-05-27 — 24. `subjects` and `cosponsors` deferred from Phase-03 enrichment
+**Chosen:** Phase 03 maps `policy_area` (from bill detail), primary `sponsors[]`, and `related_bills`; it does not fetch/map `subjects` or `cosponsors`. (User decision.)
+**Alternatives:** Add `subjects[]`/`cosponsors[]` model fields and map both endpoints now.
+**Why:** `topics` are produced by the Claude classifier with a disqualifying rubric (decision 17), not raw legislative subjects; cosponsors have no model field and would bloat `sponsors[]`/frontmatter. Neither has a consumer yet, and each is an extra API call per bill.
+**Trade-offs:** Cosponsor counts and CRS legislative subjects are not surfaced in v1 federal pages.
+**Revisit if:** A consumer appears (e.g. sponsor/entity rollups, or subject-seeded discovery).
+
+## 2026-05-27 — 25. Settings loader merges .env + process env + TOML explicitly
+**Chosen:** `config.load_settings` reads the TOML tables and the secret env vars itself (`.env` via `dotenv_values`, overlaid by the process environment) and `Settings.model_validate`s the merged dict. Precedence: process env > `.env` > TOML.
+**Alternatives:** Rely on pydantic-settings' implicit source chain with `Settings(_env_file=...)`.
+**Why:** Secrets (flat fields) and operational config (nested tables) never overlap, so an explicit merge is simple and gives deterministic precedence and trivial test injection of arbitrary file paths; the `_env_file` init kwarg is also not present on pydantic-settings' type-checker-synthesized `__init__`, so the explicit path stays type-clean under `pyright --strict`.
+**Trade-offs:** Re-implements a small slice of pydantic-settings' env handling for the four known secrets rather than using its source pipeline.
+**Revisit if:** Settings grow many env-sourced fields or need nested/prefixed env parsing — then adopt a custom `SettingsConfigDict` source chain.

@@ -1,0 +1,99 @@
+"""Tests for settings loading: secrets from .env, operational config from TOML."""
+
+from pathlib import Path
+
+import pytest
+
+from zwiadbrain.config import load_settings
+from zwiadbrain.exceptions import ConfigError
+
+_TOML = """
+[llm]
+model = "claude-opus-4-7"
+classifier_model = "claude-haiku-4-5-20251001"
+
+[sources]
+enabled = ["congress", "legiscan"]
+
+[states]
+enabled = ["ca", "ny"]
+
+[lawbrain]
+enabled = true
+path = "C:/law"
+min_confidence = 0.75
+
+[lawbrain.type_map]
+regulation = "bill"
+case = "enforcement"
+"""
+
+
+def _write(tmp_path: Path, toml: str = _TOML, env: str = "") -> tuple[Path, Path]:
+    toml_path = tmp_path / "zwiadbrain.toml"
+    toml_path.write_text(toml, encoding="utf-8")
+    env_path = tmp_path / ".env"
+    env_path.write_text(env, encoding="utf-8")
+    return toml_path, env_path
+
+
+def test_load_settings_reads_secret_from_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should load CONGRESS_API_KEY from the .env file, not from the TOML"""
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path, env="CONGRESS_API_KEY=secret-key-123\n")
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.congress_api_key == "secret-key-123"
+
+
+def test_load_settings_parses_operational_config_from_toml(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should populate nested model/sources/lawbrain settings from the TOML tables"""
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path)
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.llm.model == "claude-opus-4-7"
+    assert settings.sources.enabled == ["congress", "legiscan"]
+    assert settings.lawbrain.min_confidence == 0.75
+    assert settings.lawbrain.type_map["regulation"] == "bill"
+
+
+def test_require_congress_api_key_raises_when_unset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should raise ConfigError when no Congress API key is configured"""
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path)
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    with pytest.raises(ConfigError):
+        settings.require_congress_api_key()
+
+
+def test_env_law_brain_path_overrides_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """should let LAW_BRAIN_PATH in .env override the TOML [lawbrain].path"""
+    monkeypatch.delenv("LAW_BRAIN_PATH", raising=False)
+    toml_path, env_path = _write(tmp_path, env="LAW_BRAIN_PATH=D:/override/law\n")
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.effective_law_brain_path == Path("D:/override/law")
+
+
+def test_process_env_overrides_dotenv_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should let a process environment variable win over the .env file value"""
+    toml_path, env_path = _write(tmp_path, env="CONGRESS_API_KEY=from-file\n")
+    monkeypatch.setenv("CONGRESS_API_KEY", "from-process")
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.congress_api_key == "from-process"
+
+
+def test_load_settings_tolerates_missing_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should construct defaults when neither the TOML nor the .env exist"""
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    settings = load_settings(toml_path=tmp_path / "absent.toml", env_file=tmp_path / "absent.env")
+    assert settings.congress_api_key is None
+    assert settings.sources.enabled == []

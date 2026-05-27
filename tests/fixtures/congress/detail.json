@@ -1,0 +1,37 @@
+{
+  "bill": {
+    "congress": 118,
+    "type": "HR",
+    "number": "8818",
+    "title": "Artificial Intelligence Accountability Act",
+    "originChamber": "House",
+    "introducedDate": "2024-06-26",
+    "policyArea": {"name": "Science, Technology, Communications"},
+    "sponsors": [
+      {
+        "bioguideId": "L000599",
+        "fullName": "Rep. Lieu, Ted [D-CA-36]",
+        "firstName": "Ted",
+        "lastName": "Lieu",
+        "party": "D",
+        "state": "CA",
+        "district": 36
+      }
+    ],
+    "cosponsors": {"count": 12, "url": "https://api.congress.gov/v3/bill/118/hr/8818/cosponsors"},
+    "subjects": {"count": 8, "url": "https://api.congress.gov/v3/bill/118/hr/8818/subjects"},
+    "laws": [{"number": "118-265", "type": "Public Law"}],
+    "latestAction": {
+      "actionDate": "2024-12-20",
+      "text": "Became Public Law No: 118-265."
+    },
+    "updateDate": "2024-12-21",
+    "updateDateIncludingText": "2024-12-21T03:27:05Z",
+    "actions": {"count": 5, "url": "https://api.congress.gov/v3/bill/118/hr/8818/actions"},
+    "amendments": {"count": 2, "url": "https://api.congress.gov/v3/bill/118/hr/8818/amendments"},
+    "textVersions": {"count": 3, "url": "https://api.congress.gov/v3/bill/118/hr/8818/text"},
+    "summaries": {"count": 2, "url": "https://api.congress.gov/v3/bill/118/hr/8818/summaries"},
+    "relatedBills": {"count": 1, "url": "https://api.congress.gov/v3/bill/118/hr/8818/relatedbills"}
+  },
+  "request": {"billNumber": "8818", "billType": "hr", "congress": "118", "format": "json"}
+}

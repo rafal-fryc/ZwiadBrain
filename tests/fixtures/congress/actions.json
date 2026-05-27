@@ -1,0 +1,37 @@
+{
+  "actions": [
+    {
+      "actionDate": "2024-12-20",
+      "text": "Became Public Law No: 118-265.",
+      "type": "BecameLaw",
+      "actionCode": "36000",
+      "sourceSystem": {"code": 9, "name": "Library of Congress"}
+    },
+    {
+      "actionDate": "2024-12-18",
+      "text": "Signed by President.",
+      "type": "President"
+    },
+    {
+      "actionDate": "2024-09-10",
+      "text": "Passed/agreed to in Senate with an amendment by Voice Vote.",
+      "type": "Floor"
+    },
+    {
+      "actionDate": "2024-07-15",
+      "text": "Passed/agreed to in House.",
+      "type": "Floor"
+    },
+    {
+      "actionDate": "2024-06-26",
+      "text": "Referred to the Committee on the Judiciary.",
+      "type": "IntroReferral"
+    },
+    {
+      "actionDate": "2024-06-26",
+      "text": "Introduced in House.",
+      "type": "IntroReferral"
+    }
+  ],
+  "pagination": {"count": 6}
+}

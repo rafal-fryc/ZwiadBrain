@@ -1,0 +1,36 @@
+{
+  "bills": [
+    {
+      "congress": 118,
+      "type": "HR",
+      "number": "8818",
+      "title": "Artificial Intelligence Accountability Act",
+      "originChamber": "House",
+      "originChamberCode": "H",
+      "latestAction": {
+        "actionDate": "2024-12-20",
+        "text": "Became Public Law No: 118-265."
+      },
+      "updateDate": "2024-12-21",
+      "updateDateIncludingText": "2024-12-21T03:27:05Z",
+      "url": "https://api.congress.gov/v3/bill/118/hr/8818?format=json"
+    },
+    {
+      "congress": 118,
+      "type": "S",
+      "number": "2024",
+      "title": "Consumer Data Privacy and Security Act",
+      "originChamber": "Senate",
+      "originChamberCode": "S",
+      "latestAction": {
+        "actionDate": "2024-06-01",
+        "text": "Read twice and referred to the Committee on Commerce, Science, and Transportation."
+      },
+      "updateDate": "2024-06-02",
+      "updateDateIncludingText": "2024-06-02T10:00:00Z",
+      "url": "https://api.congress.gov/v3/bill/118/s/2024?format=json"
+    }
+  ],
+  "pagination": {"count": 2},
+  "request": {"congress": "118", "contentType": "application/json", "format": "json"}
+}

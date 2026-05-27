@@ -1,0 +1,27 @@
+{
+  "textVersions": [
+    {
+      "type": "Enrolled Bill",
+      "date": "2024-12-15T05:00:00Z",
+      "formats": [
+        {"type": "Formatted Text", "url": "https://www.congress.gov/118/bills/hr8818/BILLS-118hr8818enr.htm"},
+        {"type": "PDF", "url": "https://www.congress.gov/118/bills/hr8818/BILLS-118hr8818enr.pdf"}
+      ]
+    },
+    {
+      "type": "Engrossed in House",
+      "date": "2024-07-15T04:00:00Z",
+      "formats": [
+        {"type": "Formatted Text", "url": "https://www.congress.gov/118/bills/hr8818/BILLS-118hr8818eh.htm"}
+      ]
+    },
+    {
+      "type": "Introduced in House",
+      "date": "2024-06-26T04:00:00Z",
+      "formats": [
+        {"type": "Formatted Text", "url": "https://www.congress.gov/118/bills/hr8818/BILLS-118hr8818ih.htm"}
+      ]
+    }
+  ],
+  "pagination": {"count": 3}
+}

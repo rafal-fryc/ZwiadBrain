@@ -1,0 +1,19 @@
+{
+  "summaries": [
+    {
+      "versionCode": "00",
+      "actionDate": "2024-06-26",
+      "actionDesc": "Introduced in House",
+      "text": "<p><b>Artificial Intelligence Accountability Act</b></p><p>This bill establishes transparency requirements for automated decision systems used by federal agencies.</p>",
+      "updateDate": "2024-06-27T03:27:05Z"
+    },
+    {
+      "versionCode": "49",
+      "actionDate": "2024-12-20",
+      "actionDesc": "Public Law",
+      "text": "<p><b>Artificial Intelligence Accountability Act</b></p><p>This Act requires federal agencies to conduct and publish impact assessments for high-risk automated decision systems, and directs the Office of Management and Budget to issue implementing guidance.</p>",
+      "updateDate": "2024-12-21T03:27:05Z"
+    }
+  ],
+  "pagination": {"count": 2}
+}

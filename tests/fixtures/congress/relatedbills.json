@@ -1,0 +1,12 @@
+{
+  "relatedBills": [
+    {
+      "congress": 118,
+      "type": "S",
+      "number": "2024",
+      "title": "Consumer Data Privacy and Security Act",
+      "relationshipDetails": [{"type": "Related bill", "identifiedBy": "CRS"}]
+    }
+  ],
+  "pagination": {"count": 1}
+}

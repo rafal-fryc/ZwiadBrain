@@ -1,0 +1,25 @@
+{
+  "amendments": [
+    {
+      "congress": 118,
+      "type": "HAMDT",
+      "number": "512",
+      "purpose": "To add transparency reporting requirements for automated decision systems.",
+      "latestAction": {
+        "actionDate": "2024-07-14",
+        "text": "Amendment agreed to in House by voice vote."
+      }
+    },
+    {
+      "congress": 118,
+      "type": "SAMDT",
+      "number": "1043",
+      "description": "Narrows the definition of covered AI systems to high-risk uses.",
+      "latestAction": {
+        "actionDate": "2024-09-09",
+        "text": "Amendment agreed to in Senate."
+      }
+    }
+  ],
+  "pagination": {"count": 2}
+}

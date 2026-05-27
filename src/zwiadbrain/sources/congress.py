@@ -273,6 +273,16 @@ class CongressSource:
             raw=raw,
         )
 
+    def fetch_policy_area(self, native_id: str) -> str | None:
+        """Fetch only a bill's ``policyArea`` name via one core-detail request.
+
+        The Stage-2 recall probe: cheap (no sub-resources) so a wide scan can be
+        re-checked by topic when a bill's title carries no keyword seed.
+        """
+        congress, bill_type, number = native_id.split("/")
+        detail = _obj(self._get_json(f"/bill/{congress}/{bill_type}/{number}").get("bill"))
+        return _opt_str(_obj(detail.get("policyArea")).get("name"))
+
     # --- enrichment -----------------------------------------------------
 
     def fetch(self, native_id: str) -> Bill:

@@ -15,7 +15,7 @@ from zwiadbrain import __version__
 from zwiadbrain.config import load_settings
 from zwiadbrain.exceptions import AppError, ConfigError
 from zwiadbrain.models import Bill
-from zwiadbrain.pipeline.discover import keyword_filter
+from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
 from zwiadbrain.pipeline.enrich import enrich
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.reference.loader import load_reference
@@ -23,6 +23,8 @@ from zwiadbrain.sources.congress import CongressSource
 from zwiadbrain.store import Store
 
 _DEFAULT_TOPICS = Path("reference/topics.yaml")
+_SCAN_LIMIT = 250  # bills to scan per fetch-candidates run (Congress list single-request max)
+_MAX_PROBE = 250  # max Stage-2 policyArea probes per run (PHASE-03.1)
 
 app = typer.Typer(
     name="zwiadbrain",
@@ -99,11 +101,24 @@ def fetch_candidates(
     the interactive session's classifier/summarizer subagents to consume.
     """
     try:
-        seeds = seed if seed else load_reference(topics).seeds
+        # Explicit --seed is a targeted search (no taxonomy load, no Stage-2 probe);
+        # default discovery uses topics.yaml seeds + the broad policyArea allowlist.
+        if seed:
+            seeds, policy_areas = seed, []
+        else:
+            reference = load_reference(topics)
+            seeds, policy_areas = reference.seeds, reference.policy_areas
         api_key = load_settings().require_congress_api_key()
         source = CongressSource(api_key)
-        candidates = source.discover(congress=congress, limit=limit * 5 if seeds else limit)
-        candidates = keyword_filter(candidates, seeds)[:limit]
+        scanned = source.discover(congress=congress, limit=_SCAN_LIMIT)
+        candidates = recall_filter(
+            scanned,
+            source,
+            seeds=seeds,
+            policy_areas=policy_areas,
+            limit=limit,
+            max_probe=_MAX_PROBE,
+        )
         bills = [enrich(source, candidate) for candidate in candidates]
         run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")
         run_dir.mkdir(parents=True, exist_ok=True)

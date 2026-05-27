@@ -42,3 +42,11 @@ class Source(Protocol):
     def fetch(self, native_id: str) -> Bill:
         """Fetch and map a single item to a fully-enriched :class:`Bill`."""
         ...
+
+    def fetch_policy_area(self, native_id: str) -> str | None:
+        """Return an item's coarse topic bucket for recall probing, or ``None``.
+
+        A cheap signal (one request, no sub-resources) used by the Stage-2 recall
+        probe to recover topical items whose title carries no keyword seed.
+        """
+        ...

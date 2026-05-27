@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "zwiadbrain"
-version = "0.4.0"
+version = "0.4.1"
 description = "LLM-driven wiki + agent system tracking U.S. AI/privacy/cyber legislation and enforcement actions, integrated with a read-only law-brain commentary layer."
 readme = "README.md"
 requires-python = ">=3.12"

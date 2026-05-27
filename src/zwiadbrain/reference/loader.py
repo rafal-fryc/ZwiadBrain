@@ -25,6 +25,7 @@ class Reference(BaseModel):
 
     seeds: list[str]
     topic_keys: list[str]
+    policy_areas: list[str]
 
 
 class _Topic(BaseModel):
@@ -38,6 +39,7 @@ class _TopicsFile(BaseModel):
     """The parsed shape of ``topics.yaml`` — only the part Python consumes."""
 
     topics: dict[str, _Topic]
+    policy_areas: list[str] = []
 
 
 def load_reference(path: Path) -> Reference:
@@ -58,4 +60,8 @@ def load_reference(path: Path) -> Reference:
 
     seeds = [seed for topic in parsed.topics.values() for seed in topic.seeds]
     # De-duplicate, preserving first-seen order.
-    return Reference(seeds=list(dict.fromkeys(seeds)), topic_keys=list(parsed.topics))
+    return Reference(
+        seeds=list(dict.fromkeys(seeds)),
+        topic_keys=list(parsed.topics),
+        policy_areas=parsed.policy_areas,
+    )

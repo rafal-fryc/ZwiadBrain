@@ -17,7 +17,7 @@ def test_candidate_defaults_optional_fields() -> None:
 
 
 def test_source_protocol_is_satisfied_structurally() -> None:
-    """should recognize a class with name/discover/fetch as a Source at runtime"""
+    """should recognize a class with name/discover/fetch/fetch_policy_area as a Source"""
 
     class _FakeSource:
         name = "fake"
@@ -27,5 +27,8 @@ def test_source_protocol_is_satisfied_structurally() -> None:
 
         def fetch(self, native_id: str) -> Bill:
             return Bill(id=native_id, jurisdiction="US", title="t", bill_number="HR 1")
+
+        def fetch_policy_area(self, native_id: str) -> str | None:
+            return None
 
     assert isinstance(_FakeSource(), Source)

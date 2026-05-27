@@ -38,3 +38,36 @@ def discover_candidates(
     fetch_limit = limit * _OVERSAMPLE if seeds else limit
     candidates = source.discover(since=since, limit=fetch_limit)
     return keyword_filter(candidates, seeds)[:limit]
+
+
+def recall_filter(
+    candidates: list[Candidate],
+    source: Source,
+    *,
+    seeds: list[str] | None,
+    policy_areas: list[str],
+    limit: int,
+    max_probe: int,
+) -> list[Candidate]:
+    """Two-stage recall over an already-scanned candidate list (decision: PHASE-03.1).
+
+    Stage 1 keeps candidates whose title matches a seed (free). Stage 2 probes up to
+    ``max_probe`` of the *remaining* candidates' ``policyArea`` (one cheap request
+    each via ``source.fetch_policy_area``) and keeps those in the ``policy_areas``
+    allowlist — recovering topical bills whose title carries no seed. Returns at most
+    ``limit`` candidates; probing stops early once ``limit`` is reached.
+    """
+    stage1 = keyword_filter(candidates, seeds)
+    kept_ids = {c.native_id for c in stage1}
+    result = list(stage1)
+    allow = set(policy_areas)
+    probed = 0
+    for candidate in candidates:
+        if len(result) >= limit:
+            break
+        if candidate.native_id in kept_ids or not allow or probed >= max_probe:
+            continue
+        probed += 1
+        if source.fetch_policy_area(candidate.native_id) in allow:
+            result.append(candidate)
+    return result[:limit]

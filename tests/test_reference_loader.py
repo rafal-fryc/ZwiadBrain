@@ -27,6 +27,9 @@ positive_criteria:
   - "Creates or amends obligations governing AI systems"
 disqualify:
   - "Ceremonial or commemorative resolution"
+policy_areas:
+  - "Science, Technology, Communications"
+  - "Commerce"
 """
 
 
@@ -54,6 +57,18 @@ def test_load_reference_exposes_topic_keys_in_file_order(tmp_path: Path) -> None
     """should expose the taxonomy keys (valid topics[] values) in file order"""
     ref = load_reference(_write(tmp_path))
     assert ref.topic_keys == ["ai", "privacy", "cyber"]
+
+
+def test_load_reference_exposes_policy_areas(tmp_path: Path) -> None:
+    """should expose the policyArea allowlist used by the Stage-2 recall probe"""
+    ref = load_reference(_write(tmp_path))
+    assert ref.policy_areas == ["Science, Technology, Communications", "Commerce"]
+
+
+def test_load_reference_policy_areas_default_to_empty(tmp_path: Path) -> None:
+    """should default policy_areas to [] when the file omits them"""
+    ref = load_reference(_write(tmp_path, yaml="topics:\n  ai:\n    seeds: [ai]\n"))
+    assert ref.policy_areas == []
 
 
 def test_load_reference_raises_on_missing_file(tmp_path: Path) -> None:

@@ -21,6 +21,9 @@ class _FakeSource:
         self.fetched.append(native_id)
         return self._bill
 
+    def fetch_policy_area(self, native_id: str) -> str | None:
+        raise NotImplementedError
+
 
 def _candidate() -> Candidate:
     return Candidate(source="fake", native_id="118/hr/1", jurisdiction="US", title="t")

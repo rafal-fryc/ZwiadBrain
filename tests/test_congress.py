@@ -120,6 +120,23 @@ def test_fetch_dedupes_duplicate_timeline_actions() -> None:
     ]
 
 
+def test_fetch_policy_area_returns_the_controlled_term() -> None:
+    """should read a bill's policyArea name from a single core-detail request"""
+    detail = {"bill": {"policyArea": {"name": "Science, Technology, Communications"}}}
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        route = mock.get("/bill/118/hr/8818").respond(json=detail)
+        area = _source().fetch_policy_area("118/hr/8818")
+    assert area == "Science, Technology, Communications"
+    assert route.call_count == 1  # cheap probe: one request, no sub-resources
+
+
+def test_fetch_policy_area_returns_none_when_absent() -> None:
+    """should return None when the bill carries no policyArea"""
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get("/bill/118/hr/8818").respond(json={"bill": {}})
+        assert _source().fetch_policy_area("118/hr/8818") is None
+
+
 def test_fetch_maps_amendments_with_chamber_and_explanation() -> None:
     """should map amendments with formatted number, chamber, status, and what_changed"""
     with respx.mock(base_url=CONGRESS_API_BASE) as mock:

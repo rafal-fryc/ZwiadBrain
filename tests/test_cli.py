@@ -137,6 +137,48 @@ def test_fetch_candidates_defaults_seeds_from_topics_yaml(
     assert Bill.model_validate(data[0]).id == "118-hr-8818"
 
 
+def test_fetch_candidates_recovers_title_miss_via_policy_area(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should recover a topical bill that lacks a title seed via its allowlisted policyArea"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    out = tmp_path / "run"
+    bill_list = {
+        "bills": [
+            {
+                "congress": 118, "type": "S", "number": "9999",
+                "title": "Quarterly Filing Reform Act",  # no AI/privacy/cyber seed in the title
+                "updateDate": "2024-01-01T00:00:00Z",
+            }
+        ]
+    }
+    base = "/bill/118/s/9999"
+    detail = {"bill": {"title": "Quarterly Filing Reform Act", "policyArea": {"name": "Commerce"}}}
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118").respond(json=bill_list)
+        mock.get(base).respond(json=detail)
+        mock.get(f"{base}/actions").respond(json={"actions": []})
+        mock.get(f"{base}/amendments").respond(json={"amendments": []})
+        mock.get(f"{base}/text").respond(json={"textVersions": []})
+        mock.get(f"{base}/summaries").respond(json={"summaries": []})
+        mock.get(f"{base}/relatedbills").respond(json={"relatedBills": []})
+        result = runner.invoke(
+            app,
+            [
+                "fetch-candidates",
+                "--congress", "118",
+                "--limit", "5",
+                "--out", str(out),
+                "--topics", str(_TOPICS),
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert len(data) == 1
+    assert Bill.model_validate(data[0]).title == "Quarterly Filing Reform Act"
+
+
 def _classified(tmp_path: Path, bills: list[Bill]) -> Path:
     path = tmp_path / "classified.json"
     path.write_text(

@@ -73,3 +73,14 @@ disqualify:
   - "Tax, trade, or general-commerce bill that references 'data' or 'information' only incidentally (e.g. recordkeeping, reporting of unrelated metrics)."
   - "Health, education, or financial bill where any data/technology mention is incidental to a non-AI/privacy/cyber purpose."
   - "Bill solely about physical telecommunications/broadband infrastructure with no data-protection or cybersecurity provisions."
+
+# Stage-2 recall: Congress.gov controlled `policyArea` buckets worth probing when a
+# bill's TITLE carries no seed term. Deliberately broad (favors recall); the Claude
+# classifier applies precision afterward. (PHASE-03.1)
+policy_areas:
+  - "Science, Technology, Communications"          # AI, internet, telecom, tech
+  - "Crime and Law Enforcement"                    # cyber, surveillance
+  - "Commerce"                                     # consumer privacy, data brokers, FTC
+  - "Civil Rights and Liberties, Minority Issues"  # privacy, biometric, surveillance
+  - "Armed Forces and National Security"           # cyber, critical infrastructure
+  - "Finance and Financial Sector"                 # financial-data privacy (decision 32)

@@ -3,7 +3,7 @@
 import datetime as dt
 
 from zwiadbrain.models import Bill
-from zwiadbrain.pipeline.discover import discover_candidates, keyword_filter
+from zwiadbrain.pipeline.discover import discover_candidates, keyword_filter, recall_filter
 from zwiadbrain.sources.base import Candidate
 
 
@@ -23,6 +23,9 @@ class _FakeSource:
         return self._candidates[:limit]
 
     def fetch(self, native_id: str) -> Bill:
+        raise NotImplementedError
+
+    def fetch_policy_area(self, native_id: str) -> str | None:
         raise NotImplementedError
 
 
@@ -66,3 +69,63 @@ def test_discover_candidates_forwards_since_to_source() -> None:
     since = dt.datetime(2024, 1, 1, tzinfo=dt.UTC)
     discover_candidates(source, since=since, limit=5)
     assert source.calls[0][0] == since
+
+
+class _PolicySource:
+    """A source whose only meaningful capability is the policyArea probe."""
+
+    name = "fake"
+
+    def __init__(self, policy_by_id: dict[str, str | None]) -> None:
+        self._policy = policy_by_id
+        self.probed: list[str] = []
+
+    def discover(self, *, since: dt.datetime | None = None, limit: int = 20) -> list[Candidate]:
+        return []
+
+    def fetch(self, native_id: str) -> Bill:
+        raise NotImplementedError
+
+    def fetch_policy_area(self, native_id: str) -> str | None:
+        self.probed.append(native_id)
+        return self._policy.get(native_id)
+
+
+def test_recall_filter_recovers_policy_area_misses() -> None:
+    """should keep title matches and recover title-miss bills via an allowlisted policyArea"""
+    cands = [
+        _candidate("AI Accountability Act"),  # title seed -> Stage 1
+        _candidate("Boring Banking Act"),  # title miss, Commerce -> Stage 2
+        _candidate("Highway Funding Act"),  # title miss, Transportation -> dropped
+    ]
+    source = _PolicySource(
+        {"Boring Banking Act": "Commerce", "Highway Funding Act": "Transportation"}
+    )
+    kept = recall_filter(
+        cands, source, seeds=["ai"], policy_areas=["Commerce"], limit=10, max_probe=10
+    )
+    assert {c.native_id for c in kept} == {"AI Accountability Act", "Boring Banking Act"}
+    # the Stage-1 title match is not re-probed; only the two title-misses are
+    assert source.probed == ["Boring Banking Act", "Highway Funding Act"]
+
+
+def test_recall_filter_respects_max_probe() -> None:
+    """should probe at most max_probe of the title-miss candidates"""
+    cands = [_candidate(f"Bill {i}") for i in range(5)]
+    source = _PolicySource({c.native_id: "Commerce" for c in cands})
+    kept = recall_filter(
+        cands, source, seeds=["zzz"], policy_areas=["Commerce"], limit=10, max_probe=2
+    )
+    assert len(source.probed) == 2
+    assert len(kept) == 2
+
+
+def test_recall_filter_caps_to_limit_without_probing() -> None:
+    """should cap to limit and skip the probe entirely once Stage 1 fills it"""
+    cands = [_candidate("AI one"), _candidate("AI two"), _candidate("AI three")]
+    source = _PolicySource({})
+    kept = recall_filter(
+        cands, source, seeds=["ai"], policy_areas=["Commerce"], limit=2, max_probe=10
+    )
+    assert len(kept) == 2
+    assert source.probed == []

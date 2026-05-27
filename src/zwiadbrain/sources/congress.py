@@ -135,15 +135,24 @@ def _to_action(raw: dict[str, Any]) -> Action:
 
 
 def _build_timeline(actions: list[dict[str, Any]]) -> list[Action]:
-    """Map a bill's actions into an oldest-first status timeline.
+    """Map a bill's actions into a deduplicated, oldest-first status timeline.
 
     Congress returns actions newest-first, so reverse before the stable date-sort:
     same-date actions then read chronologically (introduced before referred) rather
-    than in reverse.
+    than in reverse. Congress also repeats some actions across source systems
+    (identical date + text); collapse those to one row, keeping first occurrence.
     """
     timeline = [_to_action(a) for a in reversed(actions)]
     timeline.sort(key=lambda a: (a.date is None, a.date or dt.date.min))
-    return timeline
+    deduped: list[Action] = []
+    seen: set[tuple[dt.date | None, str]] = set()
+    for action in timeline:
+        key = (action.date, action.text)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(action)
+    return deduped
 
 
 def _to_amendment(raw: dict[str, Any]) -> Amendment:

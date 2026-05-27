@@ -96,6 +96,30 @@ def test_fetch_builds_chronological_timeline() -> None:
     assert bill.actions[-1].date == dt.date(2024, 12, 20)
 
 
+def test_fetch_dedupes_duplicate_timeline_actions() -> None:
+    """should collapse actions Congress repeats (same date + text) into one timeline row"""
+    actions = {
+        "actions": [
+            {"actionDate": "2024-06-27", "text": "Referred to the Committee on the Judiciary."},
+            {"actionDate": "2024-06-26", "text": "Introduced in House.", "type": "IntroReferral"},
+            {"actionDate": "2024-06-26", "text": "Introduced in House.", "type": "Floor"},
+        ]
+    }
+    base = "/bill/118/hr/8818"
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get(base).respond(json=_fixture("detail.json"))
+        mock.get(f"{base}/actions").respond(json=actions)
+        mock.get(f"{base}/amendments").respond(json=_fixture("amendments.json"))
+        mock.get(f"{base}/text").respond(json=_fixture("text.json"))
+        mock.get(f"{base}/summaries").respond(json=_fixture("summaries.json"))
+        mock.get(f"{base}/relatedbills").respond(json=_fixture("relatedbills.json"))
+        bill = _source().fetch("118/hr/8818")
+    assert [(a.date, a.text) for a in bill.actions] == [
+        (dt.date(2024, 6, 26), "Introduced in House."),
+        (dt.date(2024, 6, 27), "Referred to the Committee on the Judiciary."),
+    ]
+
+
 def test_fetch_maps_amendments_with_chamber_and_explanation() -> None:
     """should map amendments with formatted number, chamber, status, and what_changed"""
     with respx.mock(base_url=CONGRESS_API_BASE) as mock:

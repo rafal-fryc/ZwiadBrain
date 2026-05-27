@@ -34,3 +34,6 @@ data/raw/
 data/cache/
 *.sqlite
 *.db
+
+# --- Claude Code (machine-local permission state; phases/ stays tracked) ---
+.claude/settings.local.json

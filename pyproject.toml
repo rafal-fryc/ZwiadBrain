@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zwiadbrain"
+version = "0.1.0"
+description = "LLM-driven wiki + agent system tracking U.S. AI/privacy/cyber legislation and enforcement actions, integrated with a read-only law-brain commentary layer."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "riffyraf" }]
+dependencies = [
+  "httpx>=0.27",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "anthropic>=0.40",
+  "python-frontmatter>=1.1",
+  "PyYAML>=6.0",
+  "feedparser>=6.0",
+  "beautifulsoup4>=4.12",
+  "tenacity>=8.4",
+  "typer>=0.12",
+  "jinja2>=3.1",
+  "python-dotenv>=1.0",
+]
+
+[project.scripts]
+zwiadbrain = "zwiadbrain.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.2",
+  "respx>=0.21",
+  "ruff>=0.5",
+  "pyright>=1.1.370",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zwiadbrain"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"

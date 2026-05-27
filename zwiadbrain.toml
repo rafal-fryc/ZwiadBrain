@@ -1,0 +1,48 @@
+# ZwiadBrain configuration. Secrets live in .env (gitignored), never here.
+# The config loader (config.py) is added in a later phase; this file is the
+# committed source of operational settings.
+
+[llm]
+# Default to the latest, most capable Claude models.
+model = "claude-opus-4-7"
+classifier_model = "claude-haiku-4-5-20251001"
+# Prompt caching is applied to the reference/taxonomy prefix in llm/client.py.
+
+[sources]
+enabled = ["congress", "govinfo", "legiscan", "ftc", "state_ag"]
+
+[states]
+# v1 priority states (tracked via LegiScan).
+enabled = ["ca", "ny", "tx", "co", "va", "wa", "il"]
+
+[lawbrain]
+enabled = true
+# Overridable via LAW_BRAIN_PATH in .env. Read-only; ZwiadBrain never edits the law brain.
+path = "C:/Users/rafst/Documents/projectas/Brains/law"
+min_confidence = 0.75
+require_shared_key = true        # decision 16: deterministic shared-key confirm gates auto-apply
+demote_headings = true           # decision 6: copied ## headings demoted to ###
+commentary = true
+discover = false                 # decision 14 / PHASE-11 gate — do NOT enable until approved
+commentary_only_types = ["concept", "framework", "vendor", "person", "matter"]
+commentary_only_slug_markers = ["tracker", "landscape", "map", "scholarship"]
+
+[lawbrain.type_map]
+# decision 8: which law-brain page types map to which ZwiadBrain page kind.
+regulation = "bill"
+statute = "bill"
+case = "enforcement"
+guidance = "enforcement"
+incident = "enforcement"
+enforcement = "enforcement"
+
+# State AG enforcement sources are config-driven (expanded in PHASE-08), e.g.:
+# [[enforcement.state_ag]]
+# name = "California OAG"
+# jurisdiction = "US-CA"
+# url = "https://oag.ca.gov/news/press-releases/feed"
+# kind = "rss"          # or "html"
+# item_selector = ""    # CSS selector when kind = "html"
+
+# Topic taxonomy, keyword seed lexicon, and the DISQUALIFY lexicon (decision 17)
+# live in reference/topics.yaml (added in PHASE-04).

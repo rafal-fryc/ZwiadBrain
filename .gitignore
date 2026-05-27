@@ -29,9 +29,10 @@ dist/
 build/
 *.egg-info/
 
-# --- Local data / caches (law brain, scraped bills, etc.) ---
+# --- Local data / caches (law brain, scraped bills, pipeline run staging, etc.) ---
 data/raw/
 data/cache/
+data/runs/
 *.sqlite
 *.db
 

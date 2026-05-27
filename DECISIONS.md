@@ -182,3 +182,52 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** Secrets (flat fields) and operational config (nested tables) never overlap, so an explicit merge is simple and gives deterministic precedence and trivial test injection of arbitrary file paths; the `_env_file` init kwarg is also not present on pydantic-settings' type-checker-synthesized `__init__`, so the explicit path stays type-clean under `pyright --strict`.
 **Trade-offs:** Re-implements a small slice of pydantic-settings' env handling for the four known secrets rather than using its source pipeline.
 **Revisit if:** Settings grow many env-sourced fields or need nested/prefixed env parsing — then adopt a custom `SettingsConfigDict` source chain.
+
+## 2026-05-27 — 26. LLM runs via interactive Claude Code subagents on the regular plan, not the API/SDK
+**Chosen:** The relevance classifier, summarizer, and amendment-explainer are Claude Code subagents (`.claude/agents/*.md`) dispatched from an interactive session via a `/zwiad-backfill` slash command. No Anthropic API key, no Agent SDK, no headless `claude -p`.
+**Alternatives:** (a) Anthropic API key (metered); (b) Agent SDK with subscription auth; (c) headless `claude -p`.
+**Why:** The user wants the work to run on their existing Claude plan. Per support.claude.com (eff. 2026-06-15), `claude -p` and the Agent SDK draw a separate, capped monthly *Agent SDK credit* and then bill API rates; the Agent SDK does not support claude.ai subscription auth at all (verified via docs + open issue #559). Only *interactive* Claude Code uses the regular plan limits. The sibling `Zwiad` project (github.com/rafal-fryc/Zwiad) already runs this way. User decision.
+**Trade-offs:** Not headless/cron-able — a session must be open and triggered (the user accepts keeping a terminal open). The classification logic lives in subagent prompts, validated by interactive UAT rather than deterministic offline unit tests.
+**Revisit if:** Unattended automation or throughput needs outgrow an open session — then reconsider `claude -p`-on-credit or the API.
+
+## 2026-05-27 — 27. Pipeline pivots to Claude-Code-orchestrated; Python is deterministic tooling
+**Chosen:** Claude Code orchestrates the LLM backfill (the slash command); Python provides deterministic, independently-testable commands — `fetch-candidates` (discover → keyword filter → enrich → `candidates.json`) and `render-classified` (validate `topics` → render → index) — exchanging gitignored JSON files under `data/runs/<id>/`. Mirrors Zwiad's file-based agent handoffs.
+**Alternatives:** Keep the PLAN's Python-orchestrated pipeline calling an LLM client.
+**Why:** Decision 26 means the orchestrator must be the interactive session, not Python. Splitting backfill at the LLM boundary keeps each half single-purpose and the Python half fully unit-testable.
+**Trade-offs:** Departs from the PLAN's orchestration model — **PHASE-06** (`run.py` two-pass) becomes a slash command and **PHASE-10** (cron + `claude -p`) becomes in-session scheduling (`/loop` or scheduled task). To be re-planned in those phases.
+**Revisit if:** A future headless path is adopted (see decision 26).
+
+## 2026-05-27 — 28. Classify after fetch, on title + CRS summary; gate the expensive LLM steps
+**Chosen:** Order is discover → keyword filter → `source.fetch` (cheap HTTP, yields the CRS-extract summary) → classify (title + CRS summary) → IN-SCOPE only: summarize + explain amendments → render. Only `topics[]` is persisted to a page; `confidence`/`rationale`/`criterion` stay in the session transcript.
+**Alternatives:** Classify on the title-only candidate before fetch (PLAN diagram order); or enrich fully then classify.
+**Why:** Congress candidates carry title only — the summary the DISQUALIFY rubric needs exists only after `fetch`. Classifying before the summarizer/amendment subagents avoids spending plan usage on off-topic bills. Keeping nondeterministic classifier outputs out of frontmatter preserves byte-identical re-renders / clean `git status`.
+**Trade-offs:** A few cheap Congress HTTP fetches are spent on bills that get classified out (HTTP, not plan usage).
+**Revisit if:** A source begins returning summaries at discovery time (then title+summary classification could precede fetch).
+
+## 2026-05-27 — 29. `topics.yaml` is the single source for both recall seeds and the classifier rubric
+**Chosen:** `reference/topics.yaml` holds the taxonomy, keyword seeds, positive criteria, and DISQUALIFY lexicon. `reference/loader.py` exposes `seeds` (flat, deduped → keyword filter) and `topic_keys` (valid `topics[]` values → render-time validation). The `classifier` subagent reads `topics.yaml` directly for the rubric. Subagents are restricted to `tools: Read`.
+**Alternatives:** Duplicate the rubric into the classifier `.md`; or render the rubric in Python and pass it in the prompt.
+**Why:** One file feeding both the recall and precision stages means they cannot drift. Restricting subagents to `Read` (rather than omitting `tools`, which inherits every tool including Write/Bash) is the safe minimal allowlist for single-shot text tasks.
+**Trade-offs:** The classifier performs a file read each invocation (cheap, and keeps the orchestrator prompt small).
+**Revisit if:** The rubric needs per-jurisdiction variants, or seed/criteria volume warrants splitting the file.
+
+## 2026-05-27 — 30. Dropped the `anthropic` dependency
+**Chosen:** Removed `anthropic` from `pyproject.toml`; Python makes no direct LLM calls.
+**Alternatives:** Keep it for a future API fallback.
+**Why:** Decisions 26–27 route all LLM work through Claude Code subagents, so the SDK is unused. Carrying an unused dependency invites drift and supply-chain surface.
+**Trade-offs:** Re-adding it is one `uv add anthropic` away if an API fallback is ever chosen.
+**Revisit if:** A headless/API path is adopted (decision 26).
+
+## 2026-05-27 — 31. Federal discovery recall is a known gap; fix deferred to PHASE-03.1
+**Chosen:** Acknowledge that `fetch-candidates`/`discover` has weak recall (newest-updated window + title-only filter miss topical bills, as the Phase-04 UAT showed by returning 0 candidates for `--congress 118 --limit 5`), and defer the fix to an inserted **PHASE-03.1** rather than fold it into the Phase-04 LLM-pipeline UAT.
+**Alternatives:** Fix recall now as part of Phase-04; or leave it undocumented.
+**Why:** The recall weakness is Phase-03 discovery scope, orthogonal to the Phase-04 classify→summarize→render pipeline. Mixing them would conflate two concerns and block Phase-04 validation. Phase-04 is validated against a widened/curated set; recall gets its own phase. User decision.
+**Trade-offs:** Until PHASE-03.1 lands, automated seeded discovery under-recalls; UAT and near-term backfills rely on a wider `--limit` or curated bill sets.
+**Revisit if:** N/A — scheduled as PHASE-03.1 (verify Congress.gov v3 search capability first, then choose pagination / since-window / summary-axis filtering).
+
+## 2026-05-27 — 32. Consumer financial-sector data privacy is in scope
+**Chosen:** FCRA / credit-reporting / GLBA and financial data-broker bills are IN scope when regulating the collection or sharing of personal data is the bill's operative core (e.g. the Homebuyers Privacy Protection Act's credit-report "trigger-leads" restriction). A financial bill is OUT only when its data/technology mention is incidental to a non-privacy purpose (e.g. the Insurance Data Protection Act's FIO subpoena power).
+**Alternatives:** Exclude financial-sector privacy as a separate banking/CFPB beat.
+**Why:** FCRA is foundational U.S. consumer-privacy law and credit data is personal data; the `data broker` seed already pulls in financial-data trafficking, so excluding financial privacy would create an inconsistent blind spot. The classifier already draws this line correctly (core data-privacy = in, incidental = out), validated on two real bills in the Phase-04 UAT. User decision.
+**Trade-offs:** Some banking-adjacent bills with genuine data-privacy provisions are tracked; pure financial-regulation bills are excluded by the existing "incidental" disqualifier (D5).
+**Revisit if:** The tracker should narrow to a "modern privacy + AI + cyber" beat that deliberately excludes sectoral financial privacy — then add a `topics.yaml` disqualifier and re-validate.

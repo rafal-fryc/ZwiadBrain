@@ -4,6 +4,8 @@ Commands are added per phase (scan, backfill, render, reindex, sync-lawbrain,
 review, lawbrain-status). For now the app only reports its version.
 """
 
+import datetime as dt
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -11,12 +13,16 @@ import typer
 
 from zwiadbrain import __version__
 from zwiadbrain.config import load_settings
-from zwiadbrain.exceptions import AppError
+from zwiadbrain.exceptions import AppError, ConfigError
+from zwiadbrain.models import Bill
 from zwiadbrain.pipeline.discover import keyword_filter
 from zwiadbrain.pipeline.enrich import enrich
 from zwiadbrain.pipeline.render import write_page
+from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.congress import CongressSource
 from zwiadbrain.store import Store
+
+_DEFAULT_TOPICS = Path("reference/topics.yaml")
 
 app = typer.Typer(
     name="zwiadbrain",
@@ -71,6 +77,70 @@ def backfill(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"backfilled {written} federal bill(s) into {wiki}")
+
+
+@app.command(name="fetch-candidates")
+def fetch_candidates(
+    congress: Annotated[int, typer.Option(help="Congress number, e.g. 118.")],
+    limit: Annotated[int, typer.Option(help="Max candidates to fetch.")] = 5,
+    seed: Annotated[
+        list[str] | None,
+        typer.Option(help="Keyword seed (repeatable); defaults to topics.yaml seeds."),
+    ] = None,
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for candidates.json.")
+    ] = None,
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+) -> None:
+    """Fetch keyword-matched federal candidates and stage them for classification.
+
+    The deterministic first half of the LLM pipeline: discover -> keyword recall
+    filter -> enrich, writing fully-fetched ``Bill``s to ``candidates.json`` for
+    the interactive session's classifier/summarizer subagents to consume.
+    """
+    try:
+        seeds = seed if seed else load_reference(topics).seeds
+        api_key = load_settings().require_congress_api_key()
+        source = CongressSource(api_key)
+        candidates = source.discover(congress=congress, limit=limit * 5 if seeds else limit)
+        candidates = keyword_filter(candidates, seeds)[:limit]
+        bills = [enrich(source, candidate) for candidate in candidates]
+        run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")
+        run_dir.mkdir(parents=True, exist_ok=True)
+        path = run_dir / "candidates.json"
+        payload = [bill.model_dump(mode="json") for bill in bills]
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"fetched {len(bills)} candidate(s) to {path}")
+
+
+@app.command(name="render-classified")
+def render_classified(
+    input_file: Annotated[Path, typer.Option("--in", help="classified.json to render.")],
+    wiki: Annotated[Path, typer.Option(help="Wiki root to write pages under.")] = Path("wiki"),
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+) -> None:
+    """Render classified, in-scope bills into the wiki, validating their topics.
+
+    The deterministic second half: the interactive session hands back in-scope
+    ``Bill``s (topics/summary/what_changed applied by subagents); this validates
+    ``topics`` against the taxonomy and renders the pages.
+    """
+    try:
+        topic_keys = set(load_reference(topics).topic_keys)
+        raw = json.loads(input_file.read_text(encoding="utf-8"))
+        bills = [Bill.model_validate(item) for item in raw]
+        for bill in bills:
+            unknown = [topic for topic in bill.topics if topic not in topic_keys]
+            if unknown:
+                raise ConfigError(f"bill {bill.id} has unknown topic(s): {', '.join(unknown)}")
+        written = sum(write_page(bill, wiki) for bill in bills)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"rendered {written} page(s) into {wiki}")
 
 
 def main() -> None:

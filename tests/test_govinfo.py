@@ -145,11 +145,12 @@ def test_enacted_law_maps_plaw_to_enactment() -> None:
     pkg_id = enrolled_bill_package_id(118, "HR", 8818)
     with respx.mock(base_url=GOVINFO_API_BASE) as mock:
         mock.get(f"/related/{pkg_id}/PLAW").respond(json=_fixture("related_plaw.json"))
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(json=_fixture("related_statute_empty.json"))
         enactment = _source().enacted_law(118, "HR", 8818)
     assert isinstance(enactment, Enactment)
     assert enactment.public_law == "118-42"
     assert enactment.url == "https://www.govinfo.gov/app/details/PLAW-118publ42"
-    # date_signed and statutes_at_large are filled by T7 merger; left None here
+    # date_signed is not populated by this method; statutes_at_large is None (empty fixture)
     assert enactment.date_signed is None
     assert enactment.statutes_at_large is None
 
@@ -341,6 +342,7 @@ def test_get_json_retries_on_transient_server_error() -> None:
             httpx.Response(503),
             httpx.Response(200, json=_fixture("related_plaw.json")),
         ]
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(json=_fixture("related_statute_empty.json"))
         enactment = _source().enacted_law(118, "HR", 8818)
     assert route.call_count == 2
     assert enactment is not None
@@ -401,3 +403,47 @@ def test_post_json_raises_source_fetch_error_on_4xx() -> None:
         mock.post("/search").respond(403)
         with pytest.raises(SourceFetchError):
             _source().hearings(118, "H.R. 8818")
+
+
+# --- fetch_statutes_at_large + enacted_law integration ----------------------
+
+
+def test_fetch_statutes_at_large_maps_first_row_to_statutes_at_large() -> None:
+    """should map STATUTE related row to StatutesAtLarge(citation, url)"""
+    import respx
+    from zwiadbrain.models import StatutesAtLarge
+    from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource
+
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get("/related/PLAW-118publ31/STATUTE").respond(json=_fixture("related_statute.json"))
+        result = GovInfoSource(api_key="k").fetch_statutes_at_large("PLAW-118publ31")
+    assert isinstance(result, StatutesAtLarge)
+    assert result.citation == "Statutes at Large Volume 138, Page 1234"
+    assert result.url == "https://www.govinfo.gov/app/details/STATUTE-138-Pg1234"
+
+
+def test_fetch_statutes_at_large_returns_none_on_empty_related() -> None:
+    """should return None when /related/{plaw}/STATUTE has no results (fail-quiet)"""
+    import respx
+    from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource
+
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get("/related/PLAW-118publ99/STATUTE").respond(json=_fixture("related_statute_empty.json"))
+        result = GovInfoSource(api_key="k").fetch_statutes_at_large("PLAW-118publ99")
+    assert result is None
+
+
+def test_enacted_law_now_populates_statutes_at_large() -> None:
+    """should call fetch_statutes_at_large and attach the result to Enactment"""
+    import respx
+    from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource, enrolled_bill_package_id
+
+    pkg_id = enrolled_bill_package_id(118, "HR", 8818)
+    plaw_results = {"results": [{"packageId": "PLAW-118publ42"}]}
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get(f"/related/{pkg_id}/PLAW").respond(json=plaw_results)
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(json=_fixture("related_statute.json"))
+        result = GovInfoSource(api_key="k").enacted_law(118, "HR", 8818)
+    assert result is not None
+    assert result.statutes_at_large is not None
+    assert result.statutes_at_large.citation == "Statutes at Large Volume 138, Page 1234"

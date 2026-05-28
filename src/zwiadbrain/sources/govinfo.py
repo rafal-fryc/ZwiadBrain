@@ -26,7 +26,7 @@ from tenacity import (
 )
 
 from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
-from zwiadbrain.models import CommitteeReport, Enactment, FloorAction, Hearing
+from zwiadbrain.models import CommitteeReport, Enactment, FloorAction, Hearing, StatutesAtLarge
 
 GOVINFO_API_BASE = "https://api.govinfo.gov"
 
@@ -248,6 +248,24 @@ class GovInfoSource:
             if r.get("packageId")
         ]
 
+    def fetch_statutes_at_large(self, plaw_package_id: str) -> StatutesAtLarge | None:
+        """Resolve a PLAW package's Statutes-at-Large citation, or ``None`` if absent.
+
+        Calls ``GET /related/{plawPackageId}/STATUTE``.  Some PLAW packages do
+        not yet have a published STATUTE row (the volume hasn't been printed),
+        in which case the related list is empty and this returns ``None``
+        (fail-quiet, matching the project's "no link, no render" rule).
+        """
+        results = self.related(plaw_package_id, "STATUTE")
+        if not results:
+            return None
+        first = results[0]
+        package_id = str(first.get("packageId") or "")
+        if not package_id:
+            return None
+        title = _flatten_str(first.get("title")) or package_id
+        return StatutesAtLarge(citation=title, url=details_url(package_id))
+
     def enacted_law(
         self, congress: int, bill_type: str, number: int | str
     ) -> Enactment | None:
@@ -260,7 +278,7 @@ class GovInfoSource:
         package_id = str(first.get("packageId") or "")
         return Enactment(
             public_law=_parse_public_law(package_id),
-            statutes_at_large=None,
+            statutes_at_large=self.fetch_statutes_at_large(package_id) if package_id else None,
             url=details_url(package_id) if package_id else None,
             date_signed=None,
         )

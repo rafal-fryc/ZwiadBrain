@@ -1,7 +1,17 @@
 """ZwiadBrain command-line interface.
 
-Commands are added per phase (scan, backfill, render, reindex, sync-lawbrain,
-review, lawbrain-status). For now the app only reports its version.
+These are the deterministic fetch/render halves that the interactive Claude Code
+slash commands drive (the subagents run between a fetch and a render; Python
+makes no LLM calls — DECISIONS.md D26/D27). Commands:
+
+- ``version`` / ``reindex`` — utilities.
+- ``backfill`` — deterministic discover→enrich→render (no classification).
+- ``fetch-candidates`` / ``render-classified`` — the ``/zwiad-backfill`` halves.
+- ``fetch-leg-history`` / ``render-leg-history`` — the ``/zwiad-leg-history`` halves.
+- ``fetch-refreshable`` / ``render-refreshed`` — the ``/zwiad-refresh`` halves.
+
+State sources, enforcement, and law-brain commands are not yet implemented; see
+``ARCHITECTURE.md``.
 """
 
 import datetime as dt
@@ -47,8 +57,8 @@ app = typer.Typer(
 def root() -> None:
     """ZwiadBrain command-line interface.
 
-    A callback is present so the app stays a multi-command group (commands keep
-    their names) even while only ``version`` is wired up.
+    A callback is present so the app stays a multi-command group (each command
+    keeps its own name rather than collapsing into a single-command program).
     """
 
 

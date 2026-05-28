@@ -31,7 +31,7 @@ class CommentarySource(BaseModel):
     updated: dt.date | None = None
     content_hash: str
     matched_by: Literal["deterministic", "llm"]
-    confidence: float
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     body: str | None = None  # verbatim copied page body; rendered, not stored in frontmatter
 
 

@@ -58,6 +58,20 @@ def test_bill_requires_bill_number() -> None:
         Bill.model_validate({"id": "x", "jurisdiction": "US-CA", "title": "t"})
 
 
+def test_commentary_source_rejects_out_of_range_confidence() -> None:
+    """should reject a confidence above 1.0"""
+    with pytest.raises(ValidationError):
+        CommentarySource.model_validate(
+            {
+                "path": "wiki/regulation-x.md",
+                "slug": "regulation-x",
+                "content_hash": "deadbeef",
+                "matched_by": "llm",
+                "confidence": 1.5,
+            }
+        )
+
+
 def test_enforcement_requires_agency() -> None:
     """should reject an enforcement action with no agency"""
     with pytest.raises(ValidationError):

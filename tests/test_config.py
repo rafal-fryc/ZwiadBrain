@@ -79,6 +79,19 @@ def test_env_law_brain_path_overrides_toml(tmp_path: Path, monkeypatch: pytest.M
     assert settings.effective_law_brain_path == Path("D:/override/law")
 
 
+def test_lawbrain_rejects_out_of_range_min_confidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should reject a [lawbrain].min_confidence above 1.0"""
+    from pydantic import ValidationError
+
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    bad_toml = _TOML.replace("min_confidence = 0.75", "min_confidence = 1.5")
+    toml_path, env_path = _write(tmp_path, toml=bad_toml)
+    with pytest.raises(ValidationError):
+        load_settings(toml_path=toml_path, env_file=env_path)
+
+
 def test_process_env_overrides_dotenv_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

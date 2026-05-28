@@ -22,9 +22,11 @@ def _summary_hash(summary: str | None) -> str | None:
 
     Whitespace normalization mirrors the deterministic-render contract used
     elsewhere in the codebase so a Congress-side reformatting that only changes
-    whitespace does not spuriously dirty the cursor.
+    whitespace does not spuriously dirty the cursor.  Whitespace-only summaries
+    are treated as no summary (returns ``None``) so the cursor matches
+    :func:`zwiadbrain.pipeline.refresh.summary_hash` byte-for-byte.
     """
-    if not summary:
+    if not summary or not summary.strip():
         return None
     normalized = " ".join(summary.split())
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()

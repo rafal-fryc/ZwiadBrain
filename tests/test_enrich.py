@@ -90,3 +90,17 @@ def test_enrich_sets_amendments_count_from_amendments_list() -> None:
     source = _FakeSource(bill)
     out = enrich(source, _candidate())
     assert out.amendments_count == 2
+
+
+def test_enrich_leaves_summary_hash_none_for_whitespace_only_summary() -> None:
+    """should treat a whitespace-only summary as no summary (parity with refresh.summary_hash)"""
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        summary="   \n\t  ",
+    )
+    source = _FakeSource(bill)
+    out = enrich(source, _candidate())
+    assert out.summary_hash is None

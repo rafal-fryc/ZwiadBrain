@@ -201,3 +201,32 @@ def test_apply_classifier_flip_raises_on_already_untracked() -> None:
     bill = _bill(tracking=False)
     with pytest.raises(ValueError, match="already-untracked"):
         apply_classifier_flip(bill, in_scope=False, rationale="x", date=dt.date(2026, 6, 4))
+
+
+# --- edge cases for defensive coverage ----------------------------------------
+
+
+def test_detect_refreshable_returns_none_when_prev_untracked() -> None:
+    """should return None even if fresh differs, when prev.tracking is False"""
+    prev = _bill(tracking=False, update_date="2026-05-01T00:00:00Z")
+    fresh = _bill(update_date="2026-05-03T00:00:00Z")
+    assert detect_refreshable(prev, fresh) is None
+
+
+def test_amendment_delta_returns_empty_when_fresh_empty() -> None:
+    """should return empty tuple when fresh amendments list is empty"""
+    from zwiadbrain.pipeline.refresh import _amendment_delta  # pyright: ignore[reportPrivateUsage]
+
+    prev = [Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 4, 1))]
+    assert _amendment_delta(prev, []) == ()
+
+
+def test_amendment_delta_marks_all_as_new_when_prev_empty() -> None:
+    """should return all fresh amendment numbers when prev is empty"""
+    from zwiadbrain.pipeline.refresh import _amendment_delta  # pyright: ignore[reportPrivateUsage]
+
+    fresh = [
+        Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 5, 1)),
+        Amendment(number="H.Amdt. 2", latest_action_date=dt.date(2026, 5, 2)),
+    ]
+    assert _amendment_delta([], fresh) == ("H.Amdt. 1", "H.Amdt. 2")

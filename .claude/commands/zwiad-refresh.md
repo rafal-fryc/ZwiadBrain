@@ -1,6 +1,5 @@
 ---
 description: Refresh tracked federal bills — detect changed cursors, dispatch classifier/summarizer/amendment-explainer subagents only where triggers fired, preserve PHASE-05 leg-history, flip out-of-scope bills (runs on your regular Claude plan usage).
-argument-hint: "[--bill <id>]"
 allowed-tools: Bash, Read, Write, Task
 ---
 
@@ -12,9 +11,6 @@ statements + narrative), and flip IN→OUT bills to `tracking: false`. Python
 does the deterministic fetch + render; you (this interactive session) do the
 LLM steps so the work runs on the regular Claude plan, **not** the API or the
 Agent SDK credit.
-
-Optional argument: `$1` may be `--bill <id>` to refresh a single bill (rare;
-default is all tracking=true federal bills).
 
 ## Steps
 

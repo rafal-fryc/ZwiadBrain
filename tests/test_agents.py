@@ -195,3 +195,22 @@ def test_zwiad_refresh_references_existing_subagents() -> None:
     assert "classifier" in text
     assert "summarizer" in text
     assert "amendment-explainer" in text
+
+
+def test_zwiad_refresh_has_all_six_orchestration_steps() -> None:
+    """should contain all 6 H3 step headings, in order, in the slash command body"""
+    refresh_cmd = _ROOT / ".claude" / "commands" / "zwiad-refresh.md"
+    text = refresh_cmd.read_text(encoding="utf-8")
+    required_steps = [
+        "### 1. Fetch refreshable",
+        "### 2. Read the refreshable list",
+        "### 3. Per-bill subagent dispatch",
+        "### 4. Stage refreshed",
+        "### 5. Render + index",
+        "### 6. Report",
+    ]
+    last_pos = -1
+    for step in required_steps:
+        pos = text.find(step)
+        assert pos > last_pos, f"Step out of order or missing: {step!r}"
+        last_pos = pos

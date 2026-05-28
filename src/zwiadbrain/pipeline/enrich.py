@@ -11,25 +11,10 @@ without re-comparing the full list.
 from __future__ import annotations
 
 import datetime as dt
-import hashlib
 
 from zwiadbrain.models import Bill
+from zwiadbrain.pipeline.refresh import summary_hash
 from zwiadbrain.sources.base import Candidate, Source
-
-
-def _summary_hash(summary: str | None) -> str | None:
-    """sha256 hex of whitespace-collapsed summary, or ``None`` when no summary.
-
-    Whitespace normalization mirrors the deterministic-render contract used
-    elsewhere in the codebase so a Congress-side reformatting that only changes
-    whitespace does not spuriously dirty the cursor.  Whitespace-only summaries
-    are treated as no summary (returns ``None``) so the cursor matches
-    :func:`zwiadbrain.pipeline.refresh.summary_hash` byte-for-byte.
-    """
-    if not summary or not summary.strip():
-        return None
-    normalized = " ".join(summary.split())
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 def enrich(source: Source, candidate: Candidate) -> Bill:
@@ -37,6 +22,6 @@ def enrich(source: Source, candidate: Candidate) -> Bill:
     bill = source.fetch(candidate.native_id)
     if bill.last_synced is None:
         bill.last_synced = dt.datetime.now(dt.UTC)
-    bill.summary_hash = _summary_hash(bill.summary)
+    bill.summary_hash = summary_hash(bill.summary)
     bill.amendments_count = len(bill.amendments)
     return bill

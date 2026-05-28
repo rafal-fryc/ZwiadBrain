@@ -106,3 +106,18 @@ def test_enrich_leaves_summary_hash_none_for_whitespace_only_summary() -> None:
     source = _FakeSource(bill)
     out = enrich(source, _candidate())
     assert out.summary_hash is None
+
+
+def test_enrich_uses_canonical_refresh_summary_hash() -> None:
+    """should compute summary_hash via the canonical refresh.summary_hash, not a private copy"""
+    from zwiadbrain.pipeline import enrich as enrich_mod
+    from zwiadbrain.pipeline.refresh import summary_hash
+
+    assert not hasattr(enrich_mod, "_summary_hash")  # private duplicate deleted
+
+    bill = Bill(
+        id="118-hr-77", jurisdiction="US", title="x", bill_number="H.R. 77",
+        summary="  This  bill\n establishes\tan AI board.  ",
+    )
+    out = enrich(_FakeSource(bill), _candidate())
+    assert out.summary_hash == summary_hash(bill.summary)

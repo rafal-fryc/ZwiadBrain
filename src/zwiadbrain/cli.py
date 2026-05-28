@@ -35,6 +35,7 @@ from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
     detect_refreshable,
     preserve_leg_history,
+    summary_hash,
 )
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.reference.loader import load_reference
@@ -255,10 +256,7 @@ def fetch_refreshable(
             fresh = congress_source.fetch(native_id)
             # Cross-source enrich seam: compute the cursors that source.fetch
             # cannot (they straddle the source/pipeline boundary by design).
-            from zwiadbrain.pipeline.enrich import (
-                _summary_hash,  # noqa: PLC0415  # pyright: ignore[reportPrivateUsage]
-            )
-            fresh.summary_hash = _summary_hash(fresh.summary)
+            fresh.summary_hash = summary_hash(fresh.summary)
             fresh.amendments_count = len(fresh.amendments)
             # For enacted bills, also re-derive the leg-history spine so
             # render-refreshed can reattach prev's hearings/statements/narrative.

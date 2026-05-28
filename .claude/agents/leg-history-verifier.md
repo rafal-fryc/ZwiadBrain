@@ -33,7 +33,16 @@ For **each statement** in the input list:
    whitespace), but the words must be the same. Paraphrases do not count.
 3. Check (b): is the quote attributed to the **named speaker** on that page —
    not to a different person?
-4. Both (a) AND (b) must be true for `verified: true`. If either fails, set
+4. Check (c) — **single-speaker contiguity**: the quoted text must be a SINGLE
+   CONTIGUOUS span uttered by the named speaker. Reject (`verified: false`, note
+   `"merged attribution"`) if the quote concatenates sentences the page
+   attributes to different speakers, splices across an attribution boundary (a
+   new speaker tag, a `>> SPEAKER` line, or a paragraph attributed to someone
+   else), or elides intervening text spoken by someone else. Whitespace and
+   typographic normalization are allowed; collapsing across a change of speaker
+   is NOT. A quote whose words all appear on the page but only because the page
+   interleaves a different speaker between them FAILS this check.
+5. All of (a), (b), AND (c) must be true for `verified: true`. If any fails, set
    `verified: false` and give a brief `note` explaining which check failed and
    why.
 
@@ -47,6 +56,9 @@ For **each statement** in the input list:
   sentence, heading, byline, or immediate surrounding context. If the speaker's
   name appears elsewhere on the page but not near the quote, that is NOT
   sufficient → `verified: false`.
+- **No merged attribution.** Words that are individually present on the page do
+  not satisfy verification if reaching them requires crossing a change of
+  speaker. The quote must read as one uninterrupted run from the named speaker.
 - **A missing or broken URL, or one that fails to load the quote** (fetch
   returns an error, empty body, or a page without the quote) means
   `verified: false`, with a note saying so.

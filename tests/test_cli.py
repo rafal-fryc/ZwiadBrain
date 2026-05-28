@@ -1257,3 +1257,17 @@ def test_fetch_refreshable_rejects_malformed_bill_id(tmp_path: Path) -> None:
     # must surface as ConfigError, the type fetch_refreshable's AppError handler catches.
     with pytest.raises(ConfigError):
         parse_bill_id("us-ca-sb-362")
+
+
+def test_reindex_skips_corrupt_page_and_indexes_the_rest(tmp_path: Path) -> None:
+    """should index the valid page and skip a page whose frontmatter YAML is malformed"""
+    wiki = tmp_path / "wiki"
+    write_page(Bill(id="118-hr-1", jurisdiction="US", title="Good", bill_number="H.R. 1"), wiki)
+    (wiki / "federal" / "bills" / "corrupt.md").write_text(
+        "---\nid: 118-hr-2\njurisdiction: {US\n---\nbody", encoding="utf-8"
+    )
+    result = runner.invoke(
+        app, ["reindex", "--wiki", str(wiki), "--db", str(tmp_path / "i.sqlite")]
+    )
+    assert result.exit_code == 0, result.output
+    assert "reindexed 1 pages" in result.stdout

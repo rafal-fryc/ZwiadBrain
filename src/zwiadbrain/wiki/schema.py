@@ -18,6 +18,7 @@ surfaces validation failures as :class:`WikiSchemaError`.
 """
 
 import frontmatter
+import yaml
 from pydantic import ValidationError
 
 from zwiadbrain.exceptions import WikiSchemaError
@@ -86,8 +87,10 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
 
 def from_page(text: str) -> Bill | EnforcementAction:
     """Parse a page's frontmatter into the correct model, validating required fields."""
-    metadata: dict[str, object] = frontmatter.loads(text).metadata
     try:
+        metadata: dict[str, object] = frontmatter.loads(text).metadata
         return parse_wiki_item(metadata)
+    except yaml.YAMLError as exc:
+        raise WikiSchemaError(f"malformed frontmatter YAML: {exc}") from exc
     except ValidationError as exc:
         raise WikiSchemaError(str(exc)) from exc

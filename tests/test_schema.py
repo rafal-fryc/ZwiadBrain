@@ -335,3 +335,12 @@ def test_from_page_raises_when_type_discriminator_absent() -> None:
     )
     with pytest.raises(WikiSchemaError):
         from_page(text)
+
+
+def test_from_page_raises_wiki_schema_error_on_malformed_yaml() -> None:
+    """should raise WikiSchemaError (not a raw yaml error) when frontmatter YAML is malformed"""
+    # Unclosed flow mapping in the frontmatter block — python-frontmatter delegates to
+    # PyYAML, which raises yaml.YAMLError; that must be normalized to WikiSchemaError.
+    text = "---\nid: 118-hr-1\njurisdiction: {US\n---\nbody"
+    with pytest.raises(WikiSchemaError):
+        from_page(text)

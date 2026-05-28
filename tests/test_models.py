@@ -201,7 +201,7 @@ def test_statement_invalid_role_raises_validation_error() -> None:
             {
                 "speaker": "Rep. X",
                 "role": "lobbyist",
-                "quote": "Good bill.",
+                "quote": "This is a good and necessary bill for consumers.",
                 "source_url": "https://example.gov",
                 "source_type": "press",
             }
@@ -215,7 +215,7 @@ def test_statement_invalid_source_type_raises_validation_error() -> None:
             {
                 "speaker": "Rep. X",
                 "role": "member",
-                "quote": "Good bill.",
+                "quote": "This is a good and necessary bill for consumers.",
                 "source_url": "https://example.gov",
                 "source_type": "tweet",
             }
@@ -228,7 +228,7 @@ def test_statement_requires_speaker() -> None:
         Statement.model_validate(
             {
                 "role": "member",
-                "quote": "Good bill.",
+                "quote": "This is a good and necessary bill for consumers.",
                 "source_url": "https://example.gov",
                 "source_type": "press",
             }
@@ -255,7 +255,7 @@ def test_statement_requires_source_url() -> None:
             {
                 "speaker": "Rep. X",
                 "role": "member",
-                "quote": "Good bill.",
+                "quote": "This is a good and necessary bill for consumers.",
                 "source_type": "press",
             }
         )
@@ -272,7 +272,7 @@ def test_leghistory_accepts_hearings_statements_narrative() -> None:
     s = Statement(
         speaker="Rep. A",
         role="cosponsor",
-        quote="We need this.",
+        quote="We need this legislation to protect our citizens.",
         source_url="https://example.gov",
         source_type="news",
     )
@@ -304,7 +304,7 @@ def test_leghistory_list_defaults_are_not_shared() -> None:
         Statement(
             speaker="X",
             role="other",
-            quote="Q",
+            quote="This quote is long enough to pass the floor.",
             source_url="https://example.gov",
             source_type="other",
         )
@@ -443,3 +443,36 @@ def test_bill_does_not_constrain_state_id_shape() -> None:
     """should leave non-US (state) ids alone — they do not use the federal triple form"""
     b = Bill(id="us-ca-sb-362", jurisdiction="US-CA", title="t", bill_number="SB 362")
     assert b.id == "us-ca-sb-362"
+
+
+# ---------------------------------------------------------------------------
+# B46: non-empty invariants on reason, citation, and quote floor
+# ---------------------------------------------------------------------------
+
+
+def test_flipout_audit_rejects_empty_reason() -> None:
+    """should reject an empty FlipOutAudit.reason"""
+    import datetime as dt
+
+    from zwiadbrain.models import FlipOutAudit
+    with pytest.raises(ValidationError):
+        FlipOutAudit(date=dt.date(2026, 6, 4), reason="")
+
+
+def test_statutes_at_large_rejects_empty_citation() -> None:
+    """should reject an empty StatutesAtLarge.citation"""
+    from zwiadbrain.models import StatutesAtLarge
+    with pytest.raises(ValidationError):
+        StatutesAtLarge(citation="", url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1")
+
+
+def test_statement_rejects_quote_shorter_than_grounding_floor() -> None:
+    """should reject a quote shorter than the 20-char D36 grounding floor"""
+    with pytest.raises(ValidationError):
+        Statement(
+            speaker="Rep. X",
+            role="member",
+            quote="too short",
+            source_url="https://example.gov",
+            source_type="press",
+        )

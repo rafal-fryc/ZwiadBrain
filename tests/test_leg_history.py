@@ -6,6 +6,7 @@ Uses simple fake source objects — no live network calls.
 import datetime as dt
 
 import pytest
+from pydantic import ValidationError
 
 from zwiadbrain.exceptions import ConfigError
 from zwiadbrain.models import (
@@ -896,16 +897,11 @@ def test_ground_items_result_fields_are_immutable_tuples() -> None:
 
 
 def test_ground_items_statement_dropped_when_quote_too_short() -> None:
-    """should drop a trivially short quote with the too-short reason, before any fetch"""
-    short = _make_statement(quote="no")
-    # Even though the page contains the quote and the verifier says True,
-    # gate 0 (min length) drops it first — and no fetch entry is needed.
-    fetch = _fake_fetch({"https://example.com/record": (200, "no")})
-    result = ground_items([short], [], fetch=fetch, verifier_verdicts={0: True})
-    assert len(result.statements) == 0
-    assert len(result.dropped) == 1
-    assert "too short" in result.dropped[0].reason
-    assert "2 chars" in result.dropped[0].reason
+    """should reject a trivially short quote at the model level (D36 floor on Statement.quote)"""
+    # Since D36 floor is now co-located on Statement.quote (min_length=20),
+    # a sub-20-char quote cannot even be constructed — the model raises ValidationError.
+    with pytest.raises(ValidationError):
+        _make_statement(quote="no")
 
 
 def test_ground_items_min_length_uses_normalized_length() -> None:
@@ -921,14 +917,11 @@ def test_ground_items_min_length_uses_normalized_length() -> None:
 
 
 def test_ground_items_min_length_floor_runs_before_fetch() -> None:
-    """gate 0 must run before fetch — a short quote drops even if its url 404s"""
-    short = _make_statement(quote="ok")
-    fetch = _fake_fetch({})  # url unreachable (status 0)
-    result = ground_items([short], [], fetch=fetch, verifier_verdicts={0: True})
-    assert len(result.dropped) == 1
-    # The reason is about length, not the (unreached) url status.
-    assert "too short" in result.dropped[0].reason
-    assert "status" not in result.dropped[0].reason
+    """gate 0 (D36 floor) is enforced at model construction — sub-20-char quotes cannot be built"""
+    # Since D36 floor is now co-located on Statement.quote (min_length=20),
+    # a sub-20-char quote never reaches ground_items at all.
+    with pytest.raises(ValidationError):
+        _make_statement(quote="ok")
 
 
 def test_ground_items_quote_at_min_length_floor_passes() -> None:
@@ -943,14 +936,12 @@ def test_ground_items_quote_at_min_length_floor_passes() -> None:
 
 
 def test_ground_items_quote_just_below_floor_dropped() -> None:
-    """a quote one char below _MIN_QUOTE_CHARS is dropped as too short"""
+    """a quote one char below _MIN_QUOTE_CHARS is rejected by the model (D36 co-location)"""
+    # Since D36 floor is now co-located on Statement.quote (min_length=20),
+    # _MIN_QUOTE_CHARS - 1 chars cannot be constructed at all.
     quote = "A" * (_MIN_QUOTE_CHARS - 1)
-    stmt = _make_statement(quote=quote)
-    fetch = _fake_fetch({"https://example.com/record": (200, quote)})
-    result = ground_items([stmt], [], fetch=fetch, verifier_verdicts={0: True})
-    assert len(result.statements) == 0
-    assert len(result.dropped) == 1
-    assert "too short" in result.dropped[0].reason
+    with pytest.raises(ValidationError):
+        _make_statement(quote=quote)
 
 
 def test_ground_items_accepts_quote_inside_html_when_text_extracted() -> None:

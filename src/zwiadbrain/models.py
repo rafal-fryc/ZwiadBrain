@@ -105,7 +105,7 @@ class Statement(BaseModel):
     speaker: str
     role: Literal["sponsor", "cosponsor", "member", "witness", "other"]
     date: dt.date | None = None
-    quote: str
+    quote: Annotated[str, Field(min_length=20)]  # D36 grounding floor (_MIN_QUOTE_CHARS)
     context: str | None = None
     source_url: str
     source_type: Literal["CREC", "hearing", "press", "news", "other"]
@@ -120,7 +120,7 @@ class StatutesAtLarge(BaseModel):
     rule is "no link, no render" (matching ``Hearing``, ``CommitteeReport``, etc.).
     """
 
-    citation: str
+    citation: Annotated[str, Field(min_length=1)]
     url: str
 
 
@@ -156,7 +156,7 @@ class FlipOutAudit(BaseModel):
     """
 
     date: dt.date
-    reason: str
+    reason: Annotated[str, Field(min_length=1)]
 
 
 class WikiItem(BaseModel):

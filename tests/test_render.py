@@ -261,14 +261,14 @@ def test_leg_history_statement_without_source_url_is_omitted() -> None:
                 Statement(
                     speaker="Rep. Anonymous",
                     role="member",
-                    quote="Words.",
+                    quote="These words have no verifiable source attached.",
                     source_url="",
                     source_type="other",
                 ),
                 Statement(
                     speaker="Rep. Cited",
                     role="member",
-                    quote="Cited words.",
+                    quote="These cited words are fully verifiable with a source.",
                     source_url="https://congress.gov/cited",
                     source_type="CREC",
                 ),

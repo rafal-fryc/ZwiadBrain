@@ -254,6 +254,39 @@ def test_render_classified_is_idempotent(tmp_path: Path) -> None:
     assert page.read_text(encoding="utf-8") == first
 
 
+def test_render_classified_reports_clean_error_on_malformed_json(tmp_path: Path) -> None:
+    """should exit 1 with an 'error:' message (no traceback) on invalid JSON"""
+    bad = tmp_path / "classified.json"
+    bad.write_text("{not valid json", encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, _render_args(bad, wiki))
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_render_classified_reports_clean_error_on_missing_required_field(tmp_path: Path) -> None:
+    """should exit 1 with an 'error:' message when a bill is missing a required field"""
+    bad = tmp_path / "classified.json"
+    # Missing required 'bill_number' (and 'jurisdiction'/'title') -> ValidationError.
+    bad.write_text(json.dumps([{"id": "118-hr-1", "type": "bill"}]), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, _render_args(bad, wiki))
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_render_classified_reports_clean_error_when_top_level_not_list(tmp_path: Path) -> None:
+    """should exit 1 with an 'error:' message when classified.json is not a JSON list"""
+    bad = tmp_path / "classified.json"
+    bad.write_text(json.dumps({"id": "118-hr-1"}), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, _render_args(bad, wiki))
+    assert result.exit_code == 1
+    assert "error:" in result.output
+
+
 # ---------------------------------------------------------------------------
 # fetch-leg-history
 #

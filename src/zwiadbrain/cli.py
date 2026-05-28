@@ -167,8 +167,21 @@ def render_classified(
     """
     try:
         topic_keys = set(load_reference(topics).topic_keys)
-        raw = json.loads(input_file.read_text(encoding="utf-8"))
-        bills = [Bill.model_validate(item) for item in raw]
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read classified file {input_file}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise ConfigError(
+                f"classified file must be a JSON list, got {type(raw).__name__}"
+            )
+        items: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+        bills: list[Bill] = []
+        for item in items:
+            try:
+                bills.append(Bill.model_validate(item))
+            except ValidationError as exc:
+                raise ConfigError(f"could not parse a bill in classified file: {exc}") from exc
         for bill in bills:
             unknown = [topic for topic in bill.topics if topic not in topic_keys]
             if unknown:

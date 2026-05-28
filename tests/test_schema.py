@@ -320,3 +320,18 @@ def test_from_page_round_trips_narrative_and_cursors() -> None:
     assert reparsed.leg_history is not None
     assert reparsed.leg_history.narrative == "The arc of the debate."
     assert len(reparsed.leg_history.hearings) == 1
+
+
+def test_from_page_raises_when_type_discriminator_absent() -> None:
+    """should raise WikiSchemaError when frontmatter has no 'type' discriminator"""
+    text = (
+        "---\n"
+        "id: 118-hr-1\n"
+        "jurisdiction: US\n"
+        "title: A Bill With No Type\n"
+        "bill_number: H.R. 1\n"
+        "---\n"
+        "body\n"
+    )
+    with pytest.raises(WikiSchemaError):
+        from_page(text)

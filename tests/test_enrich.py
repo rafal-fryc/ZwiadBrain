@@ -45,3 +45,48 @@ def test_enrich_preserves_a_source_provided_last_synced() -> None:
     bill = Bill(id="x", jurisdiction="US", title="t", bill_number="H.R. 1", last_synced=stamped)
     out = enrich(_FakeSource(bill), _candidate())
     assert out.last_synced == stamped
+
+
+def test_enrich_sets_summary_hash_when_summary_present() -> None:
+    """should set summary_hash to sha256 of whitespace-normalized summary"""
+    import hashlib
+
+    summary_text = "  This  bill\n establishes\tan AI advisory board.  "
+    normalized = " ".join(summary_text.split())
+    expected = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    bill = Bill(
+        id="118-hr-99",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 99",
+        summary=summary_text,
+        amendments=[],
+    )
+    source = _FakeSource(bill)
+    out = enrich(source, _candidate())
+    assert out.summary_hash == expected
+
+
+def test_enrich_leaves_summary_hash_none_when_no_summary() -> None:
+    """should leave summary_hash as None when bill has no summary"""
+    bill = Bill(id="118-hr-1", jurisdiction="US", title="x", bill_number="H.R. 1", summary=None)
+    source = _FakeSource(bill)
+    out = enrich(source, _candidate())
+    assert out.summary_hash is None
+
+
+def test_enrich_sets_amendments_count_from_amendments_list() -> None:
+    """should set amendments_count = len(bill.amendments) after fetch"""
+    from zwiadbrain.models import Amendment
+
+    bill = Bill(
+        id="118-hr-2",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 2",
+        amendments=[Amendment(number="H.Amdt. 1"), Amendment(number="H.Amdt. 2")],
+    )
+    source = _FakeSource(bill)
+    out = enrich(source, _candidate())
+    assert out.amendments_count == 2

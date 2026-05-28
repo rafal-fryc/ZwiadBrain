@@ -8,7 +8,7 @@ An LLM-driven wiki and agent system for **tracking U.S. federal and state legisl
 - Once a bill is enacted, assemble its legislative history in a standardized form.
 - Track related enforcement actions in the same subject areas.
 - Organize everything into an LLM wiki: per-bill pages covering what the bill is about, how it changed via amendments, and the legislative history that helps interpret it.
-- Keep the corpus current via a scheduled job that scans sources several times per week.
+- Keep the corpus current via a scheduled job that runs headless source detection a few times per week; the LLM enrichment pass that turns detected changes into pages runs in an interactive Claude Code session (see DECISIONS.md D41).
 
 ## How it works
 

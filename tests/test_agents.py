@@ -42,10 +42,19 @@ def test_agent_definition_is_well_formed(name: str) -> None:
 
 
 def test_classifier_prompt_states_its_rubric_and_json_contract() -> None:
-    """should tell the classifier to read topics.yaml and emit the in_scope JSON keys"""
+    """should tell the classifier to apply DISQUALIFY and emit the split criterion fields"""
     body = (_AGENTS / "classifier.md").read_text(encoding="utf-8")
     assert "topics.yaml" in body
-    for key in ("in_scope", "topics", "confidence", "rationale", "criterion"):
+    assert "DISQUALIFY" in body or "disqualify" in body
+    for key in (
+        "in_scope",
+        "topics",
+        "confidence",
+        "rationale",
+        "positive_criterion",
+        "disqualifier_survived",
+        "disqualifier_applied",
+    ):
         assert key in body
 
 
@@ -112,10 +121,23 @@ def test_leg_history_verifier_is_well_formed() -> None:
 
 
 def test_leg_history_verifier_prompt_states_output_contract() -> None:
-    """should instruct the verifier to emit an array of {index, verified, note} verdicts"""
+    """should show the full verdict shape in one block and require the contiguity check"""
     body = (_AGENTS / "leg-history-verifier.md").read_text(encoding="utf-8")
-    for key in ("index", "verified", "note"):
-        assert key in body
+    # The verdict JSON example must show all echo+verdict keys together in one
+    # fenced object, not scattered across the prompt.
+    assert '"index"' in body and '"verified"' in body and '"note"' in body
+    assert '"speaker"' in body
+    assert '"quote_prefix"' in body
+    one_object = [
+        line
+        for line in body.splitlines()
+        if '"index"' in line and '"verified"' in line and '"note"' in line
+    ]
+    assert one_object, "index, verified, and note must appear together in one JSON object line"
+    assert '"quote_prefix"' in one_object[0] and '"speaker"' in one_object[0]
+    # The single-speaker contiguity check (c) and its rejection note.
+    assert "contiguity" in body.lower()
+    assert "merged attribution" in body.lower()
 
 
 # ---------------------------------------------------------------------------

@@ -476,3 +476,40 @@ def test_statement_rejects_quote_shorter_than_grounding_floor() -> None:
             source_url="https://example.gov",
             source_type="press",
         )
+
+
+# ---------------------------------------------------------------------------
+# B47: require http(s) scheme on Statement.source_url and StatutesAtLarge.url
+# ---------------------------------------------------------------------------
+
+
+def test_statement_rejects_non_http_source_url() -> None:
+    """should reject a source_url without an http(s) scheme"""
+    with pytest.raises(ValidationError):
+        Statement(
+            speaker="Rep. X",
+            role="member",
+            quote="This is a sufficiently long and groundable quote.",
+            source_url="not-a-url",
+            source_type="press",
+        )
+
+
+def test_statement_source_url_round_trips_byte_identical() -> None:
+    """should keep a valid http url as a plain str with no reformatting"""
+    s = Statement(
+        speaker="Rep. X",
+        role="member",
+        quote="This is a sufficiently long and groundable quote.",
+        source_url="https://congress.gov/crec/2025/04/01",
+        source_type="CREC",
+    )
+    assert s.source_url == "https://congress.gov/crec/2025/04/01"
+    assert s.model_dump()["source_url"] == "https://congress.gov/crec/2025/04/01"
+
+
+def test_statutes_at_large_rejects_non_http_url() -> None:
+    """should reject a StatutesAtLarge.url without an http(s) scheme"""
+    from zwiadbrain.models import StatutesAtLarge
+    with pytest.raises(ValidationError):
+        StatutesAtLarge(citation="138 Stat. 1234", url="govinfo.gov/STATUTE")

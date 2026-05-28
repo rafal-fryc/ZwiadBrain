@@ -14,9 +14,23 @@ its annotation is evaluated.
 import datetime as dt
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter, model_validator
+from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, model_validator
 
 from zwiadbrain.exceptions import ConfigError
+
+
+def _require_http(value: str) -> str:
+    """Assert a URL string starts with ``http://`` or ``https://``.
+
+    Returns the value UNCHANGED on success so the serialized bytes are
+    byte-identical (D20) — unlike pydantic's ``HttpUrl``, which reformats.
+    """
+    if not (value.startswith("http://") or value.startswith("https://")):
+        raise ValueError(f"url must start with http:// or https://, got: {value!r}")
+    return value
+
+
+_HttpUrlStr = Annotated[str, AfterValidator(_require_http)]
 
 
 class CommentarySource(BaseModel):
@@ -107,7 +121,7 @@ class Statement(BaseModel):
     date: dt.date | None = None
     quote: Annotated[str, Field(min_length=20)]  # D36 grounding floor (_MIN_QUOTE_CHARS)
     context: str | None = None
-    source_url: str
+    source_url: _HttpUrlStr
     source_type: Literal["CREC", "hearing", "press", "news", "other"]
     verified: bool = False
 
@@ -121,7 +135,7 @@ class StatutesAtLarge(BaseModel):
     """
 
     citation: Annotated[str, Field(min_length=1)]
-    url: str
+    url: _HttpUrlStr
 
 
 class Enactment(BaseModel):

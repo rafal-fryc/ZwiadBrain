@@ -249,22 +249,18 @@ def test_leg_history_hearing_without_url_is_omitted() -> None:
     assert "Public Hearing" in body
 
 
-def test_leg_history_statement_without_source_url_is_omitted() -> None:
-    """should skip a statement that has no source_url (not verifiable)"""
+def test_leg_history_statement_with_source_url_is_rendered() -> None:
+    """should render a statement that has a valid http(s) source_url (B47 enforcement)"""
+    # Prior to B47, source_url accepted empty strings and the renderer skipped them.
+    # Now the model enforces http(s):// at construction time, so every Statement that
+    # can be created has a verifiable URL and WILL be rendered.
     bill = Bill(
         id="118-hr-3",
         jurisdiction="US",
-        title="No-URL Statement Bill",
+        title="Cited Statement Bill",
         bill_number="HR 3",
         leg_history=LegHistory(
             statements=[
-                Statement(
-                    speaker="Rep. Anonymous",
-                    role="member",
-                    quote="These words have no verifiable source attached.",
-                    source_url="",
-                    source_type="other",
-                ),
                 Statement(
                     speaker="Rep. Cited",
                     role="member",
@@ -276,7 +272,6 @@ def test_leg_history_statement_without_source_url_is_omitted() -> None:
         ),
     )
     body = render_bill_body(bill)
-    assert "Rep. Anonymous" not in body
     assert "Rep. Cited" in body
 
 

@@ -85,12 +85,37 @@ class Vote(BaseModel):
     roll_call_url: str | None = None
 
 
+class Hearing(BaseModel):
+    """A congressional hearing relevant to a bill's legislative history."""
+
+    title: str
+    committee: str | None = None
+    chamber: str | None = None
+    date: dt.date | None = None
+    citation: str | None = None
+    url: str | None = None
+
+
+class Statement(BaseModel):
+    """A recorded statement by a legislator, witness, or other participant."""
+
+    speaker: str
+    role: Literal["sponsor", "cosponsor", "member", "witness", "other"]
+    date: dt.date | None = None
+    quote: str
+    context: str | None = None
+    source_url: str
+    source_type: Literal["CREC", "hearing", "press", "news", "other"]
+    verified: bool = False
+
+
 class Enactment(BaseModel):
     """Enactment details recorded when a bill becomes law."""
 
     date_signed: dt.date | None = None
     public_law: str | None = None
     statutes_at_large: str | None = None
+    url: str | None = None
 
 
 class LegHistory(BaseModel):
@@ -102,6 +127,9 @@ class LegHistory(BaseModel):
     votes: list[Vote] = []
     conference: str | None = None
     enactment: Enactment | None = None
+    hearings: list[Hearing] = []
+    statements: list[Statement] = []
+    narrative: str | None = None
 
 
 class WikiItem(BaseModel):

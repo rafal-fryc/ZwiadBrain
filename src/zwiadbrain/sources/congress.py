@@ -26,7 +26,7 @@ from tenacity import (
 )
 
 from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
-from zwiadbrain.models import Action, Amendment, Bill, TextVersion
+from zwiadbrain.models import Action, Amendment, Bill, TextVersion, Vote
 from zwiadbrain.sources.base import Candidate
 
 CONGRESS_API_BASE = "https://api.congress.gov/v3"
@@ -342,3 +342,37 @@ class CongressSource:
             update_date=_opt_str(detail.get("updateDateIncludingText") or detail.get("updateDate")),
             sources={"Congress.gov": _public_url(congress, bill_type, number)},
         )
+
+    # --- recorded votes -------------------------------------------------------
+
+    def recorded_votes(self, native_id: str) -> list[Vote]:
+        """Return recorded votes for a bill from its actions sub-resource.
+
+        This makes its own independent ``GET /bill/{congress}/{type}/{number}/actions``
+        request — even if the caller has already fetched the bill (and thus its
+        actions) elsewhere, this does not reuse that payload. One extra GET on an
+        on-demand single-bill command is acceptable; the orchestration phase may
+        thread a shared actions payload through later if it matters.
+
+        Each Congress.gov action may carry a ``recordedVotes`` list.  For each
+        item in that list one :class:`Vote` is emitted, using the recorded vote's
+        own ``date`` if present, falling back to the parent action's
+        ``actionDate``.  ``result`` is left ``None`` — the roll-call URL is the
+        verifiable link for downstream grounding.
+        """
+        congress, bill_type, number = native_id.split("/")
+        path = f"/bill/{congress}/{bill_type}/{number}/actions"
+        actions = _items(self._get_json(path).get("actions"))
+        votes: list[Vote] = []
+        for action in actions:
+            for rv in _items(action.get("recordedVotes")):
+                date_val = rv.get("date") or action.get("actionDate")
+                votes.append(
+                    Vote(
+                        date=_parse_date(date_val),
+                        chamber=_opt_str(rv.get("chamber")),
+                        result=None,
+                        roll_call_url=_opt_str(rv.get("url")),
+                    )
+                )
+        return votes

@@ -15,9 +15,14 @@ from zwiadbrain.models import (
     Amendment,
     Bill,
     CommentarySource,
+    Enactment,
     EnforcementAction,
+    FloorAction,
+    Hearing,
     LegHistory,
+    Statement,
     TextVersion,
+    Vote,
 )
 
 _env = jinja2.Environment(
@@ -82,42 +87,131 @@ def _sources(sources: dict[str, str]) -> str:
     return "\n".join(f"- [{name}]({url})" for name, url in sorted(sources.items()))
 
 
+def _floor_action_line(f: FloorAction) -> str:
+    """Render one floor-consideration item, linking the CR citation when a url is present."""
+    when: list[str] = []
+    if f.date:
+        when.append(f.date.isoformat())
+    if f.chamber:
+        when.append(f.chamber)
+    prefix = " ".join(when)
+    if f.url:
+        cr_part = (
+            f"[{f.congressional_record}]({f.url})"
+            if f.congressional_record
+            else f"[Congressional Record]({f.url})"
+        )
+    else:
+        cr_part = f.congressional_record or ""
+    segments = [seg for seg in (prefix, cr_part) if seg]
+    return "- " + " — ".join(segments)
+
+
+def _vote_line(v: Vote) -> str:
+    """Render one vote item, appending a roll-call link when roll_call_url is present."""
+    when: list[str] = []
+    if v.date:
+        when.append(v.date.isoformat())
+    if v.chamber:
+        when.append(v.chamber)
+    base = " ".join(when)
+    if v.result:
+        base = f"{base}: {v.result}" if base else v.result
+    if v.roll_call_url:
+        roll_call = f"[roll call]({v.roll_call_url})"
+        base = f"{base} — {roll_call}" if base else roll_call
+    return f"- {base}"
+
+
+def _enactment_block(enactment: Enactment) -> str:
+    """Render the enactment bullet list, linking the public law when url is present."""
+    rows: list[str] = []
+    if enactment.date_signed:
+        rows.append(f"Signed: {enactment.date_signed.isoformat()}")
+    if enactment.url:
+        if enactment.public_law:
+            rows.append(f"Public Law: [{enactment.public_law}]({enactment.url})")
+        else:
+            rows.append(f"[Public law document]({enactment.url})")
+    elif enactment.public_law:
+        rows.append(f"Public Law: {enactment.public_law}")
+    if enactment.statutes_at_large:
+        rows.append(f"Statutes at Large: {enactment.statutes_at_large}")
+    return "\n".join(f"- {row}" for row in rows)
+
+
+def _hearings_block(hearings: list[Hearing]) -> str:
+    """Render hearings that have a url; skip any without one (not verifiable)."""
+    lines: list[str] = []
+    for h in hearings:
+        if not h.url:
+            continue
+        bits: list[str] = [f'**Hearing:** "{h.title}"']
+        meta: list[str] = []
+        if h.committee:
+            meta.append(h.committee)
+        if h.date:
+            meta.append(h.date.isoformat())
+        if meta:
+            bits.append(", ".join(meta))
+        bits.append(f"[source]({h.url})")
+        lines.append("- " + " — ".join(bits))
+    return "\n".join(lines)
+
+
+def _statements_block(statements: list[Statement]) -> str:
+    """Render statements that have a source_url; skip any without one (not verifiable)."""
+    lines: list[str] = []
+    for s in statements:
+        if not s.source_url:
+            continue
+        date_part = f", {s.date.isoformat()}" if s.date else ""
+        base = f"- **{s.speaker}** ({s.role}){date_part} — \"{s.quote}\" — [source]({s.source_url})"
+        if s.verified:
+            base = f"{base} ✓"
+        lines.append(base)
+    return "\n".join(lines)
+
+
 def _leg_history(history: LegHistory) -> str:
     parts: list[str] = []
+    # 1. Legislative Journey (narrative)
+    if history.narrative:
+        parts.append("### Legislative Journey\n\n" + history.narrative.strip())
+    # 2. Versions
     if history.versions:
         parts.append("### Versions\n\n" + _text_versions(history.versions))
+    # 3. Committee Reports
     if history.committee_reports:
         reports = "\n".join(
             f"- [{r.citation}]({r.url})" if r.url else f"- {r.citation}"
             for r in history.committee_reports
         )
         parts.append("### Committee Reports\n\n" + reports)
+    # 4. Hearings
+    hearings_text = _hearings_block(history.hearings)
+    if hearings_text:
+        parts.append("### Hearings\n\n" + hearings_text)
+    # 5. Floor Consideration
     if history.floor_consideration:
-        floor = "\n".join(
-            f"- {(f.date.isoformat() if f.date else '')} {(f.chamber or '')}"
-            f" — {(f.congressional_record or '')}".strip()
-            for f in history.floor_consideration
-        )
+        floor = "\n".join(_floor_action_line(f) for f in history.floor_consideration)
         parts.append("### Floor Consideration\n\n" + floor)
+    # 6. Votes
     if history.votes:
-        votes = "\n".join(
-            f"- {(v.date.isoformat() if v.date else '')} {(v.chamber or '')}:"
-            f" {(v.result or '')}".strip()
-            for v in history.votes
-        )
+        votes = "\n".join(_vote_line(v) for v in history.votes)
         parts.append("### Votes\n\n" + votes)
+    # 7. Conference
     if history.conference:
         parts.append("### Conference\n\n" + history.conference)
+    # 8. Enactment
     if history.enactment:
-        enactment = history.enactment
-        rows = [
-            f"Signed: {enactment.date_signed.isoformat()}" if enactment.date_signed else "",
-            f"Public Law: {enactment.public_law}" if enactment.public_law else "",
-            f"Statutes at Large: {enactment.statutes_at_large}"
-            if enactment.statutes_at_large
-            else "",
-        ]
-        parts.append("### Enactment\n\n" + "\n".join(f"- {row}" for row in rows if row))
+        enactment_text = _enactment_block(history.enactment)
+        if enactment_text:
+            parts.append("### Enactment\n\n" + enactment_text)
+    # 9. Statements
+    statements_text = _statements_block(history.statements)
+    if statements_text:
+        parts.append("### Statements\n\n" + statements_text)
     return "\n\n".join(parts)
 
 

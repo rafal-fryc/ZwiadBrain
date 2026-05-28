@@ -9,17 +9,21 @@ import json
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 import typer
+from pydantic import ValidationError
 
 from zwiadbrain import __version__
 from zwiadbrain.config import load_settings
 from zwiadbrain.exceptions import AppError, ConfigError
-from zwiadbrain.models import Bill
+from zwiadbrain.models import Bill, Hearing, LegHistory, Statement
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
 from zwiadbrain.pipeline.enrich import enrich
+from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.congress import CongressSource
+from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.store import Store
 
 _DEFAULT_TOPICS = Path("reference/topics.yaml")
@@ -156,6 +160,237 @@ def render_classified(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"rendered {written} page(s) into {wiki}")
+
+
+@app.command(name="fetch-leg-history")
+def fetch_leg_history(
+    bill: Annotated[
+        str, typer.Option(help="Bill in congress/type/number form, e.g. 118/hr/9020.")
+    ],
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for leghistory.json.")
+    ] = None,
+) -> None:
+    """Fetch an enacted federal bill and stage its legislative-history inputs.
+
+    Assembles the deterministic spine (text versions, committee reports, votes,
+    floor consideration, enactment) and research leads (hearing candidates) via
+    Congress.gov and GovInfo, writing them to ``leghistory.json`` for the
+    interactive session's researcher/verifier subagents to consume.
+    """
+    try:
+        settings = load_settings()
+        congress_source = CongressSource(settings.require_congress_api_key())
+        govinfo_source = GovInfoSource(settings.require_govinfo_api_key())
+        fetched = congress_source.fetch(bill)
+        if not fetched.enacted:
+            raise ConfigError(
+                f"bill {fetched.id} is not enacted — legislative history is assembled"
+                " only for enacted bills"
+            )
+        spine = assemble_spine(fetched, congress_source, govinfo_source)
+        leads = collect_leads(fetched, govinfo_source)
+        run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")
+        run_dir.mkdir(parents=True, exist_ok=True)
+        path = run_dir / "leghistory.json"
+        payload = {
+            "bill": fetched.model_dump(mode="json"),
+            "spine": spine.model_dump(mode="json"),
+            "leads": leads,
+        }
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged legislative-history inputs for {fetched.id} to {path}")
+
+
+def _as_list(value: object, key: str) -> list[object]:
+    """Coerce a staging-JSON field to a list of items.
+
+    A missing field (``None``) — including a present-but-``null`` field — becomes
+    an empty list, so ``enumerate`` does not raise ``TypeError`` past the
+    ``AppError`` handler.  Any other non-list type is a malformed staging file and
+    raises :class:`ConfigError`.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ConfigError(f"staging file '{key}' must be a list, got {type(value).__name__}")
+    # `value` is list[Unknown] after the isinstance narrow; rebuild as list[object] so
+    # callers iterate typed `object` items (each then validated/narrowed at use).
+    items: list[object] = list(value)  # pyright: ignore[reportUnknownArgumentType]
+    return items
+
+
+def _fetch_url(url: str) -> tuple[int, str]:
+    """Fetch a URL for grounding; returns (status_code, body_text).
+
+    Never raises — returns (0, '') on any HTTP error or on a malformed
+    researcher-supplied URL (``httpx.InvalidURL``, which is NOT an HTTPError
+    subclass and would otherwise crash the whole render).
+    """
+    try:
+        resp = httpx.get(url, timeout=30.0, follow_redirects=True)
+        return (resp.status_code, resp.text)
+    except (httpx.HTTPError, httpx.InvalidURL):
+        return (0, "")
+
+
+@app.command(name="render-leg-history")
+def render_leg_history(
+    input_file: Annotated[
+        Path, typer.Option("--in", help="leghistory staging JSON to ground and render.")
+    ],
+    wiki: Annotated[Path, typer.Option(help="Wiki root to write pages under.")] = Path("wiki"),
+) -> None:
+    """Ground researched statements/hearings, assemble final leg history, and render the page."""
+    try:
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read staging file {input_file}: {exc}") from exc
+
+        if not isinstance(raw, dict):
+            raise ConfigError(f"staging file must be a JSON object, got {type(raw).__name__}")
+
+        payload: dict[str, object] = raw  # type: ignore[assignment]
+
+        if "bill" not in payload:
+            raise ConfigError("staging file is missing required key 'bill'")
+        if "spine" not in payload:
+            raise ConfigError("staging file is missing required key 'spine'")
+
+        try:
+            bill = Bill.model_validate(payload["bill"])
+        except Exception as exc:
+            raise ConfigError(f"could not parse 'bill' from staging file: {exc}") from exc
+
+        try:
+            spine = LegHistory.model_validate(payload["spine"])
+        except Exception as exc:
+            raise ConfigError(f"could not parse 'spine' from staging file: {exc}") from exc
+
+        # Per-item parse: collect validation failures as parse-drops instead of aborting.
+        # `_as_list` coerces a present-but-null JSON field to [] rather than None, which
+        # would raise TypeError past the AppError handler (a null statements/hearings/
+        # verdicts field is real researcher output, not a programming error).
+        #
+        # original_indices tracks each surviving statement's position in the raw input list.
+        # This is required for verdict remapping (see below): when an earlier item parse-drops,
+        # surviving items shift position, and verdicts keyed by original index must be remapped
+        # to the new surviving-list positions before being passed to ground_items.
+        parse_dropped_statements: list[tuple[str, str]] = []
+        statements: list[Statement] = []
+        original_indices: list[int] = []
+        for i, item in enumerate(_as_list(payload.get("statements"), "statements")):
+            try:
+                statements.append(Statement.model_validate(item))
+                original_indices.append(i)
+            except ValidationError as exc:
+                parse_dropped_statements.append((f"statement[{i}]", str(exc)))
+
+        parse_dropped_hearings: list[tuple[str, str]] = []
+        hearings: list[Hearing] = []
+        for i, item in enumerate(_as_list(payload.get("hearings"), "hearings")):
+            try:
+                hearings.append(Hearing.model_validate(item))
+            except ValidationError as exc:
+                parse_dropped_hearings.append((f"hearing[{i}]", str(exc)))
+
+        narrative_raw = payload.get("narrative")
+        if narrative_raw is not None and not isinstance(narrative_raw, str):
+            raise ConfigError(
+                f"staging file 'narrative' must be a string, got {type(narrative_raw).__name__}"
+            )
+        narrative = narrative_raw
+
+        # Build verdicts_by_original keyed by each entry's self-reported original index.
+        # These indices refer to positions in the FULL raw statements list (before parse-drops).
+        verdicts_by_original: dict[int, bool] = {}
+        for v in _as_list(payload.get("verdicts"), "verdicts"):
+            if not isinstance(v, dict):
+                raise ConfigError("each entry in 'verdicts' must be a JSON object")
+            verdict: dict[str, object] = v  # pyright: ignore[reportUnknownVariableType]
+            index = verdict.get("index")
+            if not isinstance(index, int):
+                raise ConfigError(f"verdict 'index' must be an integer, got {type(index).__name__}")
+            verdicts_by_original[index] = bool(verdict.get("verified"))
+
+        # Remap verdicts from original-index space to surviving-position space.
+        # ground_items keys verdicts by position in the list it receives (enumerate contract).
+        # When an earlier statement parse-drops, surviving statements shift position, so
+        # verdicts[original_i] must become verifier_verdicts[new_pos] where new_pos is the
+        # index of that statement in the surviving `statements` list.
+        # A missing original index in verdicts_by_original counts as not-verified (False),
+        # matching ground_items' own default for a missing key.
+        verifier_verdicts: dict[int, bool] = {
+            new_pos: verdicts_by_original.get(orig_idx, False)
+            for new_pos, orig_idx in enumerate(original_indices)
+        }
+
+        result = ground_items(
+            statements, hearings, fetch=_fetch_url, verifier_verdicts=verifier_verdicts
+        )
+
+        final = spine.model_copy(
+            update={
+                "hearings": list(result.hearings),
+                "statements": list(result.statements),
+                "narrative": narrative,
+            }
+        )
+        bill = bill.model_copy(update={"leg_history": final})
+
+        written = write_page(bill, wiki)
+
+        # ------------------------------------------------------------------ #
+        # Summary line
+        # ------------------------------------------------------------------ #
+        enacted_str = "enacted=yes" if (final.enactment is not None) else "enacted=no"
+        spine_summary = (
+            f"versions={len(final.versions)}"
+            f" committee_reports={len(final.committee_reports)}"
+            f" votes={len(final.votes)}"
+            f" floor={len(final.floor_consideration)}"
+            f" {enacted_str}"
+        )
+        # Counts reconcile against ALL input items: parse-dropped items never reach
+        # the grounding gate, so they are tracked separately from ground-drops.
+        stmt_parse_drops = len(parse_dropped_statements)
+        stmt_grounded = len(result.statements)
+        stmt_ground_drops = len(statements) - stmt_grounded
+        stmt_input = stmt_grounded + stmt_ground_drops + stmt_parse_drops
+
+        hearing_parse_drops = len(parse_dropped_hearings)
+        hearing_kept = len(result.hearings)
+        hearing_ground_drops = len(hearings) - hearing_kept
+        hearing_input = hearing_kept + hearing_ground_drops + hearing_parse_drops
+
+        page_status = "written" if written else "unchanged"
+        typer.echo(
+            f"{bill.id}: {spine_summary} | "
+            f"statements: {stmt_input} input / {stmt_grounded} grounded"
+            f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop | "
+            f"hearings: {hearing_input} input / {hearing_kept} grounded"
+            f" / {hearing_parse_drops} parse-drop / {hearing_ground_drops} ground-drop | "
+            f"narrative={'yes' if narrative else 'no'} | "
+            f"page {page_status}"
+        )
+
+        # ------------------------------------------------------------------ #
+        # Per-drop audit lines
+        # ------------------------------------------------------------------ #
+        for identifier, reason in parse_dropped_statements:
+            typer.echo(f"  dropped statement: {identifier} — {reason}")
+        for identifier, reason in parse_dropped_hearings:
+            typer.echo(f"  dropped hearing: {identifier} — {reason}")
+        for d in result.dropped:
+            typer.echo(f"  dropped {d.kind}: {d.identifier} — {d.reason}")
+
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 def main() -> None:

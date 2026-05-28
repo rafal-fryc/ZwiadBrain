@@ -1,0 +1,16 @@
+{
+  "count": 1,
+  "offsetMark": "AoE=",
+  "results": [
+    {
+      "title": "H8818 - House consideration and passage of H.R. 8818",
+      "packageId": "CREC-2024-12-18",
+      "granuleId": "CREC-2024-12-18-pt1-PgH8818",
+      "collectionCode": "CREC",
+      "dateIssued": "2024-12-18",
+      "governmentAuthor": null,
+      "resultLink": "https://api.govinfo.gov/packages/CREC-2024-12-18/summary",
+      "download": {}
+    }
+  ]
+}

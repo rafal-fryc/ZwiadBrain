@@ -282,3 +282,166 @@ def test_discover_since_window_uses_the_bill_endpoint() -> None:
     assert route.called
     assert len(candidates) == 2
     assert "fromDateTime" in str(route.calls.last.request.url)
+
+
+# --- recorded_votes ----------------------------------------------------------
+
+# Congress.gov actions payload shape for recorded-vote tests.
+# Each action may carry a ``recordedVotes`` list; the shape of each item is:
+# {"rollNumber": str, "chamber": str, "congress": int, "date": str (ISO),
+#  "sessionNumber": int, "url": str}
+_ACTIONS_WITH_VOTES: dict[str, Any] = {
+    "actions": [
+        {
+            "actionDate": "2024-12-20",
+            "text": "Became Public Law No: 118-265.",
+            "type": "BecameLaw",
+        },
+        {
+            # House passage vote — has recordedVotes with its own date and URL
+            "actionDate": "2024-12-18",
+            "text": "On passage Passed by the Yeas and Nays: 350 - 80.",
+            "type": "Floor",
+            "recordedVotes": [
+                {
+                    "rollNumber": "521",
+                    "chamber": "House",
+                    "congress": 118,
+                    "date": "2024-12-18T23:14:00Z",
+                    "sessionNumber": 2,
+                    "url": "https://clerk.house.gov/evs/2024/roll521.xml",
+                }
+            ],
+        },
+        {
+            # Senate passage vote — recorded vote with a different date than actionDate
+            "actionDate": "2024-09-10",
+            "text": "Passed Senate by Yea-Nay Vote: 87 - 12.",
+            "type": "Floor",
+            "recordedVotes": [
+                {
+                    "rollNumber": "218",
+                    "chamber": "Senate",
+                    "congress": 118,
+                    "date": "2024-09-10T18:44:00Z",
+                    "sessionNumber": 2,
+                    "url": "https://www.senate.gov/legislative/LIS/roll_call_lists/roll_call_vote_cfm.cfm?congress=118&session=2&vote=00218",
+                }
+            ],
+        },
+        {
+            # Introduced — no recordedVotes key at all
+            "actionDate": "2024-06-26",
+            "text": "Introduced in House.",
+            "type": "IntroReferral",
+        },
+    ],
+    "pagination": {"count": 4},
+}
+
+# Payload where the recorded vote has no ``date`` field — should fall back to actionDate.
+_ACTIONS_VOTE_NO_DATE: dict[str, Any] = {
+    "actions": [
+        {
+            "actionDate": "2024-07-15",
+            "text": "On motion to suspend the rules and pass Agreed to by voice vote.",
+            "type": "Floor",
+            "recordedVotes": [
+                {
+                    "rollNumber": "350",
+                    "chamber": "House",
+                    "congress": 118,
+                    # no "date" field — must fall back to actionDate
+                    "url": "https://clerk.house.gov/evs/2024/roll350.xml",
+                }
+            ],
+        }
+    ]
+}
+
+
+def test_recorded_votes_maps_recorded_vote_items_to_votes() -> None:
+    """should return one Vote per recordedVotes item, with roll-call URL and chamber"""
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118/hr/8818/actions").respond(json=_ACTIONS_WITH_VOTES)
+        votes = _source().recorded_votes("118/hr/8818")
+
+    # Two actions carry recordedVotes; one action (Became Public Law) does not
+    assert len(votes) == 2
+
+    house_vote = votes[0]
+    assert house_vote.chamber == "House"
+    assert house_vote.date == dt.date(2024, 12, 18)
+    assert house_vote.roll_call_url == "https://clerk.house.gov/evs/2024/roll521.xml"
+    assert house_vote.result is None  # result is left None by design
+
+    senate_vote = votes[1]
+    assert senate_vote.chamber == "Senate"
+    assert senate_vote.date == dt.date(2024, 9, 10)
+    assert "senate.gov" in (senate_vote.roll_call_url or "")
+    assert senate_vote.result is None
+
+
+def test_recorded_votes_action_without_recorded_votes_contributes_nothing() -> None:
+    """should skip an action that carries no recordedVotes while keeping one that does"""
+    # Two actions: the first has no recordedVotes (must be skipped), the second has one.
+    # The single resulting vote must be the one from the vote-carrying action — proving
+    # the skip path is exercised, not just that a count happens to match.
+    mixed_payload: dict[str, Any] = {
+        "actions": [
+            {
+                "actionDate": "2024-06-26",
+                "text": "Introduced in House.",
+                "type": "IntroReferral",
+                # no recordedVotes key → skipped
+            },
+            {
+                "actionDate": "2024-12-18",
+                "text": "On passage Passed by the Yeas and Nays: 350 - 80.",
+                "type": "Floor",
+                "recordedVotes": [
+                    {
+                        "rollNumber": "521",
+                        "chamber": "House",
+                        "congress": 118,
+                        "date": "2024-12-18T23:14:00Z",
+                        "url": "https://clerk.house.gov/evs/2024/roll521.xml",
+                    }
+                ],
+            },
+        ]
+    }
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118/hr/8818/actions").respond(json=mixed_payload)
+        votes = _source().recorded_votes("118/hr/8818")
+
+    # Only the vote-carrying action contributes; the introduced action is skipped.
+    assert len(votes) == 1
+    assert votes[0].roll_call_url == "https://clerk.house.gov/evs/2024/roll521.xml"
+    assert votes[0].date == dt.date(2024, 12, 18)
+
+
+def test_recorded_votes_falls_back_to_action_date_when_rv_has_no_date() -> None:
+    """should use actionDate as the vote date when the recordedVotes item has no date field"""
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118/hr/8818/actions").respond(json=_ACTIONS_VOTE_NO_DATE)
+        votes = _source().recorded_votes("118/hr/8818")
+
+    assert len(votes) == 1
+    assert votes[0].date == dt.date(2024, 7, 15)
+    assert votes[0].roll_call_url == "https://clerk.house.gov/evs/2024/roll350.xml"
+
+
+def test_recorded_votes_returns_empty_list_when_no_actions_have_votes() -> None:
+    """should return an empty list when no actions carry recordedVotes"""
+    no_votes_payload: dict[str, Any] = {
+        "actions": [
+            {"actionDate": "2024-06-26", "text": "Introduced in House.", "type": "IntroReferral"},
+            {"actionDate": "2024-07-15", "text": "Referred to committee.", "type": "IntroReferral"},
+        ]
+    }
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118/hr/8818/actions").respond(json=no_votes_payload)
+        votes = _source().recorded_votes("118/hr/8818")
+
+    assert votes == []

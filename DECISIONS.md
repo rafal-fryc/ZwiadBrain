@@ -238,3 +238,38 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** The API offers no topical query and the list is too thin to filter by topic, so the only topical signal beyond the title is `policyArea` — one detail GET. A broad allowlist favors recall; the classifier trims the over-inclusion. Explicit `--seed` stays a targeted search (Stage-1 only, no probe).
 **Trade-offs:** Stage 2 costs up to `max_probe` detail GETs per run, and the broad allowlist sends more bills to the classifier (plan usage). **Comprehensive historical backfill via offset pagination over a whole congress is DEFERRED** — v1 recalls from the newest-updated 250 + the probe, so topical bills not recently updated in a historical congress remain out of reach until pagination lands.
 **Revisit if:** Recall in practice still misses bills (add offset pagination and/or summary-keyword filtering), or classifier plan-usage from the broad allowlist proves too high (narrow the allowlist).
+
+## 2026-05-27 — 34. PHASE-05 legislative history is one combined phase (deterministic spine + research)
+**Chosen:** Build the deterministic spine (versions, committee reports, votes, public law, Statutes at Large) AND the heavy research layer (hearings, attributed statements, narrative, open-web search) together in a single PHASE-05.
+**Alternatives:** Split it — ship the spine first (offline-testable, shippable on its own) and gate the expensive/risky research layer behind it, mirroring D14 (law-brain commentary-first / discovery-gated) and the PHASE-03.1 carve-out. This was the recommended option.
+**Why:** User decision — preferred a complete legislative-history feature in one pass over incremental shipping.
+**Trade-offs:** Larger phase (≈2–3 sessions). The research layer is interactive-UAT-only and web-dependent, so more of the phase is validated by live UAT than by offline tests.
+**Revisit if:** The combined scope proves unwieldy in a future leg-history change — split the deterministic and research modules then (`pipeline/leg_history.py` is a natural growth point already noted in review).
+
+## 2026-05-27 — 35. Leg-history research draws on the official record + the open web; every claim needs a fetchable URL
+**Chosen:** The `leg-history-researcher` subagent may use the official record (GovInfo Congressional Record / hearings / committee reports, Congress.gov) AND the open web (member press releases, reputable news). Every researched hearing and statement MUST carry a fetchable `source_url`; every statement carries a VERBATIM quote that is verifiable against that page.
+**Alternatives:** Official-record-only (lower attribution risk, narrower coverage); official-only-now with web-readiness later.
+**Why:** User decision — wants the richer picture (sponsor press statements, reactions), not just the official record. The added risk is contained by the grounding gate + cross-modal verifier (D36).
+**Trade-offs:** Higher misattribution/hallucination risk than official-only; the verification burden moves to the deterministic gate + verifier, and unverifiable items are dropped (lower recall on quotes).
+**Revisit if:** Open-web sources prove too noisy or unverifiable in practice — restrict the researcher to the official record.
+
+## 2026-05-27 — 36. Cross-modal verifier + deterministic gate both gate every persisted quote (activates D17)
+**Chosen:** A researched statement persists ONLY if it passes BOTH (a) a deterministic grounding gate — `source_url` returns 200, the normalized verbatim quote appears on the page, and the quote is ≥20 normalized chars — AND (b) an independent `leg-history-verifier` subagent on a DIFFERENT model (researcher = `sonnet`, verifier = `opus`) that re-confirms quote presence + speaker attribution. Failures are dropped and logged, never silently persisted. Hearings are gated by URL-resolves. No review-queue UI this phase. Verdicts are keyed by statement index, so the caller must not reorder statements between verification and grounding.
+**Alternatives:** Deterministic grounding only (no second model); trust the researcher (no gate).
+**Why:** Attributed quotes are the highest-stakes output in the project — a misattributed quote is worse than a missed bill. This exercises the cross-modal eval that D17 reserved for the single high-stakes output.
+**Trade-offs:** Extra model calls per statement (plan usage); the strict gates favor false-rejects over false-accepts, so the tracker under-reports rather than risk a bad quote.
+**Revisit if:** Drop rate is too high (loosen normalization / lower the length floor) or attribution precision is still insufficient (strengthen the verifier or add a human review queue).
+
+## 2026-05-27 — 37. Hearings + statements persist to frontmatter; deterministic spine + narrative stay body-only
+**Chosen:** `leg_history.hearings` and `leg_history.statements` (with their `verified` flag) serialize to page frontmatter — durable across a clone, fed into the FTS index, verification status retained. The deterministic spine (versions, committee_reports, votes, floor_consideration, enactment) and the `narrative` remain body-only / re-derived, consistent with D20.
+**Alternatives:** Whole `LegHistory` → frontmatter (fully self-contained, but long prose in YAML and diverges from D20); whole `LegHistory` body-only (D20-consistent, but the expensive non-deterministic research wouldn't survive a re-render or fresh clone).
+**Why:** The researched records are expensive, non-deterministic, and carry a verification flag that must survive; the spine is cheaply re-derivable from the APIs and the narrative is prose (like `summary`).
+**Trade-offs:** Splits `LegHistory` persistence (structured research in frontmatter; spine + narrative body-only). A frontmatter-only reconstruction recovers hearings/statements but re-derives the spine and loses the narrative — the same property `summary` already has under D20.
+**Revisit if:** The narrative must survive a frontmatter-only rebuild (e.g. PHASE-06 Pass A) — then persist it to frontmatter too.
+
+## 2026-05-27 — 38. Legislative history is on-demand (`/zwiad-leg-history`), not part of the routine scan
+**Chosen:** Legislative history is assembled deliberately, per enacted bill, via the `/zwiad-leg-history <congress/type/number>` slash command — not automatically during routine discovery/scan. PHASE-06 (Pass A) must learn to PRESERVE a page's persisted leg-history rather than clobber it on re-fetch.
+**Alternatives:** Auto-run the researcher whenever a tracked bill flips to enacted.
+**Why:** Heavy multi-source research per bill is token-expensive and high-stakes; making it deliberate keeps routine scans cheap and gives the operator control over when the expensive pass runs.
+**Trade-offs:** An enacted bill has no legislative-history section until the command is run for it; PHASE-06 carries a preservation obligation (noted here, not built in this phase).
+**Revisit if:** Automating leg-history on enactment becomes worth the cost — wire it into Pass A together with the preservation logic.

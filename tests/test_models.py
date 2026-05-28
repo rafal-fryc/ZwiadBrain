@@ -5,13 +5,19 @@ union routes by `type`, required identifiers are enforced, list fields default
 empty, and a parsed item round-trips through `model_dump`.
 """
 
+import datetime as dt
+
 import pytest
 from pydantic import ValidationError
 
 from zwiadbrain.models import (
     Bill,
     CommentarySource,
+    Enactment,
     EnforcementAction,
+    Hearing,
+    LegHistory,
+    Statement,
     parse_wiki_item,
 )
 
@@ -92,3 +98,223 @@ def test_wiki_item_round_trips_through_dump_and_parse() -> None:
     again = parse_wiki_item(bill.model_dump())
     assert isinstance(again, Bill)
     assert again == bill
+
+
+# ---------------------------------------------------------------------------
+# Hearing
+# ---------------------------------------------------------------------------
+
+
+def test_hearing_constructs_with_valid_data() -> None:
+    """should round-trip a fully-populated Hearing"""
+    h = Hearing(
+        title="Data Privacy Oversight Hearing",
+        committee="Senate Commerce Committee",
+        chamber="Senate",
+        date=dt.date(2025, 3, 12),
+        citation="S. Hrg. 119-42",
+        url="https://example.gov/hearing/42",
+    )
+    assert h.title == "Data Privacy Oversight Hearing"
+    assert h.committee == "Senate Commerce Committee"
+    assert h.chamber == "Senate"
+    assert h.date == dt.date(2025, 3, 12)
+    assert h.citation == "S. Hrg. 119-42"
+    assert h.url == "https://example.gov/hearing/42"
+
+
+def test_hearing_optional_fields_default_none() -> None:
+    """should default all optional fields to None when only title is given"""
+    h = Hearing(title="Minimal Hearing")
+    assert h.committee is None
+    assert h.chamber is None
+    assert h.date is None
+    assert h.citation is None
+    assert h.url is None
+
+
+def test_hearing_requires_title() -> None:
+    """should raise ValidationError when title is omitted"""
+    with pytest.raises(ValidationError):
+        Hearing.model_validate({})
+
+
+# ---------------------------------------------------------------------------
+# Statement
+# ---------------------------------------------------------------------------
+
+
+def test_statement_constructs_with_valid_data() -> None:
+    """should round-trip a fully-populated Statement"""
+    s = Statement(
+        speaker="Sen. Jane Doe",
+        role="sponsor",
+        date=dt.date(2025, 4, 1),
+        quote="This bill protects consumers.",
+        context="Floor speech during debate",
+        source_url="https://congress.gov/crec/2025/04/01",
+        source_type="CREC",
+        verified=True,
+    )
+    assert s.speaker == "Sen. Jane Doe"
+    assert s.role == "sponsor"
+    assert s.date == dt.date(2025, 4, 1)
+    assert s.quote == "This bill protects consumers."
+    assert s.context == "Floor speech during debate"
+    assert s.source_url == "https://congress.gov/crec/2025/04/01"
+    assert s.source_type == "CREC"
+    assert s.verified is True
+
+
+def test_statement_defaults_verified_false() -> None:
+    """should default verified to False when not supplied"""
+    s = Statement(
+        speaker="Rep. John Smith",
+        role="member",
+        quote="I support this measure.",
+        source_url="https://example.gov/press",
+        source_type="press",
+    )
+    assert s.verified is False
+    assert s.date is None
+    assert s.context is None
+
+
+def test_statement_invalid_role_raises_validation_error() -> None:
+    """should reject an unrecognised role value"""
+    with pytest.raises(ValidationError):
+        Statement.model_validate(
+            {
+                "speaker": "Rep. X",
+                "role": "lobbyist",
+                "quote": "Good bill.",
+                "source_url": "https://example.gov",
+                "source_type": "press",
+            }
+        )
+
+
+def test_statement_invalid_source_type_raises_validation_error() -> None:
+    """should reject an unrecognised source_type value"""
+    with pytest.raises(ValidationError):
+        Statement.model_validate(
+            {
+                "speaker": "Rep. X",
+                "role": "member",
+                "quote": "Good bill.",
+                "source_url": "https://example.gov",
+                "source_type": "tweet",
+            }
+        )
+
+
+def test_statement_requires_speaker() -> None:
+    """should raise ValidationError when speaker is omitted"""
+    with pytest.raises(ValidationError):
+        Statement.model_validate(
+            {
+                "role": "member",
+                "quote": "Good bill.",
+                "source_url": "https://example.gov",
+                "source_type": "press",
+            }
+        )
+
+
+def test_statement_requires_quote() -> None:
+    """should raise ValidationError when quote is omitted"""
+    with pytest.raises(ValidationError):
+        Statement.model_validate(
+            {
+                "speaker": "Rep. X",
+                "role": "member",
+                "source_url": "https://example.gov",
+                "source_type": "press",
+            }
+        )
+
+
+def test_statement_requires_source_url() -> None:
+    """should raise ValidationError when source_url is omitted"""
+    with pytest.raises(ValidationError):
+        Statement.model_validate(
+            {
+                "speaker": "Rep. X",
+                "role": "member",
+                "quote": "Good bill.",
+                "source_type": "press",
+            }
+        )
+
+
+# ---------------------------------------------------------------------------
+# LegHistory extensions
+# ---------------------------------------------------------------------------
+
+
+def test_leghistory_accepts_hearings_statements_narrative() -> None:
+    """should store hearings, statements, and narrative alongside existing fields"""
+    h = Hearing(title="Oversight Hearing")
+    s = Statement(
+        speaker="Rep. A",
+        role="cosponsor",
+        quote="We need this.",
+        source_url="https://example.gov",
+        source_type="news",
+    )
+    lh = LegHistory(
+        hearings=[h],
+        statements=[s],
+        narrative="This bill originated in response to the 2024 data breach.",
+    )
+    assert lh.hearings == [h]
+    assert lh.statements == [s]
+    assert lh.narrative == "This bill originated in response to the 2024 data breach."
+
+
+def test_leghistory_new_fields_default_empty_or_none() -> None:
+    """should default hearings/statements to [] and narrative to None"""
+    lh = LegHistory()
+    assert lh.hearings == []
+    assert lh.statements == []
+    assert lh.narrative is None
+
+
+def test_leghistory_list_defaults_are_not_shared() -> None:
+    """should give each LegHistory instance its own hearings/statements lists"""
+    a = LegHistory()
+    b = LegHistory()
+    a.hearings.append(Hearing(title="H1"))
+    assert b.hearings == []
+    a.statements.append(
+        Statement(
+            speaker="X",
+            role="other",
+            quote="Q",
+            source_url="https://example.gov",
+            source_type="other",
+        )
+    )
+    assert b.statements == []
+
+
+# ---------------------------------------------------------------------------
+# Enactment extension
+# ---------------------------------------------------------------------------
+
+
+def test_enactment_accepts_url() -> None:
+    """should store a url pointing to the public-law document"""
+    e = Enactment(
+        date_signed=dt.date(2025, 12, 1),
+        public_law="119-42",
+        statutes_at_large="139 Stat. 100",
+        url="https://govinfo.gov/link/plaw/119/public/42",
+    )
+    assert e.url == "https://govinfo.gov/link/plaw/119/public/42"
+
+
+def test_enactment_url_defaults_none() -> None:
+    """should default url to None when not supplied"""
+    e = Enactment()
+    assert e.url is None

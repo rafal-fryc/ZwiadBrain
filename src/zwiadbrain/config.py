@@ -22,6 +22,7 @@ from zwiadbrain.exceptions import ConfigError
 # .env variable name -> Settings field. Process-environment values win over the file.
 _SECRET_ENV: dict[str, str] = {
     "CONGRESS_API_KEY": "congress_api_key",
+    "GOVINFO_API_KEY": "govinfo_api_key",
     "LEGISCAN_API_KEY": "legiscan_api_key",
     "ANTHROPIC_API_KEY": "anthropic_api_key",
     "LAW_BRAIN_PATH": "law_brain_path",
@@ -69,6 +70,7 @@ class Settings(BaseSettings):
 
     # Secrets — sourced from .env / the environment.
     congress_api_key: str | None = None
+    govinfo_api_key: str | None = None
     legiscan_api_key: str | None = None
     anthropic_api_key: str | None = None
     law_brain_path: Path | None = None
@@ -91,6 +93,14 @@ class Settings(BaseSettings):
                 "CONGRESS_API_KEY is not set — add it to .env (free key: https://api.data.gov/signup/)"
             )
         return self.congress_api_key
+
+    def require_govinfo_api_key(self) -> str:
+        """Return the GovInfo API key, raising :class:`ConfigError` if it is unset."""
+        if not self.govinfo_api_key:
+            raise ConfigError(
+                "GOVINFO_API_KEY is not set — add it to .env (free key: https://api.data.gov/signup/)"
+            )
+        return self.govinfo_api_key
 
 
 _DEFAULT_TOML = Path("zwiadbrain.toml")

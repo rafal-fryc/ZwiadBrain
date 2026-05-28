@@ -6,16 +6,22 @@ wired up and reports its version.
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 import respx
 from typer.testing import CliRunner
 
 from zwiadbrain import __version__
-from zwiadbrain.cli import app
-from zwiadbrain.models import Bill
+
+# `_fetch_url` is imported by its internal name on purpose: the InvalidURL-handling
+# unit test verifies that exact private helper's contract (returns (0, '') instead of
+# raising), which is the whole point of the T10 hardening fix.
+from zwiadbrain.cli import _fetch_url, app  # pyright: ignore[reportPrivateUsage]
+from zwiadbrain.models import Bill, CommitteeReport, Enactment, Hearing, LegHistory, Statement
 from zwiadbrain.pipeline.render import write_page
-from zwiadbrain.sources.congress import CONGRESS_API_BASE
+from zwiadbrain.sources.congress import CONGRESS_API_BASE, CongressSource
+from zwiadbrain.sources.govinfo import GovInfoSource
 
 runner = CliRunner()
 
@@ -240,3 +246,665 @@ def test_render_classified_is_idempotent(tmp_path: Path) -> None:
     first = page.read_text(encoding="utf-8")
     runner.invoke(app, args)
     assert page.read_text(encoding="utf-8") == first
+
+
+# ---------------------------------------------------------------------------
+# fetch-leg-history
+#
+# Approach: monkeypatch CongressSource.fetch, assemble_spine, and collect_leads.
+#
+# Rationale: test_cli.py already monkeypatches for the non-API-key path (env
+# manipulation), and the GovInfo base URL is different from Congress's.  Wiring
+# two separate respx base-URL mocks inside a single CliRunner invocation is
+# fiddly and produces no extra coverage beyond what test_govinfo.py and
+# test_leg_history.py already deliver for the HTTP layer.  Monkeypatching the
+# two pipeline calls keeps the tests readable and still genuinely exercises the
+# enacted/non-enacted branch, the JSON shape, and the error paths.
+# ---------------------------------------------------------------------------
+
+
+def _make_enacted_bill() -> Bill:
+    """Return a minimal enacted Bill for fetch-leg-history tests."""
+    return Bill(
+        id="118-hr-8818",
+        jurisdiction="US",
+        title="Artificial Intelligence Accountability Act",
+        bill_number="H.R. 8818",
+        congress="118",
+        enacted=True,
+        public_law="118-265",
+        sponsors=["Rep. Lieu, Ted [D-CA-36]"],
+    )
+
+
+def _make_spine() -> LegHistory:
+    """Return a minimal LegHistory spine for fetch-leg-history tests."""
+    return LegHistory(
+        committee_reports=[
+            CommitteeReport(
+                citation="H. Rept. 118-712 - ARTIFICIAL INTELLIGENCE ACCOUNTABILITY ACT",
+                url="https://www.govinfo.gov/app/details/CRPT-118hrpt712",
+            )
+        ],
+        enactment=Enactment(
+            public_law="118-42",
+            url="https://www.govinfo.gov/app/details/PLAW-118publ42",
+        ),
+    )
+
+
+def _make_leads() -> dict[str, object]:
+    """Return a minimal leads dict for fetch-leg-history tests."""
+    return {
+        "id": "118-hr-8818",
+        "congress": "118",
+        "citation": "H.R. 8818",
+        "title": "Artificial Intelligence Accountability Act",
+        "sponsors": ["Rep. Lieu, Ted [D-CA-36]"],
+        "related_bills": [],
+        "introduced_date": None,
+        "latest_action_date": None,
+        "hearings": [
+            {
+                "title": "Hearing on Artificial Intelligence Accountability",
+                "committee": "House Committee on the Judiciary",
+                "date": "2024-03-15",
+                "citation": "CHRG-118hhrg54321",
+                "url": "https://www.govinfo.gov/app/details/CHRG-118hhrg54321",
+            }
+        ],
+    }
+
+
+def test_fetch_leg_history_writes_staging_file_for_enacted_bill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should write leghistory.json with bill/spine/leads keys for an enacted bill"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test-govinfo-key")
+
+    enacted = _make_enacted_bill()
+    spine = _make_spine()
+    leads = _make_leads()
+
+    def _fake_fetch_enacted(self: object, native_id: str) -> Bill:  # noqa: ARG001
+        return enacted
+
+    monkeypatch.setattr("zwiadbrain.cli.CongressSource.fetch", _fake_fetch_enacted)
+    mock_assemble = MagicMock(return_value=spine)
+    mock_leads = MagicMock(return_value=leads)
+    monkeypatch.setattr("zwiadbrain.cli.assemble_spine", mock_assemble)
+    monkeypatch.setattr("zwiadbrain.cli.collect_leads", mock_leads)
+
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        ["fetch-leg-history", "--bill", "118/hr/8818", "--out", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+
+    staged = out / "leghistory.json"
+    assert staged.exists()
+    data = json.loads(staged.read_text(encoding="utf-8"))
+    assert set(data.keys()) == {"bill", "spine", "leads"}
+
+    # bill section round-trips back to a valid Bill
+    bill_obj = Bill.model_validate(data["bill"])
+    assert bill_obj.id == "118-hr-8818"
+    assert bill_obj.enacted is True
+
+    # spine carries committee_reports and enactment
+    spine_data = data["spine"]
+    assert len(spine_data["committee_reports"]) == 1
+    assert spine_data["committee_reports"][0]["citation"].startswith("H. Rept.")
+    assert spine_data["enactment"]["public_law"] == "118-42"
+
+    # leads carries hearings
+    assert len(data["leads"]["hearings"]) == 1
+    assert "Artificial Intelligence" in data["leads"]["hearings"][0]["title"]
+
+    # assemble_spine and collect_leads were called once with the correct args
+    # (positional identity/type checks guard against an argument-order bug at the
+    # call site, which assert_called_once alone could not catch).
+    mock_assemble.assert_called_once()
+    assert mock_assemble.call_args.args[0] is enacted
+    assert isinstance(mock_assemble.call_args.args[1], CongressSource)
+    assert isinstance(mock_assemble.call_args.args[2], GovInfoSource)
+
+    mock_leads.assert_called_once()
+    assert mock_leads.call_args.args[0] is enacted
+    assert isinstance(mock_leads.call_args.args[1], GovInfoSource)
+
+    # echo message present
+    assert "118-hr-8818" in result.output
+
+
+def test_fetch_leg_history_errors_for_non_enacted_bill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero with 'not enacted' message and not write leghistory.json"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test-govinfo-key")
+
+    non_enacted = Bill(
+        id="118-hr-9999",
+        jurisdiction="US",
+        title="Some Non-Enacted Bill",
+        bill_number="H.R. 9999",
+        congress="118",
+        enacted=False,
+    )
+
+    def _fake_fetch_non_enacted(self: object, native_id: str) -> Bill:  # noqa: ARG001
+        return non_enacted
+
+    monkeypatch.setattr("zwiadbrain.cli.CongressSource.fetch", _fake_fetch_non_enacted)
+
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        ["fetch-leg-history", "--bill", "118/hr/9999", "--out", str(out)],
+    )
+    assert result.exit_code == 1
+    assert "not enacted" in result.output
+    assert not (out / "leghistory.json").exists()
+
+
+def test_fetch_leg_history_errors_without_govinfo_api_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero with a config error when GOVINFO_API_KEY is unset"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.delenv("GOVINFO_API_KEY", raising=False)
+
+    result = runner.invoke(
+        app,
+        ["fetch-leg-history", "--bill", "118/hr/8818"],
+    )
+    assert result.exit_code == 1
+    assert "GOVINFO_API_KEY" in result.output
+
+
+# ---------------------------------------------------------------------------
+# render-leg-history
+#
+# Approach: monkeypatch zwiadbrain.cli._fetch_url with a fake URL→(status,text)
+# mapping.  No real network; all grounding logic exercised deterministically.
+# ---------------------------------------------------------------------------
+
+_QUOTE_A = (
+    "This legislation will fundamentally transform how artificial intelligence"
+    " is governed in our country."
+)
+_QUOTE_B = (
+    "We must ensure that privacy protections keep pace with technological advancement"
+    " and data collection practices."
+)
+
+_URL_HEARING_GOOD = "https://www.govinfo.gov/app/details/CHRG-118hhrg11111"
+_URL_HEARING_BAD = "https://www.govinfo.gov/app/details/CHRG-118hhrg99999"
+_URL_STMT_A = "https://www.congress.gov/congressional-record/stmt-a"
+_URL_STMT_B = "https://www.congress.gov/congressional-record/stmt-b"
+_URL_CRPT = "https://www.govinfo.gov/app/details/CRPT-118hrpt712"
+_URL_PLAW = "https://www.govinfo.gov/app/details/PLAW-118publ42"
+
+# Fake HTTP responses: url -> (status_code, body_text)
+_FAKE_RESPONSES: dict[str, tuple[int, str]] = {
+    _URL_HEARING_GOOD: (200, "Hearing on AI Accountability full transcript here."),
+    _URL_HEARING_BAD: (404, "Not Found"),
+    _URL_STMT_A: (200, f"Congressional Record statement: {_QUOTE_A} The speaker continued."),
+    _URL_STMT_B: (200, "This page does not contain the expected quote."),
+    _URL_CRPT: (200, "Committee Report content."),
+    _URL_PLAW: (200, "Public Law full text."),
+}
+
+
+def _make_leg_history_staging(tmp_path: Path) -> Path:
+    """Build a staging JSON that render-leg-history consumes and write it to tmp_path."""
+    bill = Bill(
+        id="118-hr-8818",
+        jurisdiction="US",
+        title="Artificial Intelligence Accountability Act",
+        bill_number="H.R. 8818",
+        congress="118",
+        enacted=True,
+        public_law="118-42",
+    )
+    spine = LegHistory(
+        committee_reports=[
+            CommitteeReport(
+                citation="H. Rept. 118-712",
+                url=_URL_CRPT,
+            )
+        ],
+        enactment=Enactment(
+            public_law="118-42",
+            url=_URL_PLAW,
+        ),
+    )
+    hearings = [
+        Hearing(
+            title="Hearing on AI Accountability",
+            committee="House Committee on the Judiciary",
+            url=_URL_HEARING_GOOD,
+        ),
+        Hearing(
+            title="Hearing on AI and Data Governance",
+            committee="House Committee on Energy and Commerce",
+            url=_URL_HEARING_BAD,
+        ),
+    ]
+    statements = [
+        Statement(
+            speaker="Rep. Lieu, Ted",
+            role="sponsor",
+            quote=_QUOTE_A,
+            source_url=_URL_STMT_A,
+            source_type="CREC",
+            verified=False,
+        ),
+        Statement(
+            speaker="Rep. Smith, Jane",
+            role="member",
+            quote=_QUOTE_B,
+            source_url=_URL_STMT_B,
+            source_type="CREC",
+            verified=False,
+        ),
+    ]
+    verdicts = [
+        {"index": 0, "verified": True, "note": "Quote confirmed in CR."},
+        {"index": 1, "verified": True, "note": "Quote confirmed in CR."},
+    ]
+    narrative = (
+        "This landmark bill establishes the first comprehensive federal framework"
+        " for AI accountability."
+    )
+    payload: dict[str, object] = {
+        "bill": bill.model_dump(mode="json"),
+        "spine": spine.model_dump(mode="json"),
+        "hearings": [h.model_dump(mode="json") for h in hearings],
+        "statements": [s.model_dump(mode="json") for s in statements],
+        "narrative": narrative,
+        "verdicts": verdicts,
+    }
+    path = tmp_path / "leghistory_staging.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
+
+
+def _fake_fetch(url: str) -> tuple[int, str]:
+    return _FAKE_RESPONSES.get(url, (404, "Not Found"))
+
+
+def test_render_leg_history_renders_page_with_grounded_statement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should render a page that contains statement A (grounded) but not statement B (dropped)"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    staging = _make_leg_history_staging(tmp_path)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-8818.md"
+    assert page.exists()
+    content = page.read_text(encoding="utf-8")
+
+    # Statement A: grounded, should appear with verified checkmark and source link
+    assert _QUOTE_A in content
+    assert _URL_STMT_A in content
+    assert "✓" in content
+
+    # Statement B: quote not found on page → dropped
+    assert _QUOTE_B not in content
+
+    # Narrative
+    assert "landmark bill" in content
+
+    # Spine committee report and enactment links
+    assert _URL_CRPT in content
+    assert _URL_PLAW in content
+
+
+def test_render_leg_history_drops_404_hearing_keeps_good_hearing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should keep the 200-status hearing and drop the 404 hearing from the page"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    staging = _make_leg_history_staging(tmp_path)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-8818.md"
+    content = page.read_text(encoding="utf-8")
+
+    # Good hearing url should appear; bad hearing url should not
+    assert _URL_HEARING_GOOD in content
+    assert _URL_HEARING_BAD not in content
+
+
+def test_render_leg_history_echo_reports_counts_and_drop_lines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should echo proposed/grounded/dropped counts and a drop line for each rejected item"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    staging = _make_leg_history_staging(tmp_path)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    out = result.output
+    # Statement summary: 2 input / 1 grounded / 0 parse-drop / 1 ground-drop
+    assert "statements: 2 input / 1 grounded / 0 parse-drop / 1 ground-drop" in out
+
+    # Hearing summary: 2 input / 1 grounded / 0 parse-drop / 1 ground-drop
+    assert "hearings: 2 input / 1 grounded / 0 parse-drop / 1 ground-drop" in out
+
+    # Per-drop line for statement B
+    assert "dropped statement" in out
+    assert "Rep. Smith, Jane" in out
+
+    # Per-drop line for bad hearing
+    assert "dropped hearing" in out
+    assert "AI and Data Governance" in out
+
+
+def test_render_leg_history_is_idempotent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should produce byte-identical page content on second run (write_page returns False)"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    staging = _make_leg_history_staging(tmp_path)
+    wiki = tmp_path / "wiki"
+    args = ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)]
+
+    result1 = runner.invoke(app, args)
+    assert result1.exit_code == 0, result1.output
+
+    page = wiki / "federal" / "bills" / "118-hr-8818.md"
+    first_content = page.read_text(encoding="utf-8")
+
+    result2 = runner.invoke(app, args)
+    assert result2.exit_code == 0, result2.output
+    assert page.read_text(encoding="utf-8") == first_content
+
+    # Second run should report "unchanged"
+    assert "unchanged" in result2.output
+
+
+def test_render_leg_history_exits_nonzero_when_bill_key_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero with a clear error when the staging file is missing 'bill'"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"spine": {}, "hearings": [], "statements": []}), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(bad), "--wiki", str(wiki)])
+    assert result.exit_code == 1
+    # Should mention what went wrong, not raw traceback
+    assert "bill" in result.output
+
+
+def test_render_leg_history_exits_nonzero_when_spine_key_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero with a clear error when the staging file is missing 'spine'"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    bill = Bill(id="118-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1")
+    bad = tmp_path / "bad.json"
+    bad.write_text(
+        json.dumps({"bill": bill.model_dump(mode="json"), "statements": []}), encoding="utf-8"
+    )
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(bad), "--wiki", str(wiki)])
+    assert result.exit_code == 1
+    assert "spine" in result.output
+
+
+def test_render_leg_history_survives_invalid_url_in_statement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop a statement whose url makes the fetcher raise InvalidURL, exit 0, no traceback"""
+
+    def _fetch_raises_invalid_url(url: str) -> tuple[int, str]:
+        # Statement A's url triggers a real httpx.InvalidURL escaping HTTPError.
+        if url == _URL_STMT_A:
+            # _fetch_url must catch this and return (0, ""); this fake stands in for
+            # the production fetcher confronting a malformed researcher URL.
+            return _fetch_url(":://not a url")
+        return _fake_fetch(url)
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fetch_raises_invalid_url)
+    staging = _make_leg_history_staging(tmp_path)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+    assert "Traceback" not in result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-8818.md"
+    content = page.read_text(encoding="utf-8")
+    # Statement A is dropped because its url returned status 0 (InvalidURL → (0, "")).
+    assert _QUOTE_A not in content
+    assert "dropped statement" in result.output
+
+
+def test_fetch_url_returns_zero_on_invalid_url() -> None:
+    """should return (0, '') for a malformed url instead of raising httpx.InvalidURL"""
+    status, text = _fetch_url(":://not a url")
+    assert status == 0
+    assert text == ""
+
+
+def test_render_leg_history_handles_null_statements(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should treat a null 'statements' field as empty and exit cleanly, not crash"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    bill = Bill(id="118-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1", enacted=True)
+    spine = LegHistory()
+    staging = tmp_path / "null_statements.json"
+    staging.write_text(
+        json.dumps(
+            {
+                "bill": bill.model_dump(mode="json"),
+                "spine": spine.model_dump(mode="json"),
+                "hearings": [],
+                "statements": None,
+                "narrative": None,
+                "verdicts": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+    assert "statements: 0 input" in result.output
+
+
+def test_render_leg_history_handles_null_verdicts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should treat a null 'verdicts' field as empty (every statement ground-dropped), exit clean"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    bill = Bill(id="118-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1", enacted=True)
+    spine = LegHistory()
+    stmt = Statement(
+        speaker="Rep. Lieu, Ted",
+        role="sponsor",
+        quote=_QUOTE_A,
+        source_url=_URL_STMT_A,
+        source_type="CREC",
+    )
+    staging = tmp_path / "null_verdicts.json"
+    staging.write_text(
+        json.dumps(
+            {
+                "bill": bill.model_dump(mode="json"),
+                "spine": spine.model_dump(mode="json"),
+                "hearings": [],
+                "statements": [stmt.model_dump(mode="json")],
+                "narrative": None,
+                "verdicts": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+    # No verdict means the verifier gate fails → statement ground-dropped.
+    assert "1 input / 0 grounded" in result.output
+
+
+def test_render_leg_history_verdict_aligned_to_surviving_statements_after_parse_drop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should apply verdicts by ORIGINAL index even when an earlier statement parse-drops
+
+    Regression test for C1 (trust-boundary bug): when statement[0] parse-drops (e.g.
+    unknown role), the surviving list shifts so that original index 1 is now at position 0
+    and original index 2 is at position 1.  Before the fix, ground_items received:
+        verifier_verdicts = {0: True, 1: False, 2: True}
+    keyed by ORIGINAL index — but it keys by POSITION in the list it receives.  So the
+    surviving statements at positions 0 and 1 would receive verdicts[0]=True and verdicts[1]=False,
+    but those originated from original indices 1 and 2 respectively.  The statement that
+    the verifier REJECTED (original index 1, verified=False) would be published as verified —
+    a critical trust-boundary violation.
+
+    After the fix, the CLI remaps verdicts to surviving positions before calling ground_items,
+    so original-index-1 (verified=False) is correctly dropped and original-index-2 (verified=True)
+    is kept.
+    """
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+
+    bill = Bill(
+        id="118-hr-8818", jurisdiction="US", title="t", bill_number="H.R. 8818", enacted=True
+    )
+    spine = LegHistory()
+
+    # statement[0]: INVALID role — will parse-drop (unknown_role is not a valid Literal)
+    # statement[1]: original index 1 — verifier says verified=FALSE → must be DROPPED
+    # statement[2]: original index 2 — verifier says verified=TRUE → must be KEPT
+    stmts_raw: list[object] = [
+        {
+            "speaker": "Rep. A",
+            "role": "INVALID_ROLE_THAT_DOES_NOT_EXIST",  # causes parse-drop
+            "quote": _QUOTE_A,
+            "source_url": _URL_STMT_A,
+            "source_type": "CREC",
+            "verified": False,
+        },
+        {
+            "speaker": "Rep. B",
+            "role": "member",
+            "quote": _QUOTE_A,  # quote IS present at the URL (200 response)
+            "source_url": _URL_STMT_A,
+            "source_type": "CREC",
+            "verified": False,
+        },
+        {
+            "speaker": "Rep. C",
+            "role": "sponsor",
+            "quote": _QUOTE_A,  # quote IS present at the URL (200 response)
+            "source_url": _URL_STMT_A,
+            "source_type": "CREC",
+            "verified": False,
+        },
+    ]
+    verdicts: list[object] = [
+        {"index": 0, "verified": True},   # original index 0 — parse-dropped, verdict unused
+        {"index": 1, "verified": False},   # original index 1 — verifier REJECTED
+        {"index": 2, "verified": True},    # original index 2 — verifier CONFIRMED
+    ]
+    staging = tmp_path / "c1_regression.json"
+    staging.write_text(
+        json.dumps(
+            {
+                "bill": bill.model_dump(mode="json"),
+                "spine": spine.model_dump(mode="json"),
+                "hearings": [],
+                "statements": stmts_raw,
+                "narrative": None,
+                "verdicts": verdicts,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-8818.md"
+    content = page.read_text(encoding="utf-8") if page.exists() else ""
+
+    # Rep. B (original index 1, verified=False) must NOT appear — verifier rejected it.
+    # Before the fix this would be published because the shifted position-0 receives
+    # verdicts[0]=True (belonging to the parse-dropped statement, not to Rep. B).
+    assert "Rep. B" not in content, (
+        "Rep. B (original index 1, verified=False) was published — "
+        "verdict was applied to wrong surviving statement (C1 trust-boundary bug)"
+    )
+
+    # Rep. C (original index 2, verified=True) MUST appear — verifier confirmed it.
+    assert "Rep. C" in content, (
+        "Rep. C (original index 2, verified=True) was not published — "
+        "correct verdict was not applied after parse-drop remapping"
+    )
+
+    # Summary: 3 input / 1 parse-drop / 1 ground-drop (Rep. B rejected) / 1 grounded (Rep. C)
+    assert "statements: 3 input / 1 grounded / 1 parse-drop / 1 ground-drop" in result.output
+
+
+def test_render_leg_history_input_verified_flag_does_not_bypass_verifier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop a statement marked verified=true in the input when verdicts are empty
+
+    This documents the command's central invariant: the verifier gate, not the
+    researcher-supplied ``verified`` flag, decides whether a quote is grounded.
+    A trusted-looking input flag must NEVER bypass independent verification.
+    """
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    bill = Bill(id="118-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1", enacted=True)
+    spine = LegHistory()
+    # Quote IS present at the (200) source url, so only the verifier gate stands
+    # between this statement and the page — and verdicts is empty.
+    stmt = Statement(
+        speaker="Rep. Lieu, Ted",
+        role="sponsor",
+        quote=_QUOTE_A,
+        source_url=_URL_STMT_A,
+        source_type="CREC",
+        verified=True,  # input claims verified — must NOT be trusted
+    )
+    staging = tmp_path / "verified_input.json"
+    staging.write_text(
+        json.dumps(
+            {
+                "bill": bill.model_dump(mode="json"),
+                "spine": spine.model_dump(mode="json"),
+                "hearings": [],
+                "statements": [stmt.model_dump(mode="json")],
+                "narrative": None,
+                "verdicts": [],  # no independent verdict
+            }
+        ),
+        encoding="utf-8",
+    )
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-1.md"
+    content = page.read_text(encoding="utf-8") if page.exists() else ""
+    # The statement must NOT appear: input verified=true does not bypass the gate.
+    assert _QUOTE_A not in content
+    assert "1 input / 0 grounded" in result.output

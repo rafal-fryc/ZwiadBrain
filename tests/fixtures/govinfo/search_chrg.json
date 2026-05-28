@@ -1,0 +1,26 @@
+{
+  "count": 2,
+  "offsetMark": "AoE=",
+  "results": [
+    {
+      "title": "Hearing on Artificial Intelligence Accountability",
+      "packageId": "CHRG-118hhrg54321",
+      "granuleId": null,
+      "collectionCode": "CHRG",
+      "dateIssued": "2024-03-15",
+      "governmentAuthor": "House Committee on the Judiciary",
+      "resultLink": "https://api.govinfo.gov/packages/CHRG-118hhrg54321/summary",
+      "download": {}
+    },
+    {
+      "title": "Hearing on AI Safety Standards",
+      "packageId": "CHRG-118shrg99001",
+      "granuleId": "CHRG-118shrg99001-gpo1",
+      "collectionCode": "CHRG",
+      "dateIssued": "2024-05-10",
+      "governmentAuthor": "Senate Committee on Commerce",
+      "resultLink": "https://api.govinfo.gov/packages/CHRG-118shrg99001/summary",
+      "download": {}
+    }
+  ]
+}

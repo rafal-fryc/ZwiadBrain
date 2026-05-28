@@ -97,3 +97,34 @@ def test_load_settings_tolerates_missing_files(
     settings = load_settings(toml_path=tmp_path / "absent.toml", env_file=tmp_path / "absent.env")
     assert settings.congress_api_key is None
     assert settings.sources.enabled == []
+
+
+def test_load_settings_reads_govinfo_api_key_from_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should load GOVINFO_API_KEY from the .env file"""
+    monkeypatch.delenv("GOVINFO_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path, env="GOVINFO_API_KEY=govinfo-secret-key-456\n")
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.govinfo_api_key == "govinfo-secret-key-456"
+
+
+def test_require_govinfo_api_key_raises_when_unset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should raise ConfigError when no GovInfo API key is configured"""
+    monkeypatch.delenv("GOVINFO_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path)
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    with pytest.raises(ConfigError):
+        settings.require_govinfo_api_key()
+
+
+def test_require_govinfo_api_key_returns_key_when_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should return the GovInfo API key when it is configured"""
+    monkeypatch.delenv("GOVINFO_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path, env="GOVINFO_API_KEY=govinfo-secret-key-456\n")
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.require_govinfo_api_key() == "govinfo-secret-key-456"

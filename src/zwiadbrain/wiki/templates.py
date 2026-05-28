@@ -136,7 +136,8 @@ def _enactment_block(enactment: Enactment) -> str:
     elif enactment.public_law:
         rows.append(f"Public Law: {enactment.public_law}")
     if enactment.statutes_at_large:
-        rows.append(f"Statutes at Large: {enactment.statutes_at_large}")
+        s = enactment.statutes_at_large
+        rows.append(f"Statutes at Large: [{s.citation}]({s.url})")
     return "\n".join(f"- {row}" for row in rows)
 
 
@@ -235,7 +236,13 @@ def _commentary(sources: list[CommentarySource]) -> str:
 
 
 def render_bill_body(bill: Bill) -> str:
-    """Render the Markdown body for a bill page (no frontmatter)."""
+    """Render the Markdown body for a bill page (no frontmatter).
+
+    When ``bill.flipped_out`` is set, an HTML comment marker is prepended to the
+    body for audit visibility in ``git log -p``.  The comment's ``reason``
+    attribute is rendered inside double quotes; any literal double-quote in the
+    reason is backslash-escaped so the attribute stays well-formed.
+    """
     sections: list[dict[str, str]] = []
     if bill.summary:
         sections.append({"heading": "Summary", "body": bill.summary.strip()})
@@ -255,7 +262,15 @@ def render_bill_body(bill: Bill) -> str:
         )
     if bill.sources:
         sections.append({"heading": "Sources", "body": _sources(bill.sources)})
-    return _BODY.render(sections=sections)
+    body = _BODY.render(sections=sections)
+    if bill.flipped_out:
+        reason = bill.flipped_out.reason.replace('"', '\\"')
+        marker = (
+            f'<!-- zwiadbrain:flipped-out date="{bill.flipped_out.date.isoformat()}"'
+            f' reason="{reason}" -->\n\n'
+        )
+        body = marker + body
+    return body
 
 
 def render_enforcement_body(action: EnforcementAction) -> str:

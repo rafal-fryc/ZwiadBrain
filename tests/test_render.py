@@ -460,3 +460,81 @@ def test_leg_history_floor_action_without_date_or_chamber_with_cr_text() -> None
     body = render_bill_body(bill)
     assert "- [H. Rec. 5](https://congress.gov/crec/h5)" in body
     assert "- — " not in body
+
+
+def test_render_emits_flipped_out_marker_when_set() -> None:
+    """should prepend an HTML comment marker to the body when bill.flipped_out is set"""
+    from zwiadbrain.models import FlipOutAudit
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        summary="A short summary.",
+        flipped_out=FlipOutAudit(date=dt.date(2026, 6, 4), reason="classifier: drift"),
+    )
+    body = render_bill_body(bill)
+    first_line = body.split("\n", 1)[0]
+    assert first_line.startswith("<!-- zwiadbrain:flipped-out ")
+    assert 'date="2026-06-04"' in first_line
+    assert 'reason="classifier: drift"' in first_line
+
+
+def test_render_omits_marker_when_not_flipped() -> None:
+    """should not emit the marker for a normally-tracked bill"""
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        summary="A short summary.",
+    )
+    body = render_bill_body(bill)
+    assert "<!-- zwiadbrain:flipped-out" not in body
+
+
+def test_render_escapes_quote_in_flip_reason() -> None:
+    """should escape a double-quote inside the reason so the HTML comment stays valid"""
+    from zwiadbrain.models import FlipOutAudit
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        flipped_out=FlipOutAudit(
+            date=dt.date(2026, 6, 4), reason='he said "AI" out of scope'
+        ),
+    )
+    body = render_bill_body(bill)
+    first_line = body.split("\n", 1)[0]
+    # backslash-escape inside double-quoted attribute
+    assert 'reason="he said \\"AI\\" out of scope"' in first_line
+
+
+def test_render_emits_statutes_at_large_link() -> None:
+    """should render the StatutesAtLarge as a markdown link in the Enactment block"""
+    from zwiadbrain.models import Enactment, StatutesAtLarge
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        leg_history=LegHistory(
+            enactment=Enactment(
+                public_law="118-31",
+                url="https://www.govinfo.gov/app/details/PLAW-118publ31",
+                statutes_at_large=StatutesAtLarge(
+                    citation="138 Stat. 1234",
+                    url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1234",
+                ),
+            ),
+        ),
+    )
+    body = render_bill_body(bill)
+    assert (
+        "Statutes at Large: [138 Stat. 1234]"
+        "(https://www.govinfo.gov/app/details/STATUTE-138-Pg1234)"
+    ) in body

@@ -336,6 +336,13 @@ def render_refreshed(
                 rationale=rationale,
                 date=dt.datetime.now(dt.UTC).date(),
             )
+            # Re-stamp the refresh cursors from the merged bill rather than trusting the
+            # subagent to echo them; otherwise the next fetch-refreshable falsely flags
+            # text_changed (F1).
+            bill = bill.model_copy(update={
+                "summary_hash": summary_hash(bill.summary),
+                "amendments_count": len(bill.amendments),
+            })
             write_page(bill, wiki)
             refreshed_count += 1
             if not bill.tracking and bill.flipped_out is not None:
@@ -511,7 +518,11 @@ def render_leg_history(
                 "narrative": narrative,
             }
         )
-        bill = bill.model_copy(update={"leg_history": final})
+        bill = bill.model_copy(update={
+            "leg_history": final,
+            "summary_hash": summary_hash(bill.summary),
+            "amendments_count": len(bill.amendments),
+        })
 
         written = write_page(bill, wiki)
 

@@ -1271,3 +1271,72 @@ def test_reindex_skips_corrupt_page_and_indexes_the_rest(tmp_path: Path) -> None
     )
     assert result.exit_code == 0, result.output
     assert "reindexed 1 pages" in result.stdout
+
+
+def test_render_leg_history_stamps_summary_hash_on_page(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should write a summary_hash into frontmatter for a leg-history page with a summary"""
+    from zwiadbrain.pipeline.refresh import summary_hash
+    from zwiadbrain.wiki.schema import from_page
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    bill = Bill(
+        id="118-hr-8818", jurisdiction="US", title="t", bill_number="H.R. 8818",
+        congress="118", enacted=True, summary="A Claude-written summary of the Act.",
+    )
+    spine = LegHistory()
+    staging = tmp_path / "lh_hash.json"
+    staging.write_text(
+        json.dumps({
+            "bill": bill.model_dump(mode="json"),
+            "spine": spine.model_dump(mode="json"),
+            "hearings": [], "statements": [], "narrative": None, "verdicts": [],
+        }),
+        encoding="utf-8",
+    )
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+    page = (wiki / "federal" / "bills" / "118-hr-8818.md").read_text(encoding="utf-8")
+    parsed = from_page(page)
+    assert isinstance(parsed, Bill)
+    assert parsed.summary_hash == summary_hash("A Claude-written summary of the Act.")
+    assert parsed.summary_hash is not None
+
+
+def test_render_refreshed_recomputes_cursors_deterministically(tmp_path: Path) -> None:
+    """should re-stamp summary_hash/amendments_count from the merged bill, ignoring stale input"""
+    import json
+
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+    from zwiadbrain.pipeline.refresh import summary_hash
+    from zwiadbrain.wiki.schema import from_page
+
+    fresh = {
+        "id": "118-hr-1", "jurisdiction": "US", "title": "Bill One",
+        "bill_number": "H.R. 1", "type": "bill", "tracking": True,
+        "topics": ["ai"], "summary": "Refreshed summary text.",
+        "summary_hash": "STALE-HASH-FROM-SUBAGENT", "amendments_count": 99, "amendments": [],
+    }
+    prev = {**fresh, "summary": "Old summary.", "summary_hash": "old", "amendments_count": 0}
+    refreshed = [{
+        "bill_id": "118-hr-1", "prev": prev, "bill": fresh,
+        "classifier_in_scope": True, "classifier_rationale": "still about AI",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+    parsed = from_page((wiki / "federal" / "bills" / "118-hr-1.md").read_text(encoding="utf-8"))
+    assert isinstance(parsed, Bill)
+    assert parsed.summary_hash == summary_hash("Refreshed summary text.")
+    assert parsed.summary_hash != "STALE-HASH-FROM-SUBAGENT"
+    assert parsed.amendments_count == 0

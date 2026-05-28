@@ -92,8 +92,8 @@ def test_commentary_section_demotes_headings_and_fences_with_markers() -> None:
 def test_page_path_routes_by_jurisdiction_and_type(tmp_path: Path) -> None:
     """should route to federal/state and bills/enforcement directories by id"""
     assert page_path(_bill(), tmp_path) == tmp_path / "states" / "ca" / "bills" / "us-ca-sb-362.md"
-    fed = Bill(id="hr-1", jurisdiction="US", title="t", bill_number="HR 1")
-    assert page_path(fed, tmp_path) == tmp_path / "federal" / "bills" / "hr-1.md"
+    fed = Bill(id="118-hr-1", jurisdiction="US", title="t", bill_number="HR 1")
+    assert page_path(fed, tmp_path) == tmp_path / "federal" / "bills" / "118-hr-1.md"
     enf = EnforcementAction(id="ftc-x", jurisdiction="US", title="t", agency="FTC")
     assert page_path(enf, tmp_path) == tmp_path / "federal" / "enforcement" / "ftc-x.md"
 
@@ -116,7 +116,7 @@ def _bill_with_full_leg_history() -> Bill:
     """A Bill with every LegHistory subsection populated for rendering tests."""
     from zwiadbrain.models import StatutesAtLarge
     return Bill(
-        id="hr-1-full",
+        id="118-hr-1",
         jurisdiction="US",
         title="Full History Bill",
         bill_number="HR 1",
@@ -229,7 +229,7 @@ def test_leg_history_narrative_appears_under_legislative_journey() -> None:
 def test_leg_history_hearing_without_url_is_omitted() -> None:
     """should skip a hearing that has no url (not verifiable)"""
     bill = Bill(
-        id="hr-2",
+        id="118-hr-2",
         jurisdiction="US",
         title="No-URL Hearing Bill",
         bill_number="HR 2",
@@ -252,7 +252,7 @@ def test_leg_history_hearing_without_url_is_omitted() -> None:
 def test_leg_history_statement_without_source_url_is_omitted() -> None:
     """should skip a statement that has no source_url (not verifiable)"""
     bill = Bill(
-        id="hr-3",
+        id="118-hr-3",
         jurisdiction="US",
         title="No-URL Statement Bill",
         bill_number="HR 3",
@@ -303,7 +303,7 @@ def test_leg_history_subsection_order() -> None:
 def test_leg_history_floor_action_plain_text_when_no_url() -> None:
     """should render floor action as plain text when url is absent"""
     bill = Bill(
-        id="hr-4",
+        id="118-hr-4",
         jurisdiction="US",
         title="Plain Floor Bill",
         bill_number="HR 4",
@@ -328,7 +328,7 @@ def test_leg_history_floor_action_plain_text_when_no_url() -> None:
 def test_leg_history_vote_plain_text_when_no_roll_call_url() -> None:
     """should render vote result as plain text when roll_call_url is absent"""
     bill = Bill(
-        id="hr-5",
+        id="118-hr-5",
         jurisdiction="US",
         title="Plain Vote Bill",
         bill_number="HR 5",
@@ -351,7 +351,7 @@ def test_leg_history_vote_plain_text_when_no_roll_call_url() -> None:
 def test_leg_history_enactment_with_url_and_no_public_law() -> None:
     """should render 'Public law document' as link text when public_law is empty but url present"""
     bill = Bill(
-        id="hr-6",
+        id="118-hr-6",
         jurisdiction="US",
         title="URL-only Enactment Bill",
         bill_number="HR 6",
@@ -376,7 +376,7 @@ def _vote_section_lines(bill: Bill) -> list[str]:
 def test_leg_history_vote_without_chamber_has_no_bare_separator() -> None:
     """should not emit a bare ' :' or double spaces when chamber is missing"""
     bill = Bill(
-        id="hr-7",
+        id="118-hr-7",
         jurisdiction="US",
         title="No-chamber Vote Bill",
         bill_number="HR 7",
@@ -393,7 +393,7 @@ def test_leg_history_vote_without_chamber_has_no_bare_separator() -> None:
 def test_leg_history_vote_without_date_or_chamber_has_no_bare_separator() -> None:
     """should render only the result when both date and chamber are missing"""
     bill = Bill(
-        id="hr-8",
+        id="118-hr-8",
         jurisdiction="US",
         title="Result-only Vote Bill",
         bill_number="HR 8",
@@ -417,7 +417,7 @@ def test_leg_history_vote_without_date_or_chamber_has_no_bare_separator() -> Non
 def test_leg_history_floor_action_without_date_or_chamber_has_no_leading_dash() -> None:
     """should render only the linked CR citation when date and chamber are missing"""
     bill = Bill(
-        id="hr-9",
+        id="118-hr-9",
         jurisdiction="US",
         title="CR-only Floor Bill",
         bill_number="HR 9",
@@ -442,7 +442,7 @@ def test_leg_history_floor_action_without_date_or_chamber_has_no_leading_dash() 
 def test_leg_history_floor_action_without_date_or_chamber_with_cr_text() -> None:
     """should link the CR citation text with no leading separator when date/chamber missing"""
     bill = Bill(
-        id="hr-10",
+        id="118-hr-10",
         jurisdiction="US",
         title="CR-text-only Floor Bill",
         bill_number="HR 10",

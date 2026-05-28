@@ -86,8 +86,8 @@ def test_commentary_source_rejects_unknown_matched_by() -> None:
 
 def test_list_defaults_are_not_shared_between_instances() -> None:
     """should give each instance its own list, not a shared mutable default"""
-    a = Bill(id="a", jurisdiction="US", title="t", bill_number="SB 1")
-    b = Bill(id="b", jurisdiction="US", title="t", bill_number="SB 2")
+    a = Bill(id="us-ca-sb-1", jurisdiction="US-CA", title="t", bill_number="SB 1")
+    b = Bill(id="us-ca-sb-2", jurisdiction="US-CA", title="t", bill_number="SB 2")
     a.topics.append("ai")
     assert b.topics == []
 
@@ -406,3 +406,26 @@ def test_enactment_statutes_at_large_uses_new_model() -> None:
     assert e.statutes_at_large is not None
     assert e.statutes_at_large.citation == "138 Stat. 1234"
     assert Enactment().statutes_at_large is None
+
+
+# ---------------------------------------------------------------------------
+# B44: federal Bill.id shape enforcement
+# ---------------------------------------------------------------------------
+
+
+def test_bill_rejects_malformed_federal_id() -> None:
+    """should raise ValidationError when a US federal bill id is not <congress>-<type>-<number>"""
+    with pytest.raises(ValidationError):
+        Bill(id="118-hr", jurisdiction="US", title="t", bill_number="H.R. 1")
+
+
+def test_bill_accepts_well_formed_federal_id() -> None:
+    """should accept a valid three-segment federal id"""
+    b = Bill(id="118-hjres-45", jurisdiction="US", title="t", bill_number="H.J.Res. 45")
+    assert b.id == "118-hjres-45"
+
+
+def test_bill_does_not_constrain_state_id_shape() -> None:
+    """should leave non-US (state) ids alone — they do not use the federal triple form"""
+    b = Bill(id="us-ca-sb-362", jurisdiction="US-CA", title="t", bill_number="SB 362")
+    assert b.id == "us-ca-sb-362"

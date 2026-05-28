@@ -122,7 +122,7 @@ _SPINE_FIELDS = {
 def _bill_with_full_leg_history() -> Bill:
     """Bill with a full LegHistory: spine fields + one Hearing + one Statement."""
     return Bill(
-        id="us-hr-1-119",
+        id="119-hr-1",
         jurisdiction="US",
         title="Test Act",
         bill_number="HR 1",
@@ -195,7 +195,7 @@ def test_statement_verified_flag_preserved_in_frontmatter() -> None:
 def test_leg_history_spine_only_emits_no_leg_history_key() -> None:
     """should omit leg_history from frontmatter when hearings, statements, narrative all empty"""
     bill = Bill(
-        id="us-hr-2-119",
+        id="119-hr-2",
         jurisdiction="US",
         title="Spine Only Act",
         bill_number="HR 2",
@@ -213,7 +213,7 @@ def test_leg_history_spine_only_emits_no_leg_history_key() -> None:
 def test_leg_history_none_emits_no_leg_history_key() -> None:
     """should omit leg_history from frontmatter when leg_history is None"""
     bill = Bill(
-        id="us-hr-3-119",
+        id="119-hr-3",
         jurisdiction="US",
         title="No History Act",
         bill_number="HR 3",

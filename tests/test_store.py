@@ -21,7 +21,9 @@ def _seed_wiki(wiki_root: Path) -> None:
         wiki_root,
     )
     write_page(
-        Bill(id="hr-8818", jurisdiction="US", title="APRA", bill_number="HR 8818", tracking=False),
+        Bill(
+            id="118-hr-8818", jurisdiction="US", title="APRA", bill_number="HR 8818", tracking=False
+        ),
         wiki_root,
     )
     write_page(

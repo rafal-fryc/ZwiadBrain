@@ -54,7 +54,7 @@ def test_version_command_prints_package_version() -> None:
 def test_reindex_command_reports_indexed_count(tmp_path: Path) -> None:
     """should rebuild the index from a wiki root and report how many pages it indexed"""
     wiki = tmp_path / "wiki"
-    write_page(Bill(id="hr-1", jurisdiction="US", title="A bill", bill_number="HR 1"), wiki)
+    write_page(Bill(id="118-hr-1", jurisdiction="US", title="A bill", bill_number="HR 1"), wiki)
     result = runner.invoke(
         app, ["reindex", "--wiki", str(wiki), "--db", str(tmp_path / "i.sqlite")]
     )
@@ -160,7 +160,13 @@ def test_fetch_candidates_recovers_title_miss_via_policy_area(
         ]
     }
     base = "/bill/118/s/9999"
-    detail = {"bill": {"title": "Quarterly Filing Reform Act", "policyArea": {"name": "Commerce"}}}
+    detail = {
+        "bill": {
+            "congress": 118, "type": "S", "number": "9999",
+            "title": "Quarterly Filing Reform Act",
+            "policyArea": {"name": "Commerce"},
+        }
+    }
     with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
         mock.get("/bill/118").respond(json=bill_list)
         mock.get(base).respond(json=detail)

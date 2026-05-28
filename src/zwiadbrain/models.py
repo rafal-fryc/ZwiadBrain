@@ -14,7 +14,9 @@ its annotation is evaluated.
 import datetime as dt
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, model_validator
+
+from zwiadbrain.exceptions import ConfigError
 
 
 class CommentarySource(BaseModel):
@@ -198,6 +200,25 @@ class Bill(WikiItem):
     summary_hash: str | None = None
     amendments_count: int = 0
     flipped_out: FlipOutAudit | None = None
+
+    @model_validator(mode="after")
+    def _check_federal_id_shape(self) -> "Bill":
+        """Federal (``jurisdiction == "US"``) ids must be ``<congress>-<type>-<number>``.
+
+        Parsed via the shared :func:`parse_bill_id`, which raises ``ConfigError``
+        on a malformed id; re-raised here as ``ValueError`` so pydantic surfaces
+        it as a ``ValidationError``.  State ids (e.g. ``us-ca-sb-362``) use a
+        different shape and are left unchecked.  This only validates — it never
+        rewrites ``self.id`` — so serialized output is byte-identical (D20).
+        """
+        if self.jurisdiction == "US":
+            from zwiadbrain.pipeline.ids import parse_bill_id  # noqa: PLC0415
+
+            try:
+                parse_bill_id(self.id)
+            except ConfigError as exc:
+                raise ValueError(str(exc)) from exc
+        return self
 
 
 class EnforcementAction(WikiItem):

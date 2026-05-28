@@ -42,7 +42,9 @@ def test_enrich_fetches_by_native_id_and_stamps_last_synced() -> None:
 def test_enrich_preserves_a_source_provided_last_synced() -> None:
     """should not overwrite last_synced if the source already set it"""
     stamped = dt.datetime(2020, 1, 1, tzinfo=dt.UTC)
-    bill = Bill(id="x", jurisdiction="US", title="t", bill_number="H.R. 1", last_synced=stamped)
+    bill = Bill(
+        id="118-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1", last_synced=stamped
+    )
     out = enrich(_FakeSource(bill), _candidate())
     assert out.last_synced == stamped
 

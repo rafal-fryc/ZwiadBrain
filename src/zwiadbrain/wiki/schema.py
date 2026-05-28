@@ -5,12 +5,13 @@ rendered Markdown body. :func:`to_frontmatter` emits metadata only: body content
 (summary prose, timeline, amendments, and the verbatim copied commentary text)
 is rendered into the body and re-derived each run, so it is excluded here.
 
-**leg_history partial persistence:** ``leg_history.hearings`` and
-``leg_history.statements`` are expensive researched artifacts that carry a
-``verified`` flag, so they persist to frontmatter. The deterministic spine
-fields (``versions``, ``committee_reports``, ``floor_consideration``, ``votes``,
-``conference``, ``enactment``) and ``narrative`` remain body-only and are never
-serialized to frontmatter.
+**leg_history partial persistence:** ``leg_history.hearings``,
+``leg_history.statements``, and ``leg_history.narrative`` are expensive,
+non-deterministic outputs and persist to frontmatter (D40 extends D37 to add
+narrative).  The deterministic spine fields (``versions``,
+``committee_reports``, ``floor_consideration``, ``votes``, ``conference``,
+``enactment``) remain body-only and are re-derived from the API on each
+render.
 
 :func:`from_page` parses a page's frontmatter back into the correct model and
 surfaces validation failures as :class:`WikiSchemaError`.
@@ -51,6 +52,8 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
     for key, value in raw.items():
         if key == "commentary_sources" or key in _BODY_ONLY_FIELDS or value in ([], {}):
             continue
+        if key == "amendments_count" and value == 0:
+            continue
         fm[key] = value
     # Commentary sources are built from the typed model so the verbatim body can
     # be excluded cleanly (it is rendered into the page body, not the frontmatter).
@@ -59,9 +62,9 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
             source.model_dump(mode="json", exclude_none=True, exclude={"body"})
             for source in item.commentary_sources
         ]
-    # Persist only the researched leg_history sub-fields (hearings + statements).
+    # Persist the researched leg_history sub-fields plus the narrative (D40).
     # The deterministic spine (versions, committee_reports, floor_consideration,
-    # votes, conference, enactment) and narrative remain body-only / re-derived.
+    # votes, conference, enactment) remains body-only / re-derived per D37.
     if isinstance(item, Bill) and item.leg_history is not None:
         lh_fm: dict[str, object] = {}
         if item.leg_history.hearings:
@@ -74,6 +77,8 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
                 s.model_dump(mode="json", exclude_none=True)
                 for s in item.leg_history.statements
             ]
+        if item.leg_history.narrative:
+            lh_fm["narrative"] = item.leg_history.narrative
         if lh_fm:
             fm["leg_history"] = lh_fm
     return fm

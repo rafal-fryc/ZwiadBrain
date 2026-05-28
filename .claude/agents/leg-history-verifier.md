@@ -71,13 +71,21 @@ input:
 
 ```
 [
-  {"index": 0, "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
-  {"index": 1, "verified": false, "note": "URL returned 404."},
-  {"index": 2, "verified": false, "note": "Quote present but attributed to a different speaker on the page."}
+  {"index": 0, "speaker": "Rep. Jane Doe", "quote_prefix": "We must protect consumers from", "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
+  {"index": 1, "speaker": "Sen. John Roe", "quote_prefix": "This bill establishes a new", "verified": false, "note": "URL returned 404."},
+  {"index": 2, "speaker": "Dr. A. Witness", "quote_prefix": "The data shows clearly that", "verified": false, "note": "Quote present but attributed to a different speaker on the page (merged attribution)."}
 ]
 ```
 
-Every input statement MUST have exactly one entry in your output, and every
-entry MUST include a `note` — brief when verified, and explaining which check
-failed when false. Do not skip any index. Do not add entries for indices not in
-the input.
+Each entry MUST include, in addition to `index`, `verified`, and `note`:
+- `speaker` — the speaker name from the input statement at this `index`, copied
+  unchanged.
+- `quote_prefix` — the first ~40 characters of the input `quote` you checked,
+  copied verbatim (truncate, do not paraphrase).
+
+These two fields are an echo of what you checked: the pipeline cross-checks them
+against the statement at that index and treats any mismatch as `verified: false`
+(fail-closed). Every input statement MUST have exactly one entry, with `index`
+matching the input. Every entry MUST include a `note` — brief when verified,
+explaining which check failed when false. Do not skip any index. Do not add
+entries for indices not in the input.

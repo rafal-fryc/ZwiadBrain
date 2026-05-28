@@ -305,10 +305,11 @@ def test_leghistory_list_defaults_are_not_shared() -> None:
 
 def test_enactment_accepts_url() -> None:
     """should store a url pointing to the public-law document"""
+    from zwiadbrain.models import StatutesAtLarge
     e = Enactment(
         date_signed=dt.date(2025, 12, 1),
         public_law="119-42",
-        statutes_at_large="139 Stat. 100",
+        statutes_at_large=StatutesAtLarge(citation="139 Stat. 100", url="https://www.govinfo.gov/app/details/STATUTE-139-Pg100"),
         url="https://govinfo.gov/link/plaw/119/public/42",
     )
     assert e.url == "https://govinfo.gov/link/plaw/119/public/42"
@@ -318,3 +319,86 @@ def test_enactment_url_defaults_none() -> None:
     """should default url to None when not supplied"""
     e = Enactment()
     assert e.url is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 06: Refresh cursors and flip audit
+# ---------------------------------------------------------------------------
+
+
+def test_amendment_carries_latest_action_date() -> None:
+    """should accept and round-trip a latest_action_date field"""
+    from zwiadbrain.models import Amendment
+    import datetime as dt
+    a = Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 5, 1))
+    assert a.latest_action_date == dt.date(2026, 5, 1)
+    # default is None
+    assert Amendment(number="H.Amdt. 2").latest_action_date is None
+
+
+def test_bill_carries_split_cursors_and_amendments_count() -> None:
+    """should carry update_date (bare), update_date_text (text-incl), summary_hash, amendments_count"""
+    from zwiadbrain.models import Bill
+    b = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        update_date="2026-05-01T00:00:00Z",
+        update_date_text="2026-05-02T00:00:00Z",
+        summary_hash="deadbeef",
+        amendments_count=3,
+    )
+    assert b.update_date == "2026-05-01T00:00:00Z"
+    assert b.update_date_text == "2026-05-02T00:00:00Z"
+    assert b.summary_hash == "deadbeef"
+    assert b.amendments_count == 3
+    # defaults are None / 0
+    b2 = Bill(id="118-hr-2", jurisdiction="US", title="y", bill_number="H.R. 2")
+    assert b2.update_date_text is None
+    assert b2.summary_hash is None
+    assert b2.amendments_count == 0
+
+
+def test_flipout_audit_model() -> None:
+    """should record a date and reason for a classifier flip-out"""
+    from zwiadbrain.models import FlipOutAudit
+    import datetime as dt
+    f = FlipOutAudit(date=dt.date(2026, 6, 4), reason="classifier: telehealth scope drift")
+    assert f.date == dt.date(2026, 6, 4)
+    assert f.reason == "classifier: telehealth scope drift"
+
+
+def test_bill_carries_flipped_out_audit() -> None:
+    """should accept a FlipOutAudit on Bill.flipped_out (default None)"""
+    from zwiadbrain.models import Bill, FlipOutAudit
+    import datetime as dt
+    b = Bill(
+        id="118-hr-3",
+        jurisdiction="US",
+        title="z",
+        bill_number="H.R. 3",
+        flipped_out=FlipOutAudit(date=dt.date(2026, 6, 4), reason="r"),
+    )
+    assert b.flipped_out is not None
+    assert b.flipped_out.reason == "r"
+    assert Bill(id="118-hr-4", jurisdiction="US", title="q", bill_number="H.R. 4").flipped_out is None
+
+
+def test_statutes_at_large_is_a_typed_model() -> None:
+    """should be a model with citation + url, not a bare string"""
+    from zwiadbrain.models import StatutesAtLarge
+    s = StatutesAtLarge(citation="138 Stat. 1234", url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1234")
+    assert s.citation == "138 Stat. 1234"
+    assert str(s.url).startswith("https://")
+
+
+def test_enactment_statutes_at_large_uses_new_model() -> None:
+    """Enactment.statutes_at_large should accept StatutesAtLarge | None"""
+    from zwiadbrain.models import Enactment, StatutesAtLarge
+    e = Enactment(
+        statutes_at_large=StatutesAtLarge(citation="138 Stat. 1234", url="https://example.test"),
+    )
+    assert e.statutes_at_large is not None
+    assert e.statutes_at_large.citation == "138 Stat. 1234"
+    assert Enactment().statutes_at_large is None

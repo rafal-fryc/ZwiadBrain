@@ -114,6 +114,7 @@ def test_write_page_is_idempotent(tmp_path: Path) -> None:
 
 def _bill_with_full_leg_history() -> Bill:
     """A Bill with every LegHistory subsection populated for rendering tests."""
+    from zwiadbrain.models import StatutesAtLarge
     return Bill(
         id="hr-1-full",
         jurisdiction="US",
@@ -157,7 +158,7 @@ def _bill_with_full_leg_history() -> Bill:
             enactment=Enactment(
                 date_signed=dt.date(2024, 3, 15),
                 public_law="P.L. 118-1",
-                statutes_at_large="138 Stat. 1",
+                statutes_at_large=StatutesAtLarge(citation="138 Stat. 1", url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1"),
                 url="https://congress.gov/public-law/118/1",
             ),
             statements=[

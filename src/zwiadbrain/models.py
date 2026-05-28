@@ -49,6 +49,7 @@ class Amendment(BaseModel):
     sponsor: str | None = None
     chamber: str | None = None
     status: str | None = None
+    latest_action_date: dt.date | None = None
     what_changed: str | None = None
 
 
@@ -109,12 +110,24 @@ class Statement(BaseModel):
     verified: bool = False
 
 
+class StatutesAtLarge(BaseModel):
+    """Statutes-at-Large citation for an enacted public law.
+
+    Carries the canonical citation (e.g. ``"138 Stat. 1234"``) and a clickable
+    GovInfo ``app/details`` URL.  ``url`` is required: the project's leg-history
+    rule is "no link, no render" (matching ``Hearing``, ``CommitteeReport``, etc.).
+    """
+
+    citation: str
+    url: str
+
+
 class Enactment(BaseModel):
     """Enactment details recorded when a bill becomes law."""
 
     date_signed: dt.date | None = None
     public_law: str | None = None
-    statutes_at_large: str | None = None
+    statutes_at_large: StatutesAtLarge | None = None
     url: str | None = None
 
 
@@ -130,6 +143,18 @@ class LegHistory(BaseModel):
     hearings: list[Hearing] = []
     statements: list[Statement] = []
     narrative: str | None = None
+
+
+class FlipOutAudit(BaseModel):
+    """Audit record for a bill whose classifier verdict flipped IN→OUT during refresh.
+
+    Persisted to frontmatter so a future ``reindex`` re-reads it; the renderer
+    emits an ``<!-- zwiadbrain:flipped-out … -->`` comment in the body from it.
+    Survives a fresh clone via committed wiki history.
+    """
+
+    date: dt.date
+    reason: str
 
 
 class WikiItem(BaseModel):
@@ -169,6 +194,10 @@ class Bill(WikiItem):
     related_bills: list[str] = []
     change_hash: str | None = None
     update_date: str | None = None
+    update_date_text: str | None = None
+    summary_hash: str | None = None
+    amendments_count: int = 0
+    flipped_out: FlipOutAudit | None = None
 
 
 class EnforcementAction(WikiItem):

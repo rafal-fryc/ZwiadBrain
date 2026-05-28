@@ -262,17 +262,19 @@ def test_assemble_spine_enactment_signed_date_from_became_public_law_action() ->
 
 def test_assemble_spine_enactment_govinfo_public_law_preferred_over_bill() -> None:
     """should prefer govinfo public_law over bill.public_law when both are present"""
+    from zwiadbrain.models import StatutesAtLarge
     law = Enactment(
         public_law="118-200",  # different from bill's public_law
         url="https://govinfo.example",
-        statutes_at_large="138 Stat. 1234",
+        statutes_at_large=StatutesAtLarge(citation="138 Stat. 1234", url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1234"),
         date_signed=None,
     )
     bill = _enacted_bill(public_law="118-100")  # bill has its own
     spine = assemble_spine(bill, _FakeCongress(), _FakeGovInfo(enacted_law=law))
     assert spine.enactment is not None
     assert spine.enactment.public_law == "118-200"  # govinfo wins
-    assert spine.enactment.statutes_at_large == "138 Stat. 1234"
+    assert spine.enactment.statutes_at_large is not None
+    assert spine.enactment.statutes_at_large.citation == "138 Stat. 1234"
 
 
 def test_assemble_spine_enactment_url_falls_back_to_congress_source_when_govinfo_has_no_url() -> (  # noqa: E501

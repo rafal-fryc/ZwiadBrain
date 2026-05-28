@@ -1027,3 +1027,107 @@ def test_fetch_refreshable_writes_empty_list_when_nothing_changed(
     assert result.exit_code == 0, result.output
     refreshable = json.loads((out_dir / "refreshable.json").read_text(encoding="utf-8"))
     assert refreshable == []
+
+
+def test_render_refreshed_applies_preservation_and_renders(tmp_path: Path) -> None:
+    """should re-attach prev leg_history, write the page, and report counts"""
+    import json
+    from typer.testing import CliRunner
+    from zwiadbrain.cli import app
+
+    # Fresh bill (from fetch-refreshable) — enacted, with re-derived spine, no hearings.
+    fresh = {
+        "id": "118-hr-1", "jurisdiction": "US", "title": "Bill One",
+        "bill_number": "H.R. 1", "type": "bill", "tracking": True, "enacted": True,
+        "leg_history": {
+            "versions": [],
+            "committee_reports": [
+                {"citation": "H. Rept. 1", "url": "https://example.test/c"}
+            ],
+            "floor_consideration": [], "votes": [], "hearings": [], "statements": [],
+            "narrative": None, "conference": None, "enactment": None,
+        },
+        "topics": ["ai"],
+        "summary": "Refreshed summary.",
+    }
+    # Prev (committed page) — has a hearing + narrative that must survive.
+    prev = {
+        **fresh,
+        "summary": "Old summary.",
+        "leg_history": {
+            "versions": [], "committee_reports": [],
+            "floor_consideration": [], "votes": [],
+            "hearings": [{"title": "Hearing X", "url": "https://example.test/h"}],
+            "statements": [],
+            "narrative": "The arc of the debate.",
+            "conference": None, "enactment": None,
+        },
+    }
+    refreshed = [{
+        "bill_id": "118-hr-1",
+        "prev": prev,
+        "bill": fresh,                  # fresh + subagent outputs merged by the slash command
+        "classifier_in_scope": True,
+        "classifier_rationale": "still about AI",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+
+    page = (wiki / "federal" / "bills" / "118-hr-1.md").read_text(encoding="utf-8")
+    # research carried from prev
+    assert "Hearing X" in page
+    assert "The arc of the debate." in page
+    # spine taken from fresh
+    assert "H. Rept. 1" in page
+    # summary refreshed
+    assert "Refreshed summary." in page
+    # report mentions the count
+    assert "refreshed 1" in result.output
+
+
+def test_render_refreshed_flips_out_when_classifier_out_of_scope(tmp_path: Path) -> None:
+    """should set tracking=False and emit the audit marker on IN→OUT flip"""
+    import json
+    from typer.testing import CliRunner
+    from zwiadbrain.cli import app
+
+    refreshed = [{
+        "bill_id": "118-hr-9",
+        "prev": {
+            "id": "118-hr-9", "jurisdiction": "US", "title": "Old Title",
+            "bill_number": "H.R. 9", "type": "bill", "tracking": True, "topics": ["ai"],
+        },
+        "bill": {
+            "id": "118-hr-9", "jurisdiction": "US", "title": "Old Title",
+            "bill_number": "H.R. 9", "type": "bill", "tracking": True, "topics": ["ai"],
+            "summary": "Updated",
+        },
+        "classifier_in_scope": False,
+        "classifier_rationale": "telehealth scope drift",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+
+    page = (wiki / "federal" / "bills" / "118-hr-9.md").read_text(encoding="utf-8")
+    assert "tracking: false" in page
+    assert "<!-- zwiadbrain:flipped-out " in page
+    assert "telehealth scope drift" in page
+    # topics preserved (the prior classification's record stands)
+    assert "ai" in page
+    assert "1 flipped-out" in result.output

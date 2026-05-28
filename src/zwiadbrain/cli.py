@@ -20,7 +20,7 @@ from zwiadbrain.models import Bill, Hearing, LegHistory, Statement
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
 from zwiadbrain.pipeline.enrich import enrich
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
-from zwiadbrain.pipeline.refresh import detect_refreshable
+from zwiadbrain.pipeline.refresh import apply_classifier_flip, detect_refreshable, preserve_leg_history
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.congress import CongressSource
@@ -266,6 +266,66 @@ def fetch_refreshable(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"staged {len(entries)} refreshable bill(s) to {path}")
+
+
+@app.command(name="render-refreshed")
+def render_refreshed(
+    input_file: Annotated[
+        Path, typer.Option("--in", help="refreshed.json staged by /zwiad-refresh."),
+    ],
+    wiki: Annotated[Path, typer.Option(help="Wiki root to write pages under.")] = Path("wiki"),
+    db: Annotated[Path, typer.Option(help="SQLite index path.")] = Path("data/cache/index.sqlite"),
+) -> None:
+    """Apply subagent outputs, the D38 preservation rule, and the IN→OUT flip; render + reindex."""
+    try:
+        raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            raise ConfigError(
+                f"refreshed.json must be a JSON list, got {type(raw).__name__}"
+            )
+        entries: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+        refreshed_count = 0
+        flipped_out: list[tuple[str, str]] = []
+        for item in entries:
+            if not isinstance(item, dict):
+                raise ConfigError("each entry in refreshed.json must be a JSON object")
+            entry: dict[str, object] = item  # pyright: ignore[reportUnknownVariableType]
+            prev = Bill.model_validate(entry["prev"])
+            bill = Bill.model_validate(entry["bill"])
+            in_scope = bool(entry.get("classifier_in_scope", True))
+            rationale = str(entry.get("classifier_rationale") or "")
+            # Preserve leg-history research onto fresh spine.
+            if prev.leg_history is not None and bill.leg_history is not None:
+                bill = bill.model_copy(update={
+                    "leg_history": preserve_leg_history(prev.leg_history, bill.leg_history),
+                })
+            elif prev.leg_history is not None and bill.leg_history is None:
+                # Defensive: a fresh non-enacted bill has no spine, but prev had research.
+                # Carry prev.leg_history through unchanged so the research is not lost.
+                bill = bill.model_copy(update={"leg_history": prev.leg_history})
+            # Apply classifier verdict (no-op when in_scope=True, flip when False).
+            bill = apply_classifier_flip(
+                bill,
+                in_scope=in_scope,
+                rationale=rationale,
+                date=dt.datetime.now(dt.UTC).date(),
+            )
+            write_page(bill, wiki)
+            refreshed_count += 1
+            if not bill.tracking and bill.flipped_out is not None:
+                flipped_out.append((bill.id, bill.flipped_out.reason))
+        # Reindex after all writes.
+        with Store(db) as store:
+            store.reindex(wiki)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    flipped_count = len(flipped_out)
+    typer.echo(
+        f"refresh complete: refreshed {refreshed_count} / {flipped_count} flipped-out"
+    )
+    for bill_id, reason in flipped_out:
+        typer.echo(f"  flipped-out: {bill_id} — \"{reason}\"")
 
 
 def _as_list(value: object, key: str) -> list[object]:

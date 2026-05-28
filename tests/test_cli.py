@@ -1240,3 +1240,14 @@ def test_render_refreshed_reports_clean_error_on_missing_key(tmp_path: Path) -> 
     ])
     assert result.exit_code == 1
     assert "missing required key 'bill'" in result.output
+
+
+def test_fetch_refreshable_rejects_malformed_bill_id(tmp_path: Path) -> None:
+    """should raise ConfigError (not a bare unpacking ValueError) on a non-three-segment id"""
+    from zwiadbrain.exceptions import ConfigError
+    from zwiadbrain.pipeline.ids import parse_bill_id
+
+    # The cli path delegates id parsing to parse_bill_id; a 4-segment state id
+    # must surface as ConfigError, the type fetch_refreshable's AppError handler catches.
+    with pytest.raises(ConfigError):
+        parse_bill_id("us-ca-sb-362")

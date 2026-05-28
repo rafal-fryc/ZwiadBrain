@@ -29,6 +29,7 @@ from zwiadbrain.exceptions import AppError, ConfigError
 from zwiadbrain.models import Bill, Hearing, LegHistory, Statement
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
 from zwiadbrain.pipeline.enrich import enrich
+from zwiadbrain.pipeline.ids import parse_bill_id
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
@@ -249,7 +250,7 @@ def fetch_refreshable(
             item = from_page(text)
             if not isinstance(item, Bill) or not item.tracking:
                 continue
-            congress, bill_type, number = item.id.split("-")
+            congress, bill_type, number = parse_bill_id(item.id)
             native_id = f"{congress}/{bill_type}/{number}"
             fresh = congress_source.fetch(native_id)
             # Cross-source enrich seam: compute the cursors that source.fetch

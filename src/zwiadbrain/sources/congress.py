@@ -6,8 +6,10 @@ amendments, text, summaries, related bills) and maps everything onto the common
 :class:`~zwiadbrain.models.Bill`. Transport is httpx with a tenacity retry on
 transient (5xx / network) failures; 429 surfaces as :class:`RateLimitError`.
 
-The Congress.gov change cursor is ``updateDateIncludingText`` (stored on the
-bill as ``update_date``), which Pass A compares to detect changed bills.
+The Congress.gov change cursor is split across two fields on the bill:
+``update_date`` (bare ``updateDate`` — bumps on any change) and
+``update_date_text`` (``updateDateIncludingText`` — bumps when text/summary
+changes).  Pass A compares both to decide what to refresh.
 """
 
 from __future__ import annotations
@@ -167,6 +169,7 @@ def _to_amendment(raw: dict[str, Any]) -> Amendment:
         number=designation,
         chamber=_AMENDMENT_CHAMBER.get(amdt_type),
         status=_opt_str(latest.get("text")),
+        latest_action_date=_parse_date(latest.get("actionDate")),
         what_changed=_opt_str(raw.get("purpose") or raw.get("description")),
     )
 
@@ -339,7 +342,8 @@ class CongressSource:
             amendments=[_to_amendment(a) for a in amendments],
             text_versions=[_to_text_version(t) for t in texts],
             related_bills=[_to_related(r) for r in related],
-            update_date=_opt_str(detail.get("updateDateIncludingText") or detail.get("updateDate")),
+            update_date=_opt_str(detail.get("updateDate")),
+            update_date_text=_opt_str(detail.get("updateDateIncludingText")),
             sources={"Congress.gov": _public_url(congress, bill_type, number)},
         )
 

@@ -77,7 +77,8 @@ def test_fetch_maps_core_metadata_to_bill() -> None:
     assert bill.introduced_date == dt.date(2024, 6, 26)
     assert bill.policy_area == "Science, Technology, Communications"
     assert bill.sponsors == ["Rep. Lieu, Ted [D-CA-36]"]
-    assert bill.update_date == "2024-12-21T03:27:05Z"
+    assert bill.update_date == "2024-12-21"
+    assert bill.update_date_text == "2024-12-21T03:27:05Z"
     assert bill.sources == {
         "Congress.gov": "https://www.congress.gov/bill/118th-congress/house-bill/8818"
     }
@@ -445,3 +446,69 @@ def test_recorded_votes_returns_empty_list_when_no_actions_have_votes() -> None:
         votes = _source().recorded_votes("118/hr/8818")
 
     assert votes == []
+
+
+# --- T2: split cursors and amendment dates -----------------------------------
+
+
+def test_fetch_maps_bare_update_date_and_update_date_text_separately() -> None:
+    """should set update_date from bare updateDate, update_date_text from bare updateDateIncludingText"""
+    detail_payload: dict[str, Any] = {
+        "bill": {
+            "congress": 118,
+            "type": "HR",
+            "number": 2670,
+            "title": "Test bill",
+            "updateDate": "2026-05-01T00:00:00Z",
+            "updateDateIncludingText": "2026-05-02T00:00:00Z",
+        }
+    }
+    empty_list_payloads: dict[str, dict[str, list[Any]]] = {
+        "actions": {"actions": []},
+        "amendments": {"amendments": []},
+        "text": {"textVersions": []},
+        "summaries": {"summaries": []},
+        "relatedbills": {"relatedBills": []},
+    }
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get("/bill/118/hr/2670").respond(json=detail_payload)
+        for sub, body in empty_list_payloads.items():
+            mock.get(f"/bill/118/hr/2670/{sub}").respond(json=body)
+        bill = CongressSource(api_key="k").fetch("118/hr/2670")
+    assert bill.update_date == "2026-05-01T00:00:00Z"
+    assert bill.update_date_text == "2026-05-02T00:00:00Z"
+
+
+def test_fetch_maps_per_amendment_latest_action_date() -> None:
+    """should map each amendment's latestAction.actionDate to Amendment.latest_action_date"""
+    detail_payload: dict[str, Any] = {
+        "bill": {"congress": 118, "type": "HR", "number": 2670, "title": "x"}
+    }
+    amendments_payload: dict[str, Any] = {
+        "amendments": [
+            {
+                "type": "HAMDT",
+                "number": "5",
+                "purpose": "Adds AI clause",
+                "latestAction": {"text": "Agreed to", "actionDate": "2026-04-15"},
+            },
+            {
+                "type": "HAMDT",
+                "number": "7",
+                "purpose": "Strikes section 3",
+                "latestAction": {"text": "Failed", "actionDate": "2026-04-20"},
+            },
+        ]
+    }
+    empty: dict[str, list[Any]] = {"actions": [], "textVersions": [], "summaries": [], "relatedBills": []}
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get("/bill/118/hr/2670").respond(json=detail_payload)
+        mock.get("/bill/118/hr/2670/actions").respond(json={"actions": empty["actions"]})
+        mock.get("/bill/118/hr/2670/amendments").respond(json=amendments_payload)
+        mock.get("/bill/118/hr/2670/text").respond(json={"textVersions": empty["textVersions"]})
+        mock.get("/bill/118/hr/2670/summaries").respond(json={"summaries": empty["summaries"]})
+        mock.get("/bill/118/hr/2670/relatedbills").respond(json={"relatedBills": empty["relatedBills"]})
+        bill = CongressSource(api_key="k").fetch("118/hr/2670")
+    assert len(bill.amendments) == 2
+    assert bill.amendments[0].latest_action_date == dt.date(2026, 4, 15)
+    assert bill.amendments[1].latest_action_date == dt.date(2026, 4, 20)

@@ -38,6 +38,7 @@ from zwiadbrain.models import (
     Statement,
     Vote,
 )
+from zwiadbrain.pipeline.ids import parse_bill_id
 
 # ---------------------------------------------------------------------------
 # Grounding gate result types
@@ -108,36 +109,6 @@ class _GovInfoLike(Protocol):
 # ---------------------------------------------------------------------------
 # Module-private helpers
 # ---------------------------------------------------------------------------
-
-
-def _parse_id(bill_id: str) -> tuple[int, str, str]:
-    """Parse ``bill.id`` (``"{congress}-{type}-{number}"``) into its three parts.
-
-    Returns ``(congress: int, bill_type: str, number: str)``.
-
-    Example::
-
-        _parse_id("118-hr-9020")  # -> (118, "hr", "9020")
-        _parse_id("118-hjres-45")  # -> (118, "hjres", "45")
-
-    The format is ``<congress>-<type>-<number>`` where ``<type>`` may itself
-    contain no hyphens (hr, s, hjres, sjres, hconres, sconres, hres, sres).
-    Congress is always an integer, number is always numeric, and type is the
-    remainder -- so split on the first and last hyphen to be robust.
-
-    Raises :class:`ValueError` if *bill_id* does not have three
-    hyphen-separated segments.
-    """
-    first_dash = bill_id.find("-")
-    last_dash = bill_id.rfind("-")
-    if first_dash == -1 or first_dash == last_dash:
-        raise ValueError(
-            f"bill.id must be '<congress>-<type>-<number>', got: {bill_id!r}"
-        )
-    congress = int(bill_id[:first_dash])
-    bill_type = bill_id[first_dash + 1 : last_dash]
-    number = bill_id[last_dash + 1 :]
-    return congress, bill_type, number
 
 
 def _signed_date(bill: Bill) -> dt.date | None:
@@ -397,7 +368,7 @@ def assemble_spine(
     *congress_source* and *govinfo_source* are accepted structurally (Protocol),
     so tests may pass lightweight fakes without subclassing the concrete clients.
     """
-    congress, bill_type, number = _parse_id(bill.id)
+    congress, bill_type, number = parse_bill_id(bill.id)
     native_id = f"{congress}/{bill_type}/{number}"
     citation = bill.bill_number
 
@@ -462,7 +433,7 @@ def collect_leads(
     *govinfo_source* is accepted structurally (Protocol), so tests may pass
     lightweight fakes without subclassing the concrete client.
     """
-    congress, _, _ = _parse_id(bill.id)
+    congress, _, _ = parse_bill_id(bill.id)
     citation = bill.bill_number
 
     hearings = govinfo_source.hearings(congress, citation)

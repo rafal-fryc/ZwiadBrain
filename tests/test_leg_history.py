@@ -7,6 +7,7 @@ import datetime as dt
 
 import pytest
 
+from zwiadbrain.exceptions import ConfigError
 from zwiadbrain.models import (
     Action,
     Bill,
@@ -19,10 +20,10 @@ from zwiadbrain.models import (
     TextVersion,
     Vote,
 )
+from zwiadbrain.pipeline.ids import parse_bill_id
 from zwiadbrain.pipeline.leg_history import (
     _MIN_QUOTE_CHARS,  # pyright: ignore[reportPrivateUsage]
     GroundingResult,
-    _parse_id,  # pyright: ignore[reportPrivateUsage]
     _quote_present,  # pyright: ignore[reportPrivateUsage]
     assemble_spine,
     collect_leads,
@@ -574,27 +575,27 @@ def test_identifier_parsing_joint_resolution() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _parse_id — direct validation
+# parse_bill_id — direct validation (shared parser, formerly _parse_id)
 # ---------------------------------------------------------------------------
 
 
 def test_parse_id_parses_well_formed_ids() -> None:
     """should parse well-formed ids into (congress:int, type, number)"""
-    assert _parse_id("118-hr-9020") == (118, "hr", "9020")
-    assert _parse_id("118-hjres-1") == (118, "hjres", "1")
-    assert _parse_id("117-s-2024") == (117, "s", "2024")
+    assert parse_bill_id("118-hr-9020") == (118, "hr", "9020")
+    assert parse_bill_id("118-hjres-1") == (118, "hjres", "1")
+    assert parse_bill_id("117-s-2024") == (117, "s", "2024")
 
 
 def test_parse_id_raises_on_missing_number_segment() -> None:
-    """should raise ValueError when the id has only two segments"""
-    with pytest.raises(ValueError, match="bill.id must be"):
-        _parse_id("118-hr")
+    """should raise ConfigError when the id has only two segments"""
+    with pytest.raises(ConfigError, match="bill.id must be"):
+        parse_bill_id("118-hr")
 
 
 def test_parse_id_raises_on_missing_type_segment() -> None:
-    """should raise ValueError when the id has no type segment (two segments only)"""
-    with pytest.raises(ValueError, match="bill.id must be"):
-        _parse_id("118-9020")
+    """should raise ConfigError when the id has no type segment (two segments only)"""
+    with pytest.raises(ConfigError, match="bill.id must be"):
+        parse_bill_id("118-9020")
 
 
 # ---------------------------------------------------------------------------

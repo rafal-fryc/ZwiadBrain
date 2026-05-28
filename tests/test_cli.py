@@ -516,8 +516,20 @@ def _make_leg_history_staging(tmp_path: Path) -> Path:
         ),
     ]
     verdicts = [
-        {"index": 0, "verified": True, "note": "Quote confirmed in CR."},
-        {"index": 1, "verified": True, "note": "Quote confirmed in CR."},
+        {
+            "index": 0,
+            "verified": True,
+            "speaker": "Rep. Lieu, Ted",
+            "quote_prefix": _QUOTE_A[:40],
+            "note": "Quote confirmed in CR.",
+        },
+        {
+            "index": 1,
+            "verified": True,
+            "speaker": "Rep. Smith, Jane",
+            "quote_prefix": _QUOTE_B[:40],
+            "note": "Quote confirmed in CR.",
+        },
     ]
     narrative = (
         "This landmark bill establishes the first comprehensive federal framework"
@@ -819,9 +831,12 @@ def test_render_leg_history_verdict_aligned_to_surviving_statements_after_parse_
         },
     ]
     verdicts: list[object] = [
-        {"index": 0, "verified": True},   # original index 0 — parse-dropped, verdict unused
-        {"index": 1, "verified": False},   # original index 1 — verifier REJECTED
-        {"index": 2, "verified": True},    # original index 2 — verifier CONFIRMED
+        # original index 0 — parse-dropped, verdict unused
+        {"index": 0, "verified": True, "speaker": "Rep. A", "quote_prefix": _QUOTE_A[:40]},
+        # original index 1 — verifier REJECTED
+        {"index": 1, "verified": False},
+        # original index 2 — verifier CONFIRMED
+        {"index": 2, "verified": True, "speaker": "Rep. C", "quote_prefix": _QUOTE_A[:40]},
     ]
     staging = tmp_path / "c1_regression.json"
     staging.write_text(

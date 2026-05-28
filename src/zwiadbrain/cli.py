@@ -457,7 +457,10 @@ def render_leg_history(
 
         # Build verdicts_by_original keyed by each entry's self-reported original index.
         # These indices refer to positions in the FULL raw statements list (before parse-drops).
-        verdicts_by_original: dict[int, bool] = {}
+        # Each verdict carries the verifier's echo of what it checked (speaker +
+        # quote_prefix). We store the verdict alongside the echo so the remap step
+        # can fail-closed when the echo does not match the statement at that index.
+        verdicts_by_original: dict[int, tuple[bool, str, str]] = {}
         for v in _as_list(payload.get("verdicts"), "verdicts"):
             if not isinstance(v, dict):
                 raise ConfigError("each entry in 'verdicts' must be a JSON object")
@@ -465,7 +468,13 @@ def render_leg_history(
             index = verdict.get("index")
             if not isinstance(index, int):
                 raise ConfigError(f"verdict 'index' must be an integer, got {type(index).__name__}")
-            verdicts_by_original[index] = bool(verdict.get("verified"))
+            echo_speaker = verdict.get("speaker")
+            echo_prefix = verdict.get("quote_prefix")
+            verdicts_by_original[index] = (
+                bool(verdict.get("verified")),
+                echo_speaker if isinstance(echo_speaker, str) else "",
+                echo_prefix if isinstance(echo_prefix, str) else "",
+            )
 
         # Remap verdicts from original-index space to surviving-position space.
         # ground_items keys verdicts by position in the list it receives (enumerate contract).
@@ -474,10 +483,23 @@ def render_leg_history(
         # index of that statement in the surviving `statements` list.
         # A missing original index in verdicts_by_original counts as not-verified (False),
         # matching ground_items' own default for a missing key.
-        verifier_verdicts: dict[int, bool] = {
-            new_pos: verdicts_by_original.get(orig_idx, False)
-            for new_pos, orig_idx in enumerate(original_indices)
-        }
+        #
+        # Remap to surviving-position space AND cross-check the verifier's echo
+        # against the statement it claims to have scored. A mismatched echo means
+        # the verifier scored a different (or shifted) statement than we think, so
+        # we downgrade verified -> False (fail-closed) rather than trust it.
+        verifier_verdicts: dict[int, bool] = {}
+        for new_pos, orig_idx in enumerate(original_indices):
+            verified, echo_speaker, echo_prefix = verdicts_by_original.get(
+                orig_idx, (False, "", "")
+            )
+            if verified:
+                stmt = statements[new_pos]
+                speaker_ok = echo_speaker == stmt.speaker
+                prefix_ok = bool(echo_prefix) and stmt.quote.startswith(echo_prefix)
+                if not (speaker_ok and prefix_ok):
+                    verified = False
+            verifier_verdicts[new_pos] = verified
 
         result = ground_items(
             statements, hearings, fetch=_fetch_url, verifier_verdicts=verifier_verdicts

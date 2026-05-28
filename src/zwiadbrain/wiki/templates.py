@@ -239,9 +239,11 @@ def render_bill_body(bill: Bill) -> str:
     """Render the Markdown body for a bill page (no frontmatter).
 
     When ``bill.flipped_out`` is set, an HTML comment marker is prepended to the
-    body for audit visibility in ``git log -p``.  The comment's ``reason``
-    attribute is rendered inside double quotes; any literal double-quote in the
-    reason is backslash-escaped so the attribute stays well-formed.
+    body for audit visibility in ``git log -p``.  The marker escapes two
+    characters/sequences in the reason: ``-->`` (HTML comment terminator) is
+    replaced with ``--&gt;``, and embedded double quotes are backslash-escaped,
+    so the attribute stays well-formed even when the classifier emits prose
+    containing either sequence.
     """
     sections: list[dict[str, str]] = []
     if bill.summary:
@@ -264,7 +266,8 @@ def render_bill_body(bill: Bill) -> str:
         sections.append({"heading": "Sources", "body": _sources(bill.sources)})
     body = _BODY.render(sections=sections)
     if bill.flipped_out:
-        reason = bill.flipped_out.reason.replace('"', '\\"')
+        reason = bill.flipped_out.reason
+        reason = reason.replace("-->", "--&gt;").replace('"', '\\"')
         marker = (
             f'<!-- zwiadbrain:flipped-out date="{bill.flipped_out.date.isoformat()}"'
             f' reason="{reason}" -->\n\n'

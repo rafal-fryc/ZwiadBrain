@@ -538,3 +538,26 @@ def test_render_emits_statutes_at_large_link() -> None:
         "Statutes at Large: [138 Stat. 1234]"
         "(https://www.govinfo.gov/app/details/STATUTE-138-Pg1234)"
     ) in body
+
+
+def test_render_escapes_html_comment_terminator_in_flip_reason() -> None:
+    """should escape --> to --&gt; so the HTML comment isn't terminated mid-reason"""
+    from zwiadbrain.models import FlipOutAudit
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        flipped_out=FlipOutAudit(
+            date=dt.date(2026, 6, 4),
+            reason="AI clause --> removed in markup",
+        ),
+    )
+    body = render_bill_body(bill)
+    first_line = body.split("\n", 1)[0]
+    # The marker must end with the comment terminator exactly once, at the end.
+    assert first_line.endswith(" -->")
+    assert first_line.count("-->") == 1
+    # The sequence inside the reason must be escaped.
+    assert "AI clause --&gt; removed in markup" in first_line

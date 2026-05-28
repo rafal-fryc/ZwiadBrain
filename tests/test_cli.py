@@ -1340,3 +1340,50 @@ def test_render_refreshed_recomputes_cursors_deterministically(tmp_path: Path) -
     assert parsed.summary_hash == summary_hash("Refreshed summary text.")
     assert parsed.summary_hash != "STALE-HASH-FROM-SUBAGENT"
     assert parsed.amendments_count == 0
+
+
+def test_fetch_refreshable_skips_bad_page_and_processes_others(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should skip a page with a malformed id, log it to stderr, and still process valid bills"""
+    import respx
+
+    from zwiadbrain.sources.congress import CONGRESS_API_BASE
+
+    wiki = tmp_path / "wiki"
+    (wiki / "federal" / "bills").mkdir(parents=True)
+    # Malformed id: "118-hr" has only two segments -> parse_bill_id raises ConfigError.
+    (wiki / "federal" / "bills" / "bad.md").write_text(
+        "---\nid: 118-hr\njurisdiction: US\ntitle: Bad\nbill_number: H.R.\n"
+        "type: bill\ntracking: true\nupdate_date: '2026-05-01T00:00:00Z'\n---\n\nx\n",
+        encoding="utf-8",
+    )
+    # Valid, changed bill.
+    (wiki / "federal" / "bills" / "118-hr-2.md").write_text(
+        "---\nid: 118-hr-2\njurisdiction: US\ntitle: Bill Two\nbill_number: H.R. 2\n"
+        "type: bill\ntracking: true\nupdate_date: '2026-05-01T00:00:00Z'\n"
+        "update_date_text: '2026-05-01T00:00:00Z'\nsummary_hash: hash-2\n---\n\ny\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CONGRESS_API_KEY", "test")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test")
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get("/bill/118/hr/2").respond(
+            json={"bill": {"congress": 118, "type": "HR", "number": 2, "title": "Bill Two",
+                           "updateDate": "2026-05-05T00:00:00Z",
+                           "updateDateIncludingText": "2026-05-05T00:00:00Z"}}
+        )
+        for sub, key in [("actions", "actions"), ("amendments", "amendments"),
+                         ("text", "textVersions"), ("summaries", "summaries"),
+                         ("relatedbills", "relatedBills")]:
+            mock.get(f"/bill/118/hr/2/{sub}").respond(json={key: []})
+        out_dir = tmp_path / "run"
+        result = runner.invoke(
+            app, ["fetch-refreshable", "--wiki", str(wiki), "--out", str(out_dir)]
+        )
+    assert result.exit_code == 0, result.output
+    refreshable = json.loads((out_dir / "refreshable.json").read_text(encoding="utf-8"))
+    assert [r["bill_id"] for r in refreshable] == ["118-hr-2"]
+    assert "skipped" in result.output
+    assert "bad.md" in result.output
+    assert "1 skipped" in result.output

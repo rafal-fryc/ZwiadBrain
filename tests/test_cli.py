@@ -908,3 +908,122 @@ def test_render_leg_history_input_verified_flag_does_not_bypass_verifier(
     # The statement must NOT appear: input verified=true does not bypass the gate.
     assert _QUOTE_A not in content
     assert "1 input / 0 grounded" in result.output
+
+
+def test_fetch_refreshable_writes_json_for_changed_bills_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should re-fetch tracked bills, write refreshable.json for those whose update_date moved"""
+    import json
+    import respx
+    from typer.testing import CliRunner
+    from zwiadbrain.cli import app
+    from zwiadbrain.sources.congress import CONGRESS_API_BASE
+
+    # Wiki with two tracked bills committed to disk.
+    wiki = tmp_path / "wiki"
+    (wiki / "federal" / "bills").mkdir(parents=True)
+    (wiki / "federal" / "bills" / "118-hr-1.md").write_text(
+        "---\n"
+        "id: 118-hr-1\n"
+        "jurisdiction: US\n"
+        "title: Bill One\n"
+        "bill_number: H.R. 1\n"
+        "type: bill\n"
+        "tracking: true\n"
+        "update_date: '2026-05-01T00:00:00Z'\n"
+        "update_date_text: '2026-05-01T00:00:00Z'\n"
+        "summary_hash: hash-1\n"
+        "amendments_count: 0\n"
+        "---\n\n## Summary\n\nx\n",
+        encoding="utf-8",
+    )
+    (wiki / "federal" / "bills" / "118-hr-2.md").write_text(
+        "---\n"
+        "id: 118-hr-2\n"
+        "jurisdiction: US\n"
+        "title: Bill Two\n"
+        "bill_number: H.R. 2\n"
+        "type: bill\n"
+        "tracking: true\n"
+        "update_date: '2026-05-01T00:00:00Z'\n"
+        "update_date_text: '2026-05-01T00:00:00Z'\n"
+        "summary_hash: hash-2\n"
+        "amendments_count: 0\n"
+        "---\n\n## Summary\n\ny\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CONGRESS_API_KEY", "test")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test")
+
+    # Bill 1 fresh: update_date unchanged → skipped.
+    bill1_detail = {"bill": {"congress": 118, "type": "HR", "number": 1, "title": "Bill One",
+                              "updateDate": "2026-05-01T00:00:00Z",
+                              "updateDateIncludingText": "2026-05-01T00:00:00Z"}}
+    # Bill 2 fresh: update_date_text advanced → refreshable, text-changed.
+    bill2_detail = {"bill": {"congress": 118, "type": "HR", "number": 2, "title": "Bill Two",
+                              "updateDate": "2026-05-05T00:00:00Z",
+                              "updateDateIncludingText": "2026-05-05T00:00:00Z"}}
+    empty_subs: dict[str, list[object]] = {"actions": [], "amendments": [], "textVersions": [],
+                                           "summaries": [], "relatedBills": []}
+
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        for n, payload in [(1, bill1_detail), (2, bill2_detail)]:
+            mock.get(f"/bill/118/hr/{n}").respond(json=payload)
+            mock.get(f"/bill/118/hr/{n}/actions").respond(json={"actions": empty_subs["actions"]})
+            mock.get(f"/bill/118/hr/{n}/amendments").respond(json={"amendments": empty_subs["amendments"]})
+            mock.get(f"/bill/118/hr/{n}/text").respond(json={"textVersions": empty_subs["textVersions"]})
+            mock.get(f"/bill/118/hr/{n}/summaries").respond(json={"summaries": empty_subs["summaries"]})
+            mock.get(f"/bill/118/hr/{n}/relatedbills").respond(json={"relatedBills": empty_subs["relatedBills"]})
+
+        out_dir = tmp_path / "run"
+        result = CliRunner().invoke(app, [
+            "fetch-refreshable", "--wiki", str(wiki), "--out", str(out_dir),
+        ])
+    assert result.exit_code == 0, result.output
+    refreshable = json.loads((out_dir / "refreshable.json").read_text(encoding="utf-8"))
+    ids = [r["bill_id"] for r in refreshable]
+    assert ids == ["118-hr-2"]
+    entry = refreshable[0]
+    assert entry["needs_classifier"] is True
+    assert entry["needs_summarizer"] is True
+    assert entry["changed_amendment_numbers"] == []
+
+
+def test_fetch_refreshable_writes_empty_list_when_nothing_changed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should write refreshable.json with [] when no tracked bill moved"""
+    import json
+    import respx
+    from typer.testing import CliRunner
+    from zwiadbrain.cli import app
+    from zwiadbrain.sources.congress import CONGRESS_API_BASE
+
+    wiki = tmp_path / "wiki"
+    (wiki / "federal" / "bills").mkdir(parents=True)
+    (wiki / "federal" / "bills" / "118-hr-1.md").write_text(
+        "---\n"
+        "id: 118-hr-1\njurisdiction: US\ntitle: Bill One\nbill_number: H.R. 1\n"
+        "type: bill\ntracking: true\nupdate_date: '2026-05-01T00:00:00Z'\n---\n\nx\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CONGRESS_API_KEY", "test")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test")
+
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get("/bill/118/hr/1").respond(
+            json={"bill": {"congress": 118, "type": "HR", "number": 1, "title": "Bill One",
+                            "updateDate": "2026-05-01T00:00:00Z"}}
+        )
+        for sub in ("actions", "amendments", "text", "summaries", "relatedbills"):
+            key = {"actions": "actions", "amendments": "amendments", "text": "textVersions",
+                   "summaries": "summaries", "relatedbills": "relatedBills"}[sub]
+            mock.get(f"/bill/118/hr/1/{sub}").respond(json={key: []})
+        out_dir = tmp_path / "run"
+        result = CliRunner().invoke(app, [
+            "fetch-refreshable", "--wiki", str(wiki), "--out", str(out_dir),
+        ])
+    assert result.exit_code == 0, result.output
+    refreshable = json.loads((out_dir / "refreshable.json").read_text(encoding="utf-8"))
+    assert refreshable == []

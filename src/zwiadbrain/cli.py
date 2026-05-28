@@ -20,11 +20,13 @@ from zwiadbrain.models import Bill, Hearing, LegHistory, Statement
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
 from zwiadbrain.pipeline.enrich import enrich
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
+from zwiadbrain.pipeline.refresh import detect_refreshable
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.congress import CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.store import Store
+from zwiadbrain.wiki.schema import from_page
 
 _DEFAULT_TOPICS = Path("reference/topics.yaml")
 _SCAN_LIMIT = 250  # bills to scan per fetch-candidates run (Congress list single-request max)
@@ -203,6 +205,67 @@ def fetch_leg_history(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"staged legislative-history inputs for {fetched.id} to {path}")
+
+
+@app.command(name="fetch-refreshable")
+def fetch_refreshable(
+    wiki: Annotated[Path, typer.Option(help="Wiki root to scan for tracked bills.")] = Path("wiki"),
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for refreshable.json.")
+    ] = None,
+) -> None:
+    """Detect tracked federal bills whose Congress.gov cursors have advanced.
+
+    Reads every ``wiki/federal/bills/*.md`` page, re-fetches each tracked bill
+    via Congress.gov, compares update-date cursors, and stages the changed
+    bills + their subagent triggers to ``refreshable.json`` for the
+    ``/zwiad-refresh`` slash command.
+    """
+    try:
+        settings = load_settings()
+        congress_source = CongressSource(settings.require_congress_api_key())
+        govinfo_source = GovInfoSource(settings.require_govinfo_api_key())
+        bills_dir = wiki / "federal" / "bills"
+        if not bills_dir.exists():
+            typer.echo(f"no federal bills directory under {wiki}", err=True)
+            raise typer.Exit(0)
+        entries: list[dict[str, object]] = []
+        for page_path in sorted(bills_dir.glob("*.md")):
+            text = page_path.read_text(encoding="utf-8")
+            item = from_page(text)
+            if not isinstance(item, Bill) or not item.tracking:
+                continue
+            congress, bill_type, number = item.id.split("-")
+            native_id = f"{congress}/{bill_type}/{number}"
+            fresh = congress_source.fetch(native_id)
+            # Cross-source enrich seam: compute the cursors that source.fetch
+            # cannot (they straddle the source/pipeline boundary by design).
+            from zwiadbrain.pipeline.enrich import _summary_hash  # noqa: PLC0415  # pyright: ignore[reportPrivateUsage]
+            fresh.summary_hash = _summary_hash(fresh.summary)
+            fresh.amendments_count = len(fresh.amendments)
+            # For enacted bills, also re-derive the leg-history spine so
+            # render-refreshed can reattach prev's hearings/statements/narrative.
+            if fresh.enacted:
+                fresh.leg_history = assemble_spine(fresh, congress_source, govinfo_source)
+            refreshable = detect_refreshable(item, fresh)
+            if refreshable is None:
+                continue
+            entries.append({
+                "bill_id": item.id,
+                "prev": item.model_dump(mode="json"),
+                "fresh": fresh.model_dump(mode="json"),
+                "needs_classifier": refreshable.needs_classifier,
+                "needs_summarizer": refreshable.needs_summarizer,
+                "changed_amendment_numbers": list(refreshable.changed_amendment_numbers),
+            })
+        run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")
+        run_dir.mkdir(parents=True, exist_ok=True)
+        path = run_dir / "refreshable.json"
+        path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged {len(entries)} refreshable bill(s) to {path}")
 
 
 def _as_list(value: object, key: str) -> list[object]:

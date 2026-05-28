@@ -29,10 +29,13 @@ summary). Judge scope from the operative substance, not keyword presence.
 ## How to decide
 
 1. If the bill satisfies at least one `positive_criteria` entry AND matches no
-   `disqualify` entry → `in_scope: true`. Name the satisfied positive criterion.
-2. If it matches a `disqualify` entry → `in_scope: false`. Name the disqualifier.
-3. For a borderline bill that mentions a topic but survives the disqualifiers,
-   say which disqualifier it survived and why it still has operative substance.
+   `disqualify` entry → `in_scope: true`. Set `positive_criterion` to the
+   satisfied criterion. Set `disqualifier_applied` to `null`. If it mentions a
+   topic but survives a disqualifier, set `disqualifier_survived` to that
+   disqualifier; otherwise set `disqualifier_survived` to `null`.
+2. If it matches a `disqualify` entry → `in_scope: false`. Set
+   `disqualifier_applied` to that disqualifier. Set `positive_criterion` and
+   `disqualifier_survived` to `null`.
 
 Keyword presence alone is NOT sufficient — a seed term appearing only in findings
 or a title is a disqualifier.
@@ -47,7 +50,9 @@ Respond with ONLY a single JSON object (no prose, no code fence) of this exact s
   "topics": ["ai"],
   "confidence": 0.0,
   "rationale": "one or two sentences",
-  "criterion": "the positive criterion satisfied, or the disqualifier applied/survived"
+  "positive_criterion": "the satisfied positive criterion, or null when out of scope",
+  "disqualifier_survived": "a disqualifier the bill mentions but survives, or null",
+  "disqualifier_applied": "the disqualifier that put the bill out of scope, or null"
 }
 ```
 
@@ -56,6 +61,8 @@ Rules for the fields:
 - `topics`: list of taxonomy keys (subset of `ai`, `privacy`, `cyber`); `[]` when out of scope.
 - `confidence`: float 0.0–1.0.
 - `rationale`: brief justification grounded in the bill's operative text.
-- `criterion`: the specific positive criterion satisfied (in scope) or disqualifier (out of scope).
+- `positive_criterion`: the specific positive criterion satisfied; required (non-null) when `in_scope` is true, `null` when false.
+- `disqualifier_survived`: a disqualifier the bill mentions but survives; nullable in both cases.
+- `disqualifier_applied`: the disqualifier that put the bill out of scope; required (non-null) when `in_scope` is false, `null` when true.
 
 Do not use any tool other than reading `reference/topics.yaml`. Do not write files.

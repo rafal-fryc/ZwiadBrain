@@ -167,3 +167,31 @@ def test_leg_history_command_references_both_subagents() -> None:
     # Python CLI commands wired by the orchestrator
     assert "fetch-leg-history" in body
     assert "render-leg-history" in body
+
+
+# ---------------------------------------------------------------------------
+# T9 — zwiad-refresh command
+# ---------------------------------------------------------------------------
+
+
+def test_zwiad_refresh_command_frontmatter_parses() -> None:
+    """should declare description, argument-hint, and allow Bash/Read/Write/Task"""
+    refresh_cmd = _ROOT / ".claude" / "commands" / "zwiad-refresh.md"
+    text = refresh_cmd.read_text(encoding="utf-8")
+    post = frontmatter.loads(text)
+    meta = post.metadata
+    assert meta.get("description"), "command must have a non-empty description"
+    allowed = str(meta.get("allowed-tools", ""))
+    assert "Bash" in allowed
+    assert "Read" in allowed
+    assert "Write" in allowed
+    assert "Task" in allowed
+
+
+def test_zwiad_refresh_references_existing_subagents() -> None:
+    """should reference the classifier, summarizer, amendment-explainer subagents"""
+    refresh_cmd = _ROOT / ".claude" / "commands" / "zwiad-refresh.md"
+    text = refresh_cmd.read_text(encoding="utf-8")
+    assert "classifier" in text
+    assert "summarizer" in text
+    assert "amendment-explainer" in text

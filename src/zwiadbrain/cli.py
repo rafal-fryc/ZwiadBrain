@@ -210,15 +210,19 @@ def fetch_leg_history(
     interactive session's researcher/verifier subagents to consume.
     """
     try:
+        # Validate the --bill shape before any network call: slash form
+        # (118/hr/9020) maps to the dashed id parse_bill_id consumes; a malformed
+        # arg raises ConfigError here rather than producing a confusing fetch error.
+        parse_bill_id(bill.replace("/", "-"))
         settings = load_settings()
         congress_source = CongressSource(settings.require_congress_api_key())
-        govinfo_source = GovInfoSource(settings.require_govinfo_api_key())
         fetched = congress_source.fetch(bill)
         if not fetched.enacted:
             raise ConfigError(
                 f"bill {fetched.id} is not enacted — legislative history is assembled"
                 " only for enacted bills"
             )
+        govinfo_source = GovInfoSource(settings.require_govinfo_api_key())
         spine = assemble_spine(fetched, congress_source, govinfo_source)
         leads = collect_leads(fetched, govinfo_source)
         run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")

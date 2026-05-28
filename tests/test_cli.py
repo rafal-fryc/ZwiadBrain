@@ -459,6 +459,15 @@ def test_fetch_leg_history_errors_without_govinfo_api_key(
     monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
     monkeypatch.delenv("GOVINFO_API_KEY", raising=False)
 
+    # GovInfoSource construction now happens after the enacted check; patch
+    # CongressSource.fetch so the code reaches require_govinfo_api_key() cleanly.
+    enacted = _make_enacted_bill()
+
+    def _fake_fetch_enacted(self: object, native_id: str) -> Bill:  # noqa: ARG001
+        return enacted
+
+    monkeypatch.setattr("zwiadbrain.cli.CongressSource.fetch", _fake_fetch_enacted)
+
     result = runner.invoke(
         app,
         ["fetch-leg-history", "--bill", "118/hr/8818"],
@@ -1420,3 +1429,19 @@ def test_fetch_refreshable_skips_bad_page_and_processes_others(
     assert "skipped" in result.output
     assert "bad.md" in result.output
     assert "1 skipped" in result.output
+
+
+def test_fetch_leg_history_rejects_malformed_bill_arg(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit 1 with a clean ConfigError when --bill is not congress/type/number"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test-govinfo-key")
+    result = runner.invoke(
+        app, ["fetch-leg-history", "--bill", "foo", "--out", str(tmp_path / "r")]
+    )
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output
+    assert not (tmp_path / "r" / "leghistory.json").exists()

@@ -987,7 +987,9 @@ def test_ground_items_still_rejects_genuinely_absent_quote() -> None:
     from zwiadbrain.models import Statement
     from zwiadbrain.pipeline.leg_history import ground_items
 
-    html_page = "<html><body><p>An entirely unrelated discussion of fiscal policy.</p></body></html>"
+    html_page = (
+        "<html><body><p>An entirely unrelated discussion of fiscal policy.</p></body></html>"
+    )
     statements = [
         Statement(
             speaker="Senator Y", role="member",

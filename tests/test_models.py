@@ -328,8 +328,9 @@ def test_enactment_url_defaults_none() -> None:
 
 def test_amendment_carries_latest_action_date() -> None:
     """should accept and round-trip a latest_action_date field"""
-    from zwiadbrain.models import Amendment
     import datetime as dt
+
+    from zwiadbrain.models import Amendment
     a = Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 5, 1))
     assert a.latest_action_date == dt.date(2026, 5, 1)
     # default is None
@@ -337,7 +338,7 @@ def test_amendment_carries_latest_action_date() -> None:
 
 
 def test_bill_carries_split_cursors_and_amendments_count() -> None:
-    """should carry update_date (bare), update_date_text (text-incl), summary_hash, amendments_count"""
+    """should carry update_date (bare), update_date_text (text-incl), summary_hash, amend_count"""
     from zwiadbrain.models import Bill
     b = Bill(
         id="118-hr-1",
@@ -362,8 +363,9 @@ def test_bill_carries_split_cursors_and_amendments_count() -> None:
 
 def test_flipout_audit_model() -> None:
     """should record a date and reason for a classifier flip-out"""
-    from zwiadbrain.models import FlipOutAudit
     import datetime as dt
+
+    from zwiadbrain.models import FlipOutAudit
     f = FlipOutAudit(date=dt.date(2026, 6, 4), reason="classifier: telehealth scope drift")
     assert f.date == dt.date(2026, 6, 4)
     assert f.reason == "classifier: telehealth scope drift"
@@ -371,8 +373,9 @@ def test_flipout_audit_model() -> None:
 
 def test_bill_carries_flipped_out_audit() -> None:
     """should accept a FlipOutAudit on Bill.flipped_out (default None)"""
-    from zwiadbrain.models import Bill, FlipOutAudit
     import datetime as dt
+
+    from zwiadbrain.models import Bill, FlipOutAudit
     b = Bill(
         id="118-hr-3",
         jurisdiction="US",
@@ -382,7 +385,8 @@ def test_bill_carries_flipped_out_audit() -> None:
     )
     assert b.flipped_out is not None
     assert b.flipped_out.reason == "r"
-    assert Bill(id="118-hr-4", jurisdiction="US", title="q", bill_number="H.R. 4").flipped_out is None
+    b2 = Bill(id="118-hr-4", jurisdiction="US", title="q", bill_number="H.R. 4")
+    assert b2.flipped_out is None
 
 
 def test_statutes_at_large_is_a_typed_model() -> None:

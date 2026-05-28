@@ -915,8 +915,10 @@ def test_fetch_refreshable_writes_json_for_changed_bills_only(
 ) -> None:
     """should re-fetch tracked bills, write refreshable.json for those whose update_date moved"""
     import json
+
     import respx
     from typer.testing import CliRunner
+
     from zwiadbrain.cli import app
     from zwiadbrain.sources.congress import CONGRESS_API_BASE
 
@@ -971,10 +973,18 @@ def test_fetch_refreshable_writes_json_for_changed_bills_only(
         for n, payload in [(1, bill1_detail), (2, bill2_detail)]:
             mock.get(f"/bill/118/hr/{n}").respond(json=payload)
             mock.get(f"/bill/118/hr/{n}/actions").respond(json={"actions": empty_subs["actions"]})
-            mock.get(f"/bill/118/hr/{n}/amendments").respond(json={"amendments": empty_subs["amendments"]})
-            mock.get(f"/bill/118/hr/{n}/text").respond(json={"textVersions": empty_subs["textVersions"]})
-            mock.get(f"/bill/118/hr/{n}/summaries").respond(json={"summaries": empty_subs["summaries"]})
-            mock.get(f"/bill/118/hr/{n}/relatedbills").respond(json={"relatedBills": empty_subs["relatedBills"]})
+            mock.get(f"/bill/118/hr/{n}/amendments").respond(
+                json={"amendments": empty_subs["amendments"]}
+            )
+            mock.get(f"/bill/118/hr/{n}/text").respond(
+                json={"textVersions": empty_subs["textVersions"]}
+            )
+            mock.get(f"/bill/118/hr/{n}/summaries").respond(
+                json={"summaries": empty_subs["summaries"]}
+            )
+            mock.get(f"/bill/118/hr/{n}/relatedbills").respond(
+                json={"relatedBills": empty_subs["relatedBills"]}
+            )
 
         out_dir = tmp_path / "run"
         result = CliRunner().invoke(app, [
@@ -995,8 +1005,10 @@ def test_fetch_refreshable_writes_empty_list_when_nothing_changed(
 ) -> None:
     """should write refreshable.json with [] when no tracked bill moved"""
     import json
+
     import respx
     from typer.testing import CliRunner
+
     from zwiadbrain.cli import app
     from zwiadbrain.sources.congress import CONGRESS_API_BASE
 
@@ -1032,7 +1044,9 @@ def test_fetch_refreshable_writes_empty_list_when_nothing_changed(
 def test_render_refreshed_applies_preservation_and_renders(tmp_path: Path) -> None:
     """should re-attach prev leg_history, write the page, and report counts"""
     import json
+
     from typer.testing import CliRunner
+
     from zwiadbrain.cli import app
 
     # Fresh bill (from fetch-refreshable) — enacted, with re-derived spine, no hearings.
@@ -1096,7 +1110,9 @@ def test_render_refreshed_applies_preservation_and_renders(tmp_path: Path) -> No
 def test_render_refreshed_flips_out_when_classifier_out_of_scope(tmp_path: Path) -> None:
     """should set tracking=False and emit the audit marker on IN→OUT flip"""
     import json
+
     from typer.testing import CliRunner
+
     from zwiadbrain.cli import app
 
     refreshed = [{
@@ -1140,7 +1156,9 @@ def test_render_refreshed_carries_prev_leg_history_when_bill_has_none(tmp_path: 
     research that must not be lost on refresh.
     """
     import json
+
     from typer.testing import CliRunner
+
     from zwiadbrain.cli import app
 
     fresh = {
@@ -1187,9 +1205,11 @@ def test_render_refreshed_carries_prev_leg_history_when_bill_has_none(tmp_path: 
 
 
 def test_render_refreshed_reports_clean_error_on_missing_key(tmp_path: Path) -> None:
-    """should exit with code 1 and a clean message when refreshed.json entry lacks 'bill' or 'prev'"""
+    """should exit with code 1 and a clean message when entry lacks 'bill' or 'prev'"""
     import json
+
     from typer.testing import CliRunner
+
     from zwiadbrain.cli import app
 
     # Entry missing 'bill'

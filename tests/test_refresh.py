@@ -193,7 +193,8 @@ def test_apply_classifier_flip_out_of_scope_sets_tracking_false_and_audit() -> N
         bill, in_scope=False, rationale="telehealth scope drift", date=dt.date(2026, 6, 4),
     )
     assert out.tracking is False
-    assert out.flipped_out == FlipOutAudit(date=dt.date(2026, 6, 4), reason="telehealth scope drift")
+    expected_audit = FlipOutAudit(date=dt.date(2026, 6, 4), reason="telehealth scope drift")
+    assert out.flipped_out == expected_audit
 
 
 def test_apply_classifier_flip_raises_on_already_untracked() -> None:

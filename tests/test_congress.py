@@ -452,7 +452,7 @@ def test_recorded_votes_returns_empty_list_when_no_actions_have_votes() -> None:
 
 
 def test_fetch_maps_bare_update_date_and_update_date_text_separately() -> None:
-    """should set update_date from bare updateDate, update_date_text from bare updateDateIncludingText"""
+    """should set update_date from bare updateDate, update_date_text from updateDateIncludingText"""
     detail_payload: dict[str, Any] = {
         "bill": {
             "congress": 118,
@@ -500,14 +500,18 @@ def test_fetch_maps_per_amendment_latest_action_date() -> None:
             },
         ]
     }
-    empty: dict[str, list[Any]] = {"actions": [], "textVersions": [], "summaries": [], "relatedBills": []}
+    empty: dict[str, list[Any]] = {
+        "actions": [], "textVersions": [], "summaries": [], "relatedBills": [],
+    }
     with respx.mock(base_url=CONGRESS_API_BASE) as mock:
         mock.get("/bill/118/hr/2670").respond(json=detail_payload)
         mock.get("/bill/118/hr/2670/actions").respond(json={"actions": empty["actions"]})
         mock.get("/bill/118/hr/2670/amendments").respond(json=amendments_payload)
         mock.get("/bill/118/hr/2670/text").respond(json={"textVersions": empty["textVersions"]})
         mock.get("/bill/118/hr/2670/summaries").respond(json={"summaries": empty["summaries"]})
-        mock.get("/bill/118/hr/2670/relatedbills").respond(json={"relatedBills": empty["relatedBills"]})
+        mock.get("/bill/118/hr/2670/relatedbills").respond(
+            json={"relatedBills": empty["relatedBills"]}
+        )
         bill = CongressSource(api_key="k").fetch("118/hr/2670")
     assert len(bill.amendments) == 2
     assert bill.amendments[0].latest_action_date == dt.date(2026, 4, 15)

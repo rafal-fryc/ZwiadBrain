@@ -411,6 +411,7 @@ def test_post_json_raises_source_fetch_error_on_4xx() -> None:
 def test_fetch_statutes_at_large_maps_first_row_to_statutes_at_large() -> None:
     """should map STATUTE related row to StatutesAtLarge(citation, url)"""
     import respx
+
     from zwiadbrain.models import StatutesAtLarge
     from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource
 
@@ -425,6 +426,7 @@ def test_fetch_statutes_at_large_maps_first_row_to_statutes_at_large() -> None:
 def test_fetch_statutes_at_large_returns_none_on_empty_related() -> None:
     """should return None when /related/{plaw}/STATUTE has no results (fail-quiet)"""
     import respx
+
     from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource
 
     with respx.mock(base_url=GOVINFO_API_BASE) as mock:
@@ -436,6 +438,7 @@ def test_fetch_statutes_at_large_returns_none_on_empty_related() -> None:
 def test_enacted_law_now_populates_statutes_at_large() -> None:
     """should call fetch_statutes_at_large and attach the result to Enactment"""
     import respx
+
     from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource, enrolled_bill_package_id
 
     pkg_id = enrolled_bill_package_id(118, "HR", 8818)

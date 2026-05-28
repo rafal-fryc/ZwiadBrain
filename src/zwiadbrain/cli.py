@@ -20,7 +20,11 @@ from zwiadbrain.models import Bill, Hearing, LegHistory, Statement
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
 from zwiadbrain.pipeline.enrich import enrich
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
-from zwiadbrain.pipeline.refresh import apply_classifier_flip, detect_refreshable, preserve_leg_history
+from zwiadbrain.pipeline.refresh import (
+    apply_classifier_flip,
+    detect_refreshable,
+    preserve_leg_history,
+)
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.congress import CongressSource
@@ -240,7 +244,9 @@ def fetch_refreshable(
             fresh = congress_source.fetch(native_id)
             # Cross-source enrich seam: compute the cursors that source.fetch
             # cannot (they straddle the source/pipeline boundary by design).
-            from zwiadbrain.pipeline.enrich import _summary_hash  # noqa: PLC0415  # pyright: ignore[reportPrivateUsage]
+            from zwiadbrain.pipeline.enrich import (
+                _summary_hash,  # noqa: PLC0415  # pyright: ignore[reportPrivateUsage]
+            )
             fresh.summary_hash = _summary_hash(fresh.summary)
             fresh.amendments_count = len(fresh.amendments)
             # For enacted bills, also re-derive the leg-history spine so
@@ -297,7 +303,8 @@ def render_refreshed(
             try:
                 prev = Bill.model_validate(entry["prev"])
             except ValidationError as exc:
-                raise ConfigError(f"could not parse 'prev' bill in refreshed.json entry: {exc}") from exc
+                msg = f"could not parse 'prev' bill in refreshed.json entry: {exc}"
+                raise ConfigError(msg) from exc
             try:
                 bill = Bill.model_validate(entry["bill"])
             except ValidationError as exc:

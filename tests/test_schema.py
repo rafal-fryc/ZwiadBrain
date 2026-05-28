@@ -193,7 +193,7 @@ def test_statement_verified_flag_preserved_in_frontmatter() -> None:
 
 
 def test_leg_history_spine_only_emits_no_leg_history_key() -> None:
-    """should omit leg_history from frontmatter when hearings, statements, AND narrative are empty"""
+    """should omit leg_history from frontmatter when hearings, statements, narrative all empty"""
     bill = Bill(
         id="us-hr-2-119",
         jurisdiction="US",
@@ -224,7 +224,7 @@ def test_leg_history_none_emits_no_leg_history_key() -> None:
 
 
 def test_leg_history_round_trip_via_render_page() -> None:
-    """should round-trip hearings/statements/narrative through render_page -> from_page, verified preserved"""
+    """should round-trip hearings/statements/narrative through render_page -> from_page"""
     original = _bill_with_full_leg_history()
     page_text = render_page(original)
     parsed = from_page(page_text)

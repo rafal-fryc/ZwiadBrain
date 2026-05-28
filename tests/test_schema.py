@@ -5,10 +5,11 @@ rendered Markdown body. ``to_frontmatter`` emits only metadata; body content
 (summary prose, timeline, amendments, copied commentary text) is rendered into
 the body and never stored in frontmatter.
 
-``leg_history.hearings`` and ``leg_history.statements`` (the researched,
-verified artifacts) persist to frontmatter. The deterministic spine
-(versions, committee_reports, floor_consideration, votes, conference,
-enactment) and narrative remain body-only and are never serialized.
+``leg_history.hearings``, ``leg_history.statements``, and
+``leg_history.narrative`` (the researched, verified, and non-deterministic
+artifacts) persist to frontmatter (D40 extends D37 to add narrative). The
+deterministic spine fields (versions, committee_reports, floor_consideration,
+votes, conference, enactment) remain body-only and are never serialized.
 """
 
 import datetime as dt
@@ -170,8 +171,8 @@ def test_leg_history_hearings_and_statements_appear_in_frontmatter() -> None:
     assert len(lh["statements"]) == 1  # type: ignore[arg-type]
 
 
-def test_leg_history_spine_and_narrative_excluded_from_frontmatter() -> None:
-    """should not include spine fields in frontmatter leg_history (but narrative persists per D40)"""
+def test_leg_history_spine_fields_excluded_from_frontmatter() -> None:
+    """should not include spine fields in frontmatter leg_history (narrative persists per D40)"""
     fm = to_frontmatter(_bill_with_full_leg_history())
     assert "leg_history" in fm
     lh = fm["leg_history"]

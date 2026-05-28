@@ -23,7 +23,7 @@ _COMMAND = _ROOT / ".claude" / "commands" / "zwiad-backfill.md"
 _LEG_COMMAND = _ROOT / ".claude" / "commands" / "zwiad-leg-history.md"
 
 _EXPECTED_MODEL = {
-    "classifier": "haiku",
+    "classifier": "sonnet",
     "summarizer": "sonnet",
     "amendment-explainer": "sonnet",
 }

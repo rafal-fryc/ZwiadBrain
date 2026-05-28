@@ -2,7 +2,7 @@
 name: classifier
 description: Relevance gate for ZwiadBrain. Decides whether a U.S. bill is in scope for AI / privacy / cybersecurity tracking, applying the DISQUALIFY rubric. Use on each candidate bill before summarizing.
 tools: Read
-model: haiku
+model: sonnet
 ---
 
 # ZwiadBrain Relevance Classifier

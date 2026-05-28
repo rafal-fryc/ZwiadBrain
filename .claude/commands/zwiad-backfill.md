@@ -29,9 +29,13 @@ summary, status, sponsors, actions, amendments).
 ### 3. Classify each bill (subagent: `classifier`)
 For every candidate, dispatch the **classifier** subagent with the bill's `title`
 and `summary`. It reads `reference/topics.yaml` and returns
-`{in_scope, topics, confidence, rationale, criterion}`.
-- Log each decision (id, in_scope, confidence, criterion) to the transcript.
+`{in_scope, topics, confidence, rationale, positive_criterion, disqualifier_survived, disqualifier_applied}`.
+- Log each decision (id, in_scope, confidence, positive_criterion/disqualifier) to the transcript.
 - **Drop** bills where `in_scope` is false. Keep the returned `topics` for the rest.
+- **Validate topics**: if the classifier returns any topic not in `{ai, privacy, cyber}`,
+  treat it as a classifier error — drop the bill to the transcript and do NOT enrich it.
+  (`render-classified` validates topics again, but catching it here avoids a wasted
+  summarizer/amendment-explainer dispatch.)
 
 ### 4. Enrich the in-scope bills (subagents: `summarizer`, `amendment-explainer`)
 For each in-scope bill:
@@ -59,4 +63,4 @@ reasons), and pages rendered. Do not commit — leave the wiki changes for revie
 
 ## Notes
 - Keep `ANTHROPIC_API_KEY` unset so subagents use your plan session, not the API.
-- Only `topics[]` is persisted; confidence/rationale/criterion stay in the transcript.
+- Only `topics[]` is persisted; confidence/rationale/criteria fields stay in the transcript.

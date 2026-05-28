@@ -290,8 +290,18 @@ def render_refreshed(
             if not isinstance(item, dict):
                 raise ConfigError("each entry in refreshed.json must be a JSON object")
             entry: dict[str, object] = item  # pyright: ignore[reportUnknownVariableType]
-            prev = Bill.model_validate(entry["prev"])
-            bill = Bill.model_validate(entry["bill"])
+            if "prev" not in entry:
+                raise ConfigError("refreshed.json entry is missing required key 'prev'")
+            if "bill" not in entry:
+                raise ConfigError("refreshed.json entry is missing required key 'bill'")
+            try:
+                prev = Bill.model_validate(entry["prev"])
+            except ValidationError as exc:
+                raise ConfigError(f"could not parse 'prev' bill in refreshed.json entry: {exc}") from exc
+            try:
+                bill = Bill.model_validate(entry["bill"])
+            except ValidationError as exc:
+                raise ConfigError(f"could not parse 'bill' in refreshed.json entry: {exc}") from exc
             in_scope = bool(entry.get("classifier_in_scope", True))
             rationale = str(entry.get("classifier_rationale") or "")
             # Preserve leg-history research onto fresh spine.

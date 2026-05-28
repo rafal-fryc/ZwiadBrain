@@ -1131,3 +1131,77 @@ def test_render_refreshed_flips_out_when_classifier_out_of_scope(tmp_path: Path)
     # topics preserved (the prior classification's record stands)
     assert "ai" in page
     assert "1 flipped-out" in result.output
+
+
+def test_render_refreshed_carries_prev_leg_history_when_bill_has_none(tmp_path: Path) -> None:
+    """should carry prev.leg_history through unchanged when fresh bill has none
+
+    Defensive case: a non-enacted fresh bill has no spine, but prev had
+    research that must not be lost on refresh.
+    """
+    import json
+    from typer.testing import CliRunner
+    from zwiadbrain.cli import app
+
+    fresh = {
+        "id": "118-hr-5", "jurisdiction": "US", "title": "Bill Five",
+        "bill_number": "H.R. 5", "type": "bill", "tracking": True, "enacted": False,
+        "topics": ["ai"],
+        "summary": "Refreshed.",
+        # leg_history intentionally omitted — fresh non-enacted bill has no spine
+    }
+    prev = {
+        **fresh,
+        "summary": "Old.",
+        "leg_history": {
+            "versions": [], "committee_reports": [],
+            "floor_consideration": [], "votes": [],
+            "hearings": [{"title": "Old Hearing", "url": "https://example.test/h"}],
+            "statements": [],
+            "narrative": "Old narrative we must keep.",
+            "conference": None, "enactment": None,
+        },
+    }
+    refreshed = [{
+        "bill_id": "118-hr-5",
+        "prev": prev,
+        "bill": fresh,
+        "classifier_in_scope": True,
+        "classifier_rationale": "",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+
+    page = (wiki / "federal" / "bills" / "118-hr-5.md").read_text(encoding="utf-8")
+    # prev's research carried through onto the fresh bill
+    assert "Old Hearing" in page
+    assert "Old narrative we must keep." in page
+
+
+def test_render_refreshed_reports_clean_error_on_missing_key(tmp_path: Path) -> None:
+    """should exit with code 1 and a clean message when refreshed.json entry lacks 'bill' or 'prev'"""
+    import json
+    from typer.testing import CliRunner
+    from zwiadbrain.cli import app
+
+    # Entry missing 'bill'
+    refreshed = [{"bill_id": "118-hr-1", "prev": {"id": "118-hr-1", "jurisdiction": "US",
+                  "title": "x", "bill_number": "H.R. 1", "type": "bill"}}]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(tmp_path / "wiki"),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 1
+    assert "missing required key 'bill'" in result.output

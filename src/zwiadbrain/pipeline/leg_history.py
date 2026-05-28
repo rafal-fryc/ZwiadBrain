@@ -26,6 +26,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
+from bs4 import BeautifulSoup
+
 from zwiadbrain.models import (
     Bill,
     CommitteeReport,
@@ -201,17 +203,40 @@ def _normalize_text(s: str) -> str:
     return " ".join(s.split())
 
 
+def _page_text(page: str) -> str:
+    """Extract human-visible text from an HTML page for quote-presence comparison.
+
+    HTML byte-substring matching over-rejects on JS-rendered press-release pages
+    and CREC pages where the quote sits across tag boundaries (e.g. a ``<br/>``
+    split, a ``<span>`` wrapper, or an inline ``&nbsp;``).  BeautifulSoup's
+    ``get_text(separator=' ')`` walks the parsed DOM and returns a single string
+    with tag boundaries replaced by spaces; downstream
+    :func:`_normalize_text` then collapses runs of whitespace, so a quote
+    fragmented across markup matches as long as its WORDS appear in order.
+
+    NOTE on the trust boundary: this raises recall (more true-positives) without
+    lowering precision — the deterministic gate still requires the exact
+    normalized quote to appear in the extracted text, and the cross-modal
+    verifier subagent independently checks speaker attribution.  A
+    misattributed-but-present quote is therefore kept by this gate and dropped
+    by the verifier, by design.
+    """
+    return BeautifulSoup(page, "html.parser").get_text(separator=" ")
+
+
 def _quote_present(quote: str, page_text: str) -> bool:
     """Return True when *quote* appears (after normalization) inside *page_text*.
 
-    An empty or blank-only *quote* always returns False -- an empty string must
-    not be treated as matching.  The comparison is case-sensitive: attributed
-    quotes must match the source verbatim.
+    *page_text* is treated as HTML and extracted to plain text before
+    normalization; see :func:`_page_text`.  An empty or blank-only *quote*
+    always returns False — an empty string must not be treated as matching.
+    The comparison is case-sensitive: attributed quotes must match the source
+    verbatim.
     """
     normalized_quote = _normalize_text(quote)
     if not normalized_quote:
         return False
-    return normalized_quote in _normalize_text(page_text)
+    return normalized_quote in _normalize_text(_page_text(page_text))
 
 
 def _statement_identifier(statement: Statement) -> str:

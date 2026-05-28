@@ -950,3 +950,55 @@ def test_ground_items_quote_just_below_floor_dropped() -> None:
     assert len(result.statements) == 0
     assert len(result.dropped) == 1
     assert "too short" in result.dropped[0].reason
+
+
+def test_ground_items_accepts_quote_inside_html_when_text_extracted() -> None:
+    """should ground a quote present in extracted text but not in raw HTML byte-match"""
+    from zwiadbrain.models import Statement
+    from zwiadbrain.pipeline.leg_history import ground_items
+
+    # Mimics a press-release page where the quote text is split by <br/> tags +
+    # nbsp + a leading <span class="js-only"> wrapper that current raw-HTML
+    # substring match rejects.
+    html_page = (
+        '<html><body><div class="release">'
+        '<p><span class="js-only">Senator X said:</span>&nbsp;</p>'
+        '<p>"This is a very important and notable<br/>quote about AI."</p>'
+        "</body></html>"
+    )
+    statements = [
+        Statement(
+            speaker="Senator X", role="member",
+            quote='This is a very important and notable quote about AI.',
+            source_url="https://example.test/pr", source_type="press",
+        )
+    ]
+    result = ground_items(
+        statements, hearings=[],
+        fetch=lambda url: (200, html_page),
+        verifier_verdicts={0: True},
+    )
+    assert len(result.statements) == 1
+    assert result.statements[0].verified is True
+
+
+def test_ground_items_still_rejects_genuinely_absent_quote() -> None:
+    """should drop a quote that is not on the extracted-text page (precision held)"""
+    from zwiadbrain.models import Statement
+    from zwiadbrain.pipeline.leg_history import ground_items
+
+    html_page = "<html><body><p>An entirely unrelated discussion of fiscal policy.</p></body></html>"
+    statements = [
+        Statement(
+            speaker="Senator Y", role="member",
+            quote="This quote does not appear anywhere on the page at all.",
+            source_url="https://example.test/x", source_type="press",
+        )
+    ]
+    result = ground_items(
+        statements, hearings=[],
+        fetch=lambda url: (200, html_page),
+        verifier_verdicts={0: True},
+    )
+    assert len(result.statements) == 0
+    assert any(d.reason == "quote not found on source page" for d in result.dropped)

@@ -209,6 +209,9 @@ class Bill(WikiItem):
     leg_history: LegHistory | None = None
     related_bills: list[str] = []
     change_hash: str | None = None
+    # str (not dt.date): a full ISO timestamp cursor (Congress.gov updateDate)
+    # compared by raw equality in refresh.detect_refreshable, never date math —
+    # retyping would drop the time component and reformat the bytes (D20).
     update_date: str | None = None
     update_date_text: str | None = None
     summary_hash: str | None = None

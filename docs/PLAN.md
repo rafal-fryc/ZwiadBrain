@@ -1,5 +1,15 @@
 # ZwiadBrain — AI/Privacy/Cyber Legislation & Enforcement Tracker, with Law-Brain Integration
 
+> **SUPERSEDED IN PART — historical planning document.** This plan predates the
+> 2026-05-27 subagent pivot. Its LLM/orchestration architecture is no longer
+> accurate: there is no Anthropic SDK (D30), no Python-orchestrated `run.py`
+> two-pass loop (D27), and no `claude -p`/cron automation (D26). LLM work now
+> runs as interactive Claude Code subagents driven by slash commands. The
+> `scan` / `sync-lawbrain` CLI verbs described here were never shipped. For the
+> current architecture see **`ARCHITECTURE.md`**; for the decisions that diverged
+> from this plan see **`DECISIONS.md` D26–D40**. The retrieval design (lexical
+> FTS5, D13), the page schema, and the relevance pipeline below remain accurate.
+
 ## Context
 
 `ZwiadBrain` is a bare scaffold (`README.md`, `.gitignore`, `.gitattributes`, one init commit — no code yet). Goal: an LLM-driven wiki + agent system that tracks U.S. **federal and state** legislation and **enforcement actions** in **AI, privacy, and cybersecurity**, assembles standardized **legislative history** once a bill is enacted, and stays current via a **scheduled scan** (local cron, a few times/week).
@@ -262,12 +272,14 @@ Distinct **law-brain stage** between Pass A and Pass B (own review gating + file
 - **PHASE-03 — Federal source.** `sources/congress.py` + `pipeline/discover.py` + `pipeline/enrich.py`.
 - **PHASE-04 — LLM agents.** `llm/*` + `reference/loader.py`, wired into classify/summarize/amendments. **Classifier ships with the disqualify rubric + `DISQUALIFY` lexicon (decision 17).**
 - **PHASE-05 — Legislative history.** `sources/govinfo.py` + `llm/leg_history.py` (standardized section on enactment). **Only candidate for cross-modal eval, if any.**
-- **PHASE-06 — Watchlist.** `store.py` tracking fields + `pipeline/run.py` two-pass orchestration. Fixture-tested.
-- **PHASE-07 — Priority states.** `sources/legiscan.py` with `change_hash` incremental sync (7 states).
-- **PHASE-08 — Enforcement.** `sources/enforcement/ftc.py` + `state_ag.py` (config-driven) + `llm/enforcement.py`.
-- **PHASE-09 — Law-brain COMMENTARY.** `sources/lawbrain.py`, `pipeline/lawbrain_keys.py`, `lawbrain_match.py` (incl. deterministic shared-key confirm, decision 16), `lawbrain_copy.py`, `lawbrain_registry.py`; `CommentarySource` model; `[lawbrain]` config with `discover=false`; `sync-lawbrain`/`review`/`lawbrain-status` CLI; review queue. Wire the match+copy law-brain stage into `run.py`. **Attaches commentary to pages we already track — deterministic, low-risk, high-value. Does NOT mint stubs.**
-- **PHASE-10 — Cron.** `scripts/scan.sh` + `scripts/install-cron.md`; end-to-end dry run. (Brought forward of discovery — a self-contained, committed tracker with commentary is already shippable.)
-- **PHASE-11 — Law-brain DISCOVERY (GATED).** `pipeline/lawbrain_discover.py`: `new`-decision stub-minting routed through `enrich.py`; flip `discover=true`. **Do not start until PHASE-09/10 have run in production and there is evidence Pass B misses law-brain-known items (decision 14).** May prove unnecessary.
+- **PHASE-06 — Watchlist.** *Shipped (v0.6.0) NOT as `run.py` two-pass orchestration but as the `/zwiad-refresh` slash command + `pipeline/refresh.py` pure functions (D27, D39, D40):* re-fetch tracked federal bills, re-run subagents only on cursor change, preserve persisted leg-history, flip out-of-scope bills to `tracking: false` without deletion.
+> **Restated in current terms (post-pivot).** PHASE-07..11 below are unimplemented as of v0.6.0. Where this plan named an `llm/*` module or a `run.py`/cron mechanism, the shipped equivalent will be an interactive subagent + slash command pair (D26/D27).
+
+- **PHASE-07 — Priority states.** `sources/legiscan.py` with `change_hash` incremental sync (7 states). *Unimplemented.*
+- **PHASE-08 — Enforcement.** `sources/enforcement/ftc.py` + `state_ag.py` (config-driven); relevance/extraction via an enforcement **subagent**, not an `llm/enforcement.py` module (D26). *Unimplemented; `sources/enforcement/` is a placeholder.*
+- **PHASE-09 — Law-brain COMMENTARY.** `sources/lawbrain.py`, `pipeline/lawbrain_keys.py`, `lawbrain_match.py` (deterministic shared-key confirm, D16), `lawbrain_copy.py`, `lawbrain_registry.py`; `CommentarySource` model; `[lawbrain]` config with `discover=false`; review queue. The match+copy stage and any LLM fallback wire into a slash command, not `run.py` (D27). **Attaches commentary to pages we already track; does NOT mint stubs.** *Unimplemented.*
+- **PHASE-10 — Scheduling.** In-session scheduling (e.g. `/loop` or an OS scheduled task that opens a session) rather than `claude -p`/cron, because LLM work is interactive-only (D26/D27). *Unimplemented.*
+- **PHASE-11 — Law-brain DISCOVERY (GATED).** `pipeline/lawbrain_discover.py`: `new`-decision stub-minting routed through `enrich.py`. **Gated behind production evidence that official discovery misses law-brain-known items (D14); may prove unnecessary.** *Unimplemented.*
 
 Estimate: roughly one focused session per phase (PHASE-09 likely 1–2; the scraping phases depend on live-API iteration). This is a multi-session build — phases 1–2, 6, 9 are testable fully offline with fixtures. **PHASE-11 may never be needed; that is the point of gating it.**
 

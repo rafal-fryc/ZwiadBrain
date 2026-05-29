@@ -14,7 +14,22 @@ pages via a discovery-driven `/zwiad-scan-enforcement` command, with two-tier ma
 matching that consolidates multi-item matters (complaint → settlement) onto one page.
 
 ## Tasks
-- [ ] Populated from the implementation plan (writing-plans).
+(from docs/superpowers/plans/2026-05-29-phase08-enforcement-actions.md)
+- [ ] T1  — models: EnforcementDevelopment + EnforcementAction.developments
+- [ ] T2  — templates: Developments section + frontmatter round-trip
+- [ ] T3  — ids: parse_strong_key + build_enforcement_id
+- [ ] T4  — pipeline/enforcement.py: pure matching/confirm/merge helpers
+- [ ] T5  — sources/enforcement/base.py: EnforcementSource + feed/HTML helpers
+- [ ] T6  — sources/enforcement/ftc.py: FTCSource
+- [ ] T7  — sources/enforcement/state_ag.py: generic StateAGSource + failure isolation
+- [ ] T8  — config: EnforcementSettings + zwiadbrain.toml entries
+- [ ] T9  — cli: fetch-enforcement-candidates
+- [ ] T10 — cli: render-enforcement (build/consolidate + deterministic confirm)
+- [ ] T11 — topics.yaml enforcement rubric + 3 subagents
+- [ ] T12 — slash command /zwiad-scan-enforcement
+- [ ] T13 — DECISIONS D52-D55 + ARCHITECTURE + PLAN
+- [ ] T14 — quality gate + version bump 0.8.0
+- [ ] T15 — live UAT (FTC + CA OAG)
 
 ## Acceptance Criteria
 - [ ] An FTC RSS/HTML fixture maps to an `EnforcementAction` page under

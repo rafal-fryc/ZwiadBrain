@@ -569,3 +569,25 @@ def test_render_escapes_html_comment_terminator_in_flip_reason() -> None:
     assert first_line.count("-->") == 1
     # The sequence inside the reason must be escaped.
     assert "AI clause --&gt; removed in markup" in first_line
+
+
+def test_commentary_level6_heading_caps_at_h6() -> None:
+    """should keep a level-6 commentary heading at h6 (markdown has no h7).
+
+    h2 still demotes to h3.
+    """
+    bill = _bill()
+    bill.commentary_sources = [
+        CommentarySource(
+            path="wiki/x.md",
+            slug="x",
+            content_hash="h",
+            matched_by="deterministic",
+            confidence=1.0,
+            body="###### Deep heading\n\n## Shallow heading",
+        )
+    ]
+    body = render_bill_body(bill)
+    assert "\n###### Deep heading" in body  # already at h6, stays h6 (no h7)
+    assert "####### " not in body            # never produces a 7-hash heading
+    assert "\n### Shallow heading" in body   # h2 still demotes to h3

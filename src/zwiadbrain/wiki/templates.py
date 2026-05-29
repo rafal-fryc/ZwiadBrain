@@ -44,7 +44,12 @@ _COMMENTARY_NOTE = (
 
 
 def _demote_headings(text: str) -> str:
-    """Demote ATX headings by one level (e.g. ## -> ###) in copied commentary."""
+    """Demote ATX headings by one level (## -> ###) in copied commentary.
+
+    Markdown has no h7, so the demotion is clamped at h6: an h1-h5 heading gains
+    one ``#``, and an h6 heading is left at h6 (the ``{1,5}`` bound never matches
+    a 6-hash run, so it cannot produce a 7-hash heading).
+    """
     return re.sub(r"(?m)^(#{1,5})(?= )", r"#\1", text)
 
 

@@ -1,5 +1,8 @@
 # Phase 06.1 — Hardening (full-system review remediation)
-Status: ACTIVE
+Status: DONE
+
+## Outcome (2026-05-29)
+Shipped on `feature/phase-06.1-hardening` (~50 atomic commits, **378 tests + ruff + pyright strict all green**, v0.6.1). Every one of the 85 reviewed findings was remediated or consciously deferred. Execution was subagent-driven: each task implemented by a fresh subagent (TDD), then independently spec-reviewed AND quality-reviewed (opus) before commit — 0 tasks failed review, 0 reverts. The 3 HIGH findings are fixed: a real README + `ARCHITECTURE.md` (onboarding truth); `from_page` YAML isolation so one corrupt page no longer bricks `reindex` (F5); and the leg-history verifier's single-speaker contiguity check (c) closing the F2 misattribution gap. Recorded follow-ups F1/F4/F5/F6/F7 all closed. Shared contracts landed: `pipeline/ids.py::parse_bill_id`, canonical `refresh.summary_hash`, `StoreError(AppError)`. A Windows `--help` UnicodeEncodeError (found in B14 review) was fixed. A final whole-branch code review returned **READY TO MERGE** (0 critical, 0 important). B54 was a confirmed duplicate of B43 (dropped); B5A/B5B (arg-validation, amendment-delta tests) were initially missed by the task extractor and completed manually. D41 (hybrid automation) confirmed by the user; D42 (classifier→sonnet) + D43–D47 logged. D34 leg-history split remains deferred to a separate gated plan.
 
 > Full plan: `docs/superpowers/plans/2026-05-28-phase06.1-hardening.md` (56 TDD tasks).
 > Source: the 2026-05-28 full-system review (10 dimensions, 85 findings: 3 HIGH, ~80 medium/low, 0 critical, 0 refuted).
@@ -17,7 +20,7 @@ Remediate the reviewed findings — tighten the leg-history trust boundary (F2),
 - [x] B5 — Pipeline & CLI robustness (B54 covered by B43; B59 `--force` pending): `from_page` YAML wrap → `WikiSchemaError` [HIGH, F5 surface]; F1 cursor stamping in render-leg-history + render-refreshed; F6 `summary_hash` dedup; per-page isolation + `parse_bill_id` in fetch-refreshable [F4/F5]; render-classified malformed-input guard; staging-validation/run-dir helpers; F7 `--force` re-track; arg validation; key-order/report polish. (11 tasks)
 - [x] B6 — Sources & store robustness: honor `Retry-After` (503/429); `StoreError(AppError)` + corrupt-DB self-heal; `reindex` explicit transaction; FTS insert-or-replace; granuleId flatten; Source.discover protocol alignment; api-key redaction; int-cast/text-version guards; FTS query safety. (14 tasks)
 - [x] B7 — Render/D20 & grounding hygiene: drop `last_synced` from frontmatter [D20 footgun]; empty leg-history section guard; `_page_text` strip `script`/`style`/`noscript`; D20 parse→render→parse byte-identity test; merged-attribution gate-blindspot doc test; heading-demote h6 cap; exact drop-reason asserts. (7 tasks)
-- [ ] B8 — Close-out: full gate green (ruff + pyright strict + pytest); version → 0.6.1; tag `v0.6.1`; interactive UAT (verifier rejects a merged-attribution quote; refresh idempotent after leg-history regen).
+- [x] B8 — Close-out: full gate green (ruff + pyright strict + pytest 378); version → 0.6.1; UTF-8 console fix; final whole-branch review (READY TO MERGE); B5A/B5B completed; D46/D47 renumber. Tag `v0.6.1` + interactive UAT pending at hand-off.
 
 ## Acceptance Criteria
 - All 3 HIGH findings fixed: a real README + ARCHITECTURE.md exist; one malformed committed page no longer aborts `reindex` (per-page isolation); the verifier rejects a merged/cross-attribution quote.

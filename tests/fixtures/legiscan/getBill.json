@@ -55,7 +55,9 @@
       { "doc_id": 2900222, "date": "2023-10-10", "type": "Chaptered", "type_id": 6, "mime": "application/pdf", "mime_id": 2, "url": "https://legiscan.com/CA/text/SB362/id/2900222", "state_link": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB362&chap=1" }
     ],
     "votes": [],
-    "amendments": [],
+    "amendments": [
+      { "amendment_id": 72535, "adopted": 1, "chamber": "S", "chamber_id": 35, "date": "0000-00-00", "title": "Senate Amendment 1", "description": "Senate Amendment 1", "mime": "application/pdf", "mime_id": 2, "url": "https://legiscan.com/CA/amendment/SB362/id/72535", "state_link": "https://leginfo.legislature.ca.gov/x" }
+    ],
     "supplements": [],
     "calendar": []
   }

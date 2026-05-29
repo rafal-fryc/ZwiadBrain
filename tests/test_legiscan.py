@@ -106,6 +106,16 @@ def test_fetch_maps_sponsors_primary_first_and_timeline() -> None:
     assert bill.related_bills == ["Same As: AB1194"]
 
 
+def test_fetch_maps_amendment_with_placeholder_date_to_none() -> None:
+    """should map an adopted amendment and treat the 0000-00-00 placeholder date as None"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill.json")})
+        bill = _source().fetch("1789012")
+    assert bill.amendments[0].number == "Senate Amendment 1"
+    assert bill.amendments[0].status == "adopted"
+    assert bill.amendments[0].latest_action_date is None
+
+
 def test_state_bill_renders_to_states_path_and_roundtrips() -> None:
     """should render a state bill under states/ca/bills and re-render byte-identically"""
     from zwiadbrain.pipeline.render import page_path, render_page

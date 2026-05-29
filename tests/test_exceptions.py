@@ -18,6 +18,7 @@ from zwiadbrain.exceptions import (
     RenderError,
     SourceError,
     SourceFetchError,
+    StoreError,
     WikiSchemaError,
 )
 
@@ -32,6 +33,7 @@ ALL_ERRORS: list[type[AppError]] = [
     LawBrainError,
     MatchError,
     ItemNotFoundError,
+    StoreError,
 ]
 
 
@@ -56,3 +58,11 @@ def test_app_error_raises_and_catches_like_a_normal_exception() -> None:
     """should behave as an ordinary exception when raised"""
     with pytest.raises(AppError):
         raise ItemNotFoundError("bill US-CA::SB-362 not found")
+
+
+def test_store_error_is_an_app_error() -> None:
+    """should make StoreError catchable by the single `except AppError` CLI boundary"""
+    assert issubclass(StoreError, AppError)
+    err = StoreError("index is corrupt")
+    assert isinstance(err, AppError)
+    assert str(err) == "index is corrupt"

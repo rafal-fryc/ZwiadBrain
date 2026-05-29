@@ -86,3 +86,64 @@ def test_merge_current_state_is_monotonic() -> None:
                                     penalties=None, outcome=None, significance=None)
     assert existing2.status == "settled"
     assert existing2.penalties == "$5M"
+
+
+def test_confirm_match_missing_date_requires_stronger_overlap() -> None:
+    # No date proximity to lean on: overlap 0.5 ("Health Data Inc" -> {health, data}
+    # vs "Health LLC" -> {health}) is below the 0.6 missing-date floor -> rejected.
+    assert respondent_overlap("Health Data Inc", "Health LLC") == 0.5
+    assert confirm_match(
+        item_respondent="Health Data Inc", item_date=None,
+        candidate_respondent="Health LLC", candidate_date=dt.date(2025, 1, 1),
+        confidence=0.9, min_confidence=0.75, window_days=120,
+    ) is False
+    # Overlap 1.0 clears the stronger floor even with a missing date -> confirmed.
+    assert confirm_match(
+        item_respondent="Acme, Inc.", item_date=None,
+        candidate_respondent="Acme Corporation", candidate_date=dt.date(2025, 1, 1),
+        confidence=0.9, min_confidence=0.75, window_days=120,
+    ) is True
+
+
+def test_confirm_match_at_overlap_floor() -> None:
+    # Just below the 0.34 floor: 1/3 ~ 0.333 -> rejected even with both dates known.
+    assert respondent_overlap("Acme Health", "Acme Data") < 0.34
+    assert confirm_match(
+        item_respondent="Acme Health", item_date=dt.date(2025, 2, 1),
+        candidate_respondent="Acme Data", candidate_date=dt.date(2025, 1, 1),
+        confidence=0.9, min_confidence=0.75, window_days=120,
+    ) is False
+    # Just above the floor: 0.4 -> confirmed.
+    assert respondent_overlap("Acme Health Care", "Acme Health Data Group") >= 0.34
+    assert confirm_match(
+        item_respondent="Acme Health Care", item_date=dt.date(2025, 2, 1),
+        candidate_respondent="Acme Health Data Group", candidate_date=dt.date(2025, 1, 1),
+        confidence=0.9, min_confidence=0.75, window_days=120,
+    ) is True
+
+
+def test_build_shortlist_empty_when_nothing_clears_floor() -> None:
+    matters = [
+        MatterRef(id="ca-oag-2025-acme", agency_slug="ca-oag", jurisdiction="US-CA",
+                  respondent="Acme, Inc.", date_filed=dt.date(2025, 1, 1)),
+        MatterRef(id="ftc-2025-globex", agency_slug="ftc", jurisdiction="US",
+                  respondent="Globex LLC", date_filed=dt.date(2025, 1, 1)),
+    ]
+    # Wrong agency (ca-oag) is filtered; same-agency Globex shares no tokens with Acme.
+    assert build_shortlist(
+        agency_slug="ftc", respondent="Acme Corporation", date=dt.date(2025, 3, 1),
+        matters=matters, window_days=120,
+    ) == []
+
+
+def test_merge_developments_tie_breaks_on_source_url() -> None:
+    existing = [EnforcementDevelopment(date=dt.date(2025, 1, 2), summary="B.",
+                                       source_url="https://x/b")]
+    new = EnforcementDevelopment(date=dt.date(2025, 1, 2), summary="A.",
+                                 source_url="https://x/a")
+    merged = merge_developments(existing, new)
+    assert [str(d.source_url) for d in merged] == ["https://x/a", "https://x/b"]
+
+
+def test_respondent_overlap_zero_when_only_stopwords() -> None:
+    assert respondent_overlap("Inc", "LLC") == 0.0

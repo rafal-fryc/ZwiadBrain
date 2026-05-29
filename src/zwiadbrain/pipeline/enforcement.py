@@ -4,6 +4,11 @@ Nothing here does I/O. The CLI render half composes these with the renderer to d
 new-vs-consolidate and to fold a new feed item into an existing matter idempotently.
 The deterministic confirm here is the trust boundary that grounds the LLM matcher's
 proposal (D53), mirroring how render-leg-history re-checks the verifier in Python.
+
+When a match date is absent on either side there is no date proximity to lean on, so
+:func:`confirm_match` demands a stronger respondent overlap (``missing_date_overlap_floor``)
+before it will confirm — date proximity and respondent overlap are the two independent
+signals, and dropping one tightens the other.
 """
 
 from __future__ import annotations
@@ -81,14 +86,18 @@ def confirm_match(
     min_confidence: float,
     window_days: int,
     overlap_floor: float = 0.34,
+    missing_date_overlap_floor: float = 0.6,
 ) -> bool:
-    """Deterministic grounding of an LLM-proposed match (D53). All three must hold:
-    confidence floor, respondent token overlap, and date proximity."""
-    return (
-        confidence >= min_confidence
-        and respondent_overlap(item_respondent, candidate_respondent) >= overlap_floor
-        and _within(item_date, candidate_date, window_days)
-    )
+    """Deterministic grounding of an LLM-proposed match (D53). Confidence must clear
+    the floor; then EITHER both dates are known (overlap >= overlap_floor AND within the
+    window) OR a date is missing (no proximity to lean on, so require the stronger
+    missing_date_overlap_floor on respondent overlap)."""
+    if confidence < min_confidence:
+        return False
+    overlap = respondent_overlap(item_respondent, candidate_respondent)
+    if item_date is not None and candidate_date is not None:
+        return overlap >= overlap_floor and _within(item_date, candidate_date, window_days)
+    return overlap >= missing_date_overlap_floor
 
 
 def merge_developments(

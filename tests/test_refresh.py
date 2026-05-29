@@ -259,3 +259,35 @@ def test_clear_flip_is_noop_on_already_tracking_bill() -> None:
     out = clear_flip(bill)
     assert out.tracking is True
     assert out.flipped_out is None
+
+
+def test_amendment_delta_ignores_removed_amendment() -> None:
+    """should NOT report an amendment that existed in prev but is gone from fresh"""
+    from zwiadbrain.pipeline.refresh import _amendment_delta  # pyright: ignore[reportPrivateUsage]
+
+    prev = [
+        Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 4, 1)),
+        Amendment(number="H.Amdt. 2", latest_action_date=dt.date(2026, 4, 2)),
+    ]
+    fresh = [Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 4, 1))]
+    # H.Amdt. 2 was removed; the delta tracks only new/advanced amendments in fresh.
+    assert _amendment_delta(prev, fresh) == ()
+
+
+def test_amendment_delta_stable_under_reorder() -> None:
+    """should report the same set regardless of fresh ordering, in fresh order"""
+    from zwiadbrain.pipeline.refresh import _amendment_delta  # pyright: ignore[reportPrivateUsage]
+
+    prev = [Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 4, 1))]
+    fresh_a = [
+        Amendment(number="H.Amdt. 2", latest_action_date=dt.date(2026, 5, 1)),  # new
+        Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 5, 2)),  # advanced
+    ]
+    fresh_b = [
+        Amendment(number="H.Amdt. 1", latest_action_date=dt.date(2026, 5, 2)),  # advanced
+        Amendment(number="H.Amdt. 2", latest_action_date=dt.date(2026, 5, 1)),  # new
+    ]
+    # Same membership, each in its own fresh order.
+    assert set(_amendment_delta(prev, fresh_a)) == {"H.Amdt. 1", "H.Amdt. 2"}
+    assert _amendment_delta(prev, fresh_a) == ("H.Amdt. 2", "H.Amdt. 1")
+    assert _amendment_delta(prev, fresh_b) == ("H.Amdt. 1", "H.Amdt. 2")

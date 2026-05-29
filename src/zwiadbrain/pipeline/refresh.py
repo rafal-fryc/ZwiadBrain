@@ -68,6 +68,12 @@ def _amendment_delta(prev: list[Amendment], fresh: list[Amendment]) -> tuple[str
     An amendment is in the delta when its number is not in *prev*, OR when its
     ``latest_action_date`` differs from the prev entry's date (including a None
     → date transition).  Order matches *fresh*'s order, deduped.
+
+    Removals are intentionally NOT reported: an amendment present in *prev* but
+    absent from *fresh* produces no delta entry, because the explainer is
+    dispatched only to (re-)describe amendments that still exist.  Membership of
+    the result is therefore independent of *fresh*'s ordering; only the order of
+    the returned tuple follows *fresh*.
     """
     prev_by_number: dict[str, Amendment] = {a.number: a for a in prev}
     out: list[str] = []

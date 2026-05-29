@@ -6,6 +6,7 @@ A single jinja2 template renders a pre-built, already-filtered list of
 the typed helpers below; empty sections are dropped by the callers.
 """
 
+import datetime as dt
 import re
 
 import jinja2
@@ -17,6 +18,7 @@ from zwiadbrain.models import (
     CommentarySource,
     Enactment,
     EnforcementAction,
+    EnforcementDevelopment,
     FloorAction,
     Hearing,
     LegHistory,
@@ -85,6 +87,21 @@ def _text_versions(versions: list[TextVersion]) -> str:
         date = f" ({version.date.isoformat()})" if version.date else ""
         label = f"[{version.code}]({version.url})" if version.url else version.code
         lines.append(f"- {label}{date}")
+    return "\n".join(lines)
+
+
+def _developments(developments: list[EnforcementDevelopment]) -> str:
+    """Render the matter timeline; skip any entry without a source_url (not verifiable)."""
+    ordered = sorted(
+        developments,
+        key=lambda d: (d.date or dt.date.min, str(d.source_url)),
+    )
+    lines: list[str] = []
+    for d in ordered:
+        if not d.source_url:
+            continue
+        date = f"{d.date.isoformat()} — " if d.date else ""
+        lines.append(f"- {date}{d.summary} — [source]({d.source_url})")
     return "\n".join(lines)
 
 
@@ -286,14 +303,17 @@ def render_bill_body(bill: Bill) -> str:
 def render_enforcement_body(action: EnforcementAction) -> str:
     """Render the Markdown body for an enforcement-action page (no frontmatter)."""
     sections: list[dict[str, str]] = []
-    prose: list[tuple[str, str | None]] = [
-        ("Summary", action.summary),
+    if action.summary:
+        sections.append({"heading": "Summary", "body": action.summary.strip()})
+    if action.developments:
+        sections.append({"heading": "Developments", "body": _developments(action.developments)})
+    rest: list[tuple[str, str | None]] = [
         ("Background", action.background),
         ("Allegations", action.allegations),
         ("Outcome", action.outcome),
         ("Significance", action.significance),
     ]
-    for heading, value in prose:
+    for heading, value in rest:
         if value:
             sections.append({"heading": heading, "body": value.strip()})
     if action.commentary_sources:

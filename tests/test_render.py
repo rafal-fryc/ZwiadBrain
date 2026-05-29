@@ -522,6 +522,36 @@ def test_render_escapes_quote_in_flip_reason() -> None:
     assert 'reason="he said \\"AI\\" out of scope"' in first_line
 
 
+def test_enforcement_body_renders_developments_in_stable_order() -> None:
+    import datetime as dt
+
+    from zwiadbrain.models import EnforcementAction, EnforcementDevelopment
+    from zwiadbrain.wiki.templates import render_enforcement_body
+
+    action = EnforcementAction(
+        id="ftc-c-4790", jurisdiction="US", title="FTC v. Acme", agency="FTC",
+        summary="Data-security action.",
+        developments=[
+            EnforcementDevelopment(date=dt.date(2025, 6, 1), summary="Final order.",
+                                   source_url="https://www.ftc.gov/b"),
+            EnforcementDevelopment(date=dt.date(2025, 1, 2), summary="Complaint filed.",
+                                   source_url="https://www.ftc.gov/a"),
+        ],
+    )
+    body = render_enforcement_body(action)
+    assert "## Developments" in body
+    # Sorted by (date, source_url): complaint (Jan) before order (Jun).
+    assert body.index("Complaint filed.") < body.index("Final order.")
+    assert "- 2025-01-02 — Complaint filed. — [source](https://www.ftc.gov/a)" in body
+
+
+def test_enforcement_body_skips_development_without_source_url_noop() -> None:
+    from zwiadbrain.models import EnforcementAction
+    from zwiadbrain.wiki.templates import render_enforcement_body
+    action = EnforcementAction(id="ftc-x", jurisdiction="US", title="t", agency="FTC")
+    assert "## Developments" not in render_enforcement_body(action)
+
+
 def test_render_emits_statutes_at_large_link() -> None:
     """should render the StatutesAtLarge as a markdown link in the Enactment block"""
     from zwiadbrain.models import Enactment, StatutesAtLarge

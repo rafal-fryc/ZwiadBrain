@@ -1,6 +1,6 @@
 # ZwiadBrain Architecture
 
-> Authoritative current-state document. As of v0.6.0 (2026-05-28).
+> Authoritative current-state document. As of v0.7.0 (2026-05-29).
 > Supersedes the architecture sections of `docs/PLAN.md`, which predate the
 > 2026-05-27 subagent pivot. For the reasoning behind every choice, see
 > `DECISIONS.md` (decisions are append-only and authoritative).
@@ -106,7 +106,7 @@ src/zwiadbrain/
 ## Status
 
 Shipped: PHASE-01..07 (skeleton, wiki layer, federal source, LLM subagents,
-legislative history, watchlist refresh, state sources via LegiScan). Current: v0.6.1.
+legislative history, watchlist refresh, state sources via LegiScan). Current: v0.7.0.
 
 **Not yet implemented:** enforcement actions / FTC + state AGs (PHASE-08),
 law-brain commentary + discovery (PHASE-09/11), scheduling (PHASE-10).

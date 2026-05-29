@@ -326,7 +326,7 @@ standing engineering rules (language/tooling, merge strategy).
 **Trade-offs:** Frontmatter `topics[]` on a `tracking=false` page reflects historical, not current, scope — readers must use `tracking` (not `topics`) as the current-scope signal.
 **Revisit if:** Retained topics on flipped-out pages cause confusion in the index or FTS results — then clear them on flip and record the scope history elsewhere (e.g. a `former_topics` field or the git history).
 
-## 2026-05-28 — 41. Retry-After honored on 5xx; GovInfo 429 stays non-retryable
+## 2026-05-28 — 46. Retry-After honored on 5xx; GovInfo 429 stays non-retryable
 **Chosen:** Both source clients parse `Retry-After` (delta-seconds or HTTP-date) on a 503 and prefer it over the blind exponential wait via a tenacity wait callable; an absent/invalid header falls back to exponential. GovInfo 429 remains a non-retryable `RateLimitError` (fail-fast, no in-process retry).
 **Alternatives:** (a) Keep blind exponential backoff everywhere; (b) make GovInfo 429 retryable-with-Retry-After.
 **Why:** A server-supplied `Retry-After` is more accurate than guessing, and respecting it is polite to a shared public API. GovInfo's 429 is an hourly per-key quota (~the 40/sec shared limit), not a short transient — retrying it in-process cannot clear the quota and only burns attempts; the operator should back off the whole run instead.
@@ -335,7 +335,7 @@ standing engineering rules (language/tooling, merge strategy).
 
 ---
 
-## 2026-05-28 — 42. Source API keys are query-param auth; redact before logging
+## 2026-05-28 — 47. Source API keys are query-param auth; redact before logging
 **Chosen:** Both Congress.gov and GovInfo are called with the key as a `?api_key=` query parameter (their only supported auth), and every string that could carry a request URL into a message or log is routed through `redact_api_key`, which masks the value to `REDACTED`.
 **Alternatives:** Header-based auth (not offered by either API); trust that URLs never reach logs.
 **Why:** Query-param auth is forced by the upstream APIs, so the key inevitably appears in full request URLs. A single redaction helper makes leak-prevention a one-liner at every boundary rather than a per-message judgment call.

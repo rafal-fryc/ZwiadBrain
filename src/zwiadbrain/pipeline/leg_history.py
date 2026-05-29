@@ -84,7 +84,7 @@ class _CongressLike(Protocol):
 class _GovInfoLike(Protocol):
     """Structural interface: the leg-history slice of GovInfoSource.
 
-    *number* is typed as ``str`` here because ``_parse_id`` always returns a
+    *number* is typed as ``str`` here because ``parse_bill_id`` always returns a
     ``str``; the concrete ``GovInfoSource`` accepts ``str | int``, which is a
     wider supertype and satisfies contravariance.
     """

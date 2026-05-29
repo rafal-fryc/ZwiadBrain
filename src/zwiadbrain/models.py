@@ -242,6 +242,19 @@ class Bill(WikiItem):
         return self
 
 
+class EnforcementDevelopment(BaseModel):
+    """A single development in an enforcement matter (complaint, order, settlement).
+
+    Matters accrue developments over time as agencies publish new feed items about
+    the same case. Persisted to frontmatter (it cannot be re-derived) AND rendered
+    into the page body — the same treatment leg_history research gets (D40).
+    """
+
+    date: dt.date | None = None
+    summary: str
+    source_url: _HttpUrlStr
+
+
 class EnforcementAction(WikiItem):
     """A tracked enforcement action (FTC or state Attorney General)."""
 
@@ -260,6 +273,9 @@ class EnforcementAction(WikiItem):
     allegations: str | None = None
     outcome: str | None = None
     significance: str | None = None
+    # Append-only list of feed-item developments; persisted to frontmatter (source of
+    # truth) and rendered as the "Developments" timeline section (D52).
+    developments: list[EnforcementDevelopment] = []
 
 
 WikiItemUnion = Annotated[Bill | EnforcementAction, Field(discriminator="type")]

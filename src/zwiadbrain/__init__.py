@@ -5,4 +5,4 @@ actions in AI, privacy, and cybersecurity, and copies relevant commentary from a
 read-only sibling "law brain" onto the pages it tracks.
 """
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"

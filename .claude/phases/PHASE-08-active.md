@@ -15,20 +15,20 @@ matching that consolidates multi-item matters (complaint → settlement) onto on
 
 ## Tasks
 (from docs/superpowers/plans/2026-05-29-phase08-enforcement-actions.md)
-- [ ] T1  — models: EnforcementDevelopment + EnforcementAction.developments
-- [ ] T2  — templates: Developments section + frontmatter round-trip
-- [ ] T3  — ids: parse_strong_key + build_enforcement_id
-- [ ] T4  — pipeline/enforcement.py: pure matching/confirm/merge helpers
-- [ ] T5  — sources/enforcement/base.py: EnforcementSource + feed/HTML helpers
-- [ ] T6  — sources/enforcement/ftc.py: FTCSource
-- [ ] T7  — sources/enforcement/state_ag.py: generic StateAGSource + failure isolation
-- [ ] T8  — config: EnforcementSettings + zwiadbrain.toml entries
-- [ ] T9  — cli: fetch-enforcement-candidates
-- [ ] T10 — cli: render-enforcement (build/consolidate + deterministic confirm)
-- [ ] T11 — topics.yaml enforcement rubric + 3 subagents
-- [ ] T12 — slash command /zwiad-scan-enforcement
-- [ ] T13 — DECISIONS D52-D55 + ARCHITECTURE + PLAN
-- [ ] T14 — quality gate + version bump 0.8.0
+- [x] T1  — models: EnforcementDevelopment + EnforcementAction.developments
+- [x] T2  — templates: Developments section + frontmatter round-trip
+- [x] T3  — ids: parse_strong_key + build_enforcement_id
+- [x] T4  — pipeline/enforcement.py: pure matching/confirm/merge helpers
+- [x] T5  — sources/enforcement/base.py: EnforcementSource + feed/HTML helpers
+- [x] T6  — sources/enforcement/ftc.py: FTCSource
+- [x] T7  — sources/enforcement/state_ag.py: generic StateAGSource + failure isolation
+- [x] T8  — config: EnforcementSettings + zwiadbrain.toml entries
+- [x] T9  — cli: fetch-enforcement-candidates
+- [x] T10 — cli: render-enforcement (build/consolidate + deterministic confirm)
+- [x] T11 — topics.yaml enforcement rubric + 3 subagents
+- [x] T12 — slash command /zwiad-scan-enforcement
+- [x] T13 — DECISIONS D52-D55 + ARCHITECTURE + PLAN
+- [x] T14 — quality gate + version bump 0.8.0
 - [ ] T15 — live UAT (FTC + CA OAG)
 
 ## Acceptance Criteria

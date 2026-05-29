@@ -58,6 +58,8 @@ _TYPE_URL_SEGMENT: dict[str, str] = {
 _AMENDMENT_DISPLAY: dict[str, str] = {"HAMDT": "H.Amdt.", "SAMDT": "S.Amdt."}
 _AMENDMENT_CHAMBER: dict[str, str] = {"HAMDT": "House", "SAMDT": "Senate"}
 _PUBLIC_LAW_RE = re.compile(r"Public Law No:?\s*(\d+-\d+)")
+# Ordered preference for which text-version format URL to keep, most-preferred first.
+_TEXT_FORMAT_PREFERENCE: tuple[str, ...] = ("Formatted Text", "XML", "PDF")
 
 
 class _Retryable(SourceError):
@@ -216,10 +218,11 @@ def _to_amendment(raw: dict[str, Any]) -> Amendment:
 
 def _to_text_version(raw: dict[str, Any]) -> TextVersion:
     formats = _items(raw.get("formats"))
+    by_type = {str(fmt.get("type")): _opt_str(fmt.get("url")) for fmt in formats}
     url: str | None = None
-    for fmt in formats:
-        if str(fmt.get("type")) == "Formatted Text":
-            url = _opt_str(fmt.get("url"))
+    for preferred in _TEXT_FORMAT_PREFERENCE:
+        if by_type.get(preferred):
+            url = by_type[preferred]
             break
     if url is None and formats:
         url = _opt_str(formats[0].get("url"))

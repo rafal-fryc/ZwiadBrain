@@ -548,6 +548,34 @@ def test_fetch_maps_per_amendment_latest_action_date() -> None:
     assert bill.amendments[1].latest_action_date == dt.date(2026, 4, 20)
 
 
+def test_text_version_prefers_xml_over_pdf_when_formatted_text_absent() -> None:
+    """should pick XML over PDF deterministically when no Formatted Text format exists"""
+    from zwiadbrain.sources.congress import _to_text_version  # pyright: ignore[reportPrivateUsage]
+
+    raw = {
+        "type": "Enrolled Bill",
+        "date": "2024-12-20",
+        "formats": [
+            {"type": "PDF", "url": "https://example.gov/bill.pdf"},
+            {"type": "XML", "url": "https://example.gov/bill.xml"},
+        ],
+    }
+    tv = _to_text_version(raw)
+    assert tv.url == "https://example.gov/bill.xml"
+
+
+def test_text_version_falls_back_to_first_format_when_no_preference_matches() -> None:
+    """should fall back to the first listed format when none of the preferred types are present"""
+    from zwiadbrain.sources.congress import _to_text_version  # pyright: ignore[reportPrivateUsage]
+
+    raw = {
+        "type": "Introduced in House",
+        "date": "2024-06-26",
+        "formats": [{"type": "TXT", "url": "https://example.gov/bill.txt"}],
+    }
+    assert _to_text_version(raw).url == "https://example.gov/bill.txt"
+
+
 def test_fetch_tolerates_non_integer_related_bill_congress() -> None:
     """should not raise when a related bill's congress is non-numeric — drop the ordinal suffix"""
     detail_payload: dict[str, Any] = {

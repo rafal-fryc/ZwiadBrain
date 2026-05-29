@@ -38,6 +38,7 @@ from zwiadbrain.pipeline.refresh import (
     summary_hash,
 )
 from zwiadbrain.pipeline.render import write_page
+from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.congress import CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
@@ -142,11 +143,8 @@ def fetch_candidates(
             max_probe=_MAX_PROBE,
         )
         bills = [enrich(source, candidate) for candidate in candidates]
-        run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")
-        run_dir.mkdir(parents=True, exist_ok=True)
-        path = run_dir / "candidates.json"
         payload = [bill.model_dump(mode="json") for bill in bills]
-        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        path = stage_json(payload, name="candidates.json", out=out)
     except AppError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
@@ -178,10 +176,7 @@ def render_classified(
         items: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
         bills: list[Bill] = []
         for item in items:
-            try:
-                bills.append(Bill.model_validate(item))
-            except ValidationError as exc:
-                raise ConfigError(f"could not parse a bill in classified file: {exc}") from exc
+            bills.append(validate_model(Bill, item, label="classified bill"))
         for bill in bills:
             unknown = [topic for topic in bill.topics if topic not in topic_keys]
             if unknown:
@@ -225,15 +220,12 @@ def fetch_leg_history(
         govinfo_source = GovInfoSource(settings.require_govinfo_api_key())
         spine = assemble_spine(fetched, congress_source, govinfo_source)
         leads = collect_leads(fetched, govinfo_source)
-        run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")
-        run_dir.mkdir(parents=True, exist_ok=True)
-        path = run_dir / "leghistory.json"
         payload = {
             "bill": fetched.model_dump(mode="json"),
             "spine": spine.model_dump(mode="json"),
             "leads": leads,
         }
-        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        path = stage_json(payload, name="leghistory.json", out=out)
     except AppError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
@@ -296,10 +288,7 @@ def fetch_refreshable(
                 skipped += 1
                 typer.echo(f"skipped {page_path}: {exc}", err=True)
                 continue
-        run_dir = out or Path("data/runs") / dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S")
-        run_dir.mkdir(parents=True, exist_ok=True)
-        path = run_dir / "refreshable.json"
-        path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
+        path = stage_json(entries, name="refreshable.json", out=out)
     except AppError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
@@ -332,15 +321,8 @@ def render_refreshed(
                 raise ConfigError("refreshed.json entry is missing required key 'prev'")
             if "bill" not in entry:
                 raise ConfigError("refreshed.json entry is missing required key 'bill'")
-            try:
-                prev = Bill.model_validate(entry["prev"])
-            except ValidationError as exc:
-                msg = f"could not parse 'prev' bill in refreshed.json entry: {exc}"
-                raise ConfigError(msg) from exc
-            try:
-                bill = Bill.model_validate(entry["bill"])
-            except ValidationError as exc:
-                raise ConfigError(f"could not parse 'bill' in refreshed.json entry: {exc}") from exc
+            prev = validate_model(Bill, entry["prev"], label="prev")
+            bill = validate_model(Bill, entry["bill"], label="bill")
             in_scope = bool(entry.get("classifier_in_scope", True))
             rationale = str(entry.get("classifier_rationale") or "")
             # Preserve leg-history research onto fresh spine.
@@ -440,15 +422,8 @@ def render_leg_history(
         if "spine" not in payload:
             raise ConfigError("staging file is missing required key 'spine'")
 
-        try:
-            bill = Bill.model_validate(payload["bill"])
-        except Exception as exc:
-            raise ConfigError(f"could not parse 'bill' from staging file: {exc}") from exc
-
-        try:
-            spine = LegHistory.model_validate(payload["spine"])
-        except Exception as exc:
-            raise ConfigError(f"could not parse 'spine' from staging file: {exc}") from exc
+        bill = validate_model(Bill, payload["bill"], label="bill")
+        spine = validate_model(LegHistory, payload["spine"], label="spine")
 
         # Per-item parse: collect validation failures as parse-drops instead of aborting.
         # `_as_list` coerces a present-but-null JSON field to [] rather than None, which

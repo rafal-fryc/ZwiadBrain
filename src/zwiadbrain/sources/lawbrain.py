@@ -38,7 +38,11 @@ def _content_hash(text: str) -> str:
 
 
 def _coerce_str_list(value: Any) -> list[str]:
-    """Coerce a scalar-or-list YAML value into a ``list[str]`` (drop blanks)."""
+    """Coerce a scalar-or-list YAML value into a ``list[str]`` (drop None/blanks).
+
+    A ``None`` element (``tags: [null, ai]``) is dropped rather than stringified —
+    a literal ``"None"`` would otherwise leak into downstream key extraction.
+    """
     if value is None:
         return []
     if isinstance(value, list):
@@ -46,7 +50,14 @@ def _coerce_str_list(value: Any) -> list[str]:
         # iteration item is typed (genuinely untyped YAML — matches the dict[str, Any]
         # discipline used throughout this module).
         items = cast(list[Any], value)
-        return [str(item) for item in items if str(item).strip()]
+        out: list[str] = []
+        for item in items:
+            if item is None:
+                continue
+            text = str(item).strip()
+            if text:
+                out.append(text)
+        return out
     text = str(value).strip()
     return [text] if text else []
 
@@ -133,35 +144,43 @@ class LawBrainReader:
         try:
             text = path.read_text(encoding="utf-8")
             parsed = frontmatter.loads(text)
+            metadata: dict[str, Any] = parsed.metadata
+            return LawBrainPage(
+                slug=path.stem,
+                type=str(metadata.get("type") or page_type),
+                jurisdiction=_coerce_str_list(metadata.get("jurisdiction")),
+                tags=_coerce_str_list(metadata.get("tags")),
+                title=str(metadata.get("title") or path.stem),
+                citation=_opt_str(metadata.get("citation")),
+                updated=_parse_date(metadata.get("updated")),
+                body=parsed.content,
+                content_hash=_content_hash(text),
+                source_files=_coerce_str_list(metadata.get("sources")),
+            )
         except (OSError, UnicodeDecodeError) as exc:
             _LOGGER.warning("skipping unreadable law-brain page %s: %s", path.name, exc)
             return None
-        except Exception as exc:  # noqa: BLE001 — tolerant parse boundary (D5); malformed YAML must not sink the run
+        except Exception as exc:  # noqa: BLE001 — tolerant parse boundary (D5); malformed YAML or construction error must not sink the run
             _LOGGER.warning("skipping malformed law-brain page %s: %s", path.name, exc)
             return None
-        metadata: dict[str, Any] = parsed.metadata
-        return LawBrainPage(
-            slug=path.stem,
-            type=str(metadata.get("type") or page_type),
-            jurisdiction=_coerce_str_list(metadata.get("jurisdiction")),
-            tags=_coerce_str_list(metadata.get("tags")),
-            title=str(metadata.get("title") or path.stem),
-            citation=_opt_str(metadata.get("citation")),
-            updated=_parse_date(metadata.get("updated")),
-            body=parsed.content,
-            content_hash=_content_hash(text),
-            source_files=_coerce_str_list(metadata.get("sources")),
-        )
 
     def read_source_memo(self, rel_path: str) -> str | None:
         """Return the text of a ``sources:`` memo, or None if missing or non-``.md``.
 
         Only ``.md`` memos are readable (a ``source_files`` entry may be a PDF or
         other binary). The path is resolved against the law-brain root and read
-        read-only; a missing file yields ``None`` rather than raising.
+        read-only; a missing file yields ``None`` rather than raising. A
+        ``rel_path`` that escapes the root (``../../x.md``) is rejected — the law
+        brain is read-only and an attacker-controlled frontmatter path must not
+        be able to read arbitrary files.
         """
         candidate = self.root / rel_path
         if candidate.suffix.lower() != ".md":
+            return None
+        try:
+            candidate.resolve().relative_to(self.root.resolve())
+        except ValueError:
+            _LOGGER.warning("skipping out-of-root memo path: %s", rel_path)
             return None
         if not candidate.is_file():
             return None

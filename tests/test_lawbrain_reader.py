@@ -5,10 +5,17 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
-from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader, _content_hash
+from zwiadbrain.sources import lawbrain as lawbrain_module
+from zwiadbrain.sources.lawbrain import (
+    LawBrainPage,
+    LawBrainReader,
+    _coerce_str_list,  # pyright: ignore[reportPrivateUsage]
+    _content_hash,  # pyright: ignore[reportPrivateUsage]
+)
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "lawbrain"
 
@@ -93,6 +100,10 @@ def test_content_hash_is_crlf_invariant() -> None:
     assert _content_hash(crlf) == _content_hash(lf)
 
 
+def test_content_hash_is_bare_cr_invariant() -> None:
+    assert _content_hash("## Summary\rLine two.\r") == _content_hash("## Summary\nLine two.\n")
+
+
 def test_content_hash_of_crlf_fixture_equals_lf_equivalent(reader: LawBrainReader) -> None:
     page = _page_by_slug(reader, "regulation-fixture-crlf-eol")
     raw_bytes = (FIXTURE_ROOT / "wiki" / "regulation-fixture-crlf-eol.md").read_bytes()
@@ -113,3 +124,42 @@ def test_read_source_memo_returns_none_for_missing_file(reader: LawBrainReader) 
 
 def test_read_source_memo_returns_none_for_non_md_extension(reader: LawBrainReader) -> None:
     assert reader.read_source_memo("sources/zwiad/fixture-memo.pdf") is None
+
+
+def test_read_source_memo_rejects_out_of_root_path(reader: LawBrainReader) -> None:
+    # A traversal path must not escape the law-brain root, even if such a file exists.
+    assert reader.read_source_memo("../../../../etc/passwd.md") is None
+
+
+def test_pages_skips_page_with_malformed_frontmatter(reader: LawBrainReader) -> None:
+    # The broken fixture has unparseable YAML; it must be skipped, not crash pages().
+    slugs = {page.slug for page in reader.pages()}
+    assert "regulation-fixture-broken" not in slugs
+    # And the well-formed pages still come through — one bad page never sinks the run.
+    assert "regulation-fixture-sb53" in slugs
+
+
+def test_pages_isolates_construction_error(
+    reader: LawBrainReader, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Even a failure *inside* LawBrainPage(...) construction must be isolated per-page
+    # (the constructor is inside the try), so pages() still returns the other pages.
+    # cast to Any: re-invoking the real __init__ with a **dict spread is untyped here.
+    real_init = cast(Any, LawBrainPage.__init__)
+
+    def exploding_init(self: LawBrainPage, **data: object) -> None:
+        if data.get("slug") == "regulation-fixture-sb53":
+            raise ValueError("boom during construction")
+        real_init(self, **data)
+
+    monkeypatch.setattr(lawbrain_module.LawBrainPage, "__init__", exploding_init)
+    slugs = {page.slug for page in reader.pages()}
+    assert "regulation-fixture-sb53" not in slugs  # the exploding page is skipped
+    assert "concept-fixture-ai-landscape" in slugs  # others still parse
+
+
+def test_coerce_str_list_drops_none_elements_without_stringifying() -> None:
+    # tags: [null, ai] must drop the None, never produce the literal "None".
+    result = _coerce_str_list([None, "ai", "  ", "tfaia"])
+    assert result == ["ai", "tfaia"]
+    assert "None" not in result

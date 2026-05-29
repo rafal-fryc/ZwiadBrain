@@ -134,3 +134,38 @@ def test_render_enforcement_consolidation_preserves_omitted_prose(tmp_path: Path
     assert action.summary == "Original summary."
     assert action.outcome == "Settled."
     assert len(action.developments) == 2
+
+
+def test_render_enforcement_skips_entry_missing_development(tmp_path: Path) -> None:
+    wiki = tmp_path / "wiki"
+    db = tmp_path / "i.sqlite"
+    run = tmp_path / "run"
+    run.mkdir()
+    valid = _entry()
+    bad = _entry(strong_key="c-9999", title="FTC v. Beta")
+    del bad["development"]  # malformed: missing required key
+    (run / "classified.json").write_text(json.dumps([valid, bad]), encoding="utf-8")
+    result = runner.invoke(app, ["render-enforcement", "--in", str(run / "classified.json"),
+                                 "--wiki", str(wiki), "--db", str(db)])
+    assert result.exit_code == 0, result.output
+    assert (wiki / "federal" / "enforcement" / "ftc-c-4790.md").exists()
+    assert not (wiki / "federal" / "enforcement" / "ftc-c-9999.md").exists()
+    assert "dropped" in result.output.lower()
+
+
+def test_render_enforcement_skips_entry_with_bad_development_url(tmp_path: Path) -> None:
+    wiki = tmp_path / "wiki"
+    db = tmp_path / "i.sqlite"
+    run = tmp_path / "run"
+    run.mkdir()
+    valid = _entry()
+    bad = _entry(strong_key="c-9999", title="FTC v. Beta",
+                 development={"date": "2025-01-02", "summary": "Complaint.",
+                             "source_url": "not-a-url"})
+    (run / "classified.json").write_text(json.dumps([valid, bad]), encoding="utf-8")
+    result = runner.invoke(app, ["render-enforcement", "--in", str(run / "classified.json"),
+                                 "--wiki", str(wiki), "--db", str(db)])
+    assert result.exit_code == 0, result.output
+    assert (wiki / "federal" / "enforcement" / "ftc-c-4790.md").exists()
+    assert not (wiki / "federal" / "enforcement" / "ftc-c-9999.md").exists()
+    assert "dropped" in result.output.lower()

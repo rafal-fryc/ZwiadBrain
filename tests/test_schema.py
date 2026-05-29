@@ -344,3 +344,27 @@ def test_from_page_raises_wiki_schema_error_on_malformed_yaml() -> None:
     text = "---\nid: 118-hr-1\njurisdiction: {US\n---\nbody"
     with pytest.raises(WikiSchemaError):
         from_page(text)
+
+
+def test_to_frontmatter_drops_last_synced() -> None:
+    """should never serialize last_synced (a now() field) — it would dirty git on re-enrich"""
+    b = Bill(
+        id="118-hr-1", jurisdiction="US", title="x", bill_number="H.R. 1",
+        last_synced=dt.datetime(2026, 5, 28, 14, 30, tzinfo=dt.UTC),
+    )
+    assert "last_synced" not in to_frontmatter(b)
+
+
+def test_to_frontmatter_byte_stable_across_fresh_last_synced() -> None:
+    """should emit identical frontmatter for two bills differing only in last_synced (D20)"""
+    early = Bill(
+        id="118-hr-1", jurisdiction="US", title="x", bill_number="H.R. 1",
+        summary="A short summary.",
+        last_synced=dt.datetime(2026, 5, 28, 9, 0, tzinfo=dt.UTC),
+    )
+    later = Bill(
+        id="118-hr-1", jurisdiction="US", title="x", bill_number="H.R. 1",
+        summary="A short summary.",
+        last_synced=dt.datetime(2026, 5, 28, 17, 0, tzinfo=dt.UTC),
+    )
+    assert to_frontmatter(early) == to_frontmatter(later)

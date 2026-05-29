@@ -47,11 +47,19 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
     Dates become ISO strings; None values and empty collections are dropped; the
     verbatim ``body`` of each commentary source is stripped (it lives in the page
     body, not the frontmatter).
+
+    ``last_synced`` is a ``now()`` timestamp (stamped in :mod:`zwiadbrain.pipeline.enrich`)
+    and is index/derived-only: serializing it would dirty git on every re-enrich even when
+    nothing substantive changed (D20), so it is never written to frontmatter.
     """
     raw: dict[str, object] = item.model_dump(mode="json", exclude_none=True)
     fm: dict[str, object] = {}
     for key, value in raw.items():
-        if key == "commentary_sources" or key in _BODY_ONLY_FIELDS or value in ([], {}):
+        if (
+            key in ("commentary_sources", "last_synced")
+            or key in _BODY_ONLY_FIELDS
+            or value in ([], {})
+        ):
             continue
         if key == "amendments_count" and value == 0:
             continue

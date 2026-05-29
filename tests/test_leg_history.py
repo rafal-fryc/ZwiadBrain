@@ -750,7 +750,7 @@ def test_ground_items_statement_dropped_when_url_returns_404() -> None:
     result = ground_items([stmt], [], fetch=fetch, verifier_verdicts={0: True})
     assert len(result.statements) == 0
     assert len(result.dropped) == 1
-    assert "404" in result.dropped[0].reason
+    assert result.dropped[0].reason == "source url returned status 404"
 
 
 def test_ground_items_statement_dropped_when_url_unreachable() -> None:
@@ -760,7 +760,7 @@ def test_ground_items_statement_dropped_when_url_unreachable() -> None:
     result = ground_items([stmt], [], fetch=fetch, verifier_verdicts={0: True})
     assert len(result.statements) == 0
     assert len(result.dropped) == 1
-    assert "0" in result.dropped[0].reason
+    assert result.dropped[0].reason == "source url returned status 0"
 
 
 def test_ground_items_statement_dropped_when_verifier_index_missing() -> None:
@@ -807,7 +807,7 @@ def test_ground_items_hearing_dropped_when_url_404() -> None:
     result = ground_items([], [hearing], fetch=fetch, verifier_verdicts={})
     assert len(result.hearings) == 0
     assert len(result.dropped) == 1
-    assert "404" in result.dropped[0].reason
+    assert result.dropped[0].reason == "hearing url returned status 404"
 
 
 def test_ground_items_hearing_dropped_when_no_url() -> None:

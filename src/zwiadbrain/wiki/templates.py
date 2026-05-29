@@ -253,7 +253,9 @@ def render_bill_body(bill: Bill) -> str:
     if bill.amendments:
         sections.append({"heading": "Amendments", "body": _amendments(bill.amendments)})
     if bill.leg_history:
-        sections.append({"heading": "Legislative History", "body": _leg_history(bill.leg_history)})
+        leg_history_body = _leg_history(bill.leg_history)
+        if leg_history_body:
+            sections.append({"heading": "Legislative History", "body": leg_history_body})
     if bill.text_versions:
         sections.append({"heading": "Full Text", "body": _text_versions(bill.text_versions)})
     if bill.related_bills:

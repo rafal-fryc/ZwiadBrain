@@ -489,6 +489,19 @@ def test_render_omits_marker_when_not_flipped() -> None:
     assert "<!-- zwiadbrain:flipped-out" not in body
 
 
+def test_empty_leg_history_renders_no_header() -> None:
+    """should not emit a bare '## Legislative History' header when LegHistory is empty"""
+    bill = Bill(
+        id="118-hr-11",
+        jurisdiction="US",
+        title="Empty History Bill",
+        bill_number="HR 11",
+        leg_history=LegHistory(),
+    )
+    body = render_bill_body(bill)
+    assert "## Legislative History" not in body
+
+
 def test_render_escapes_quote_in_flip_reason() -> None:
     """should escape a double-quote inside the reason so the HTML comment stays valid"""
     from zwiadbrain.models import FlipOutAudit

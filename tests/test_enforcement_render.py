@@ -107,3 +107,30 @@ def test_render_enforcement_idempotent(tmp_path: Path) -> None:
     runner.invoke(app, ["render-enforcement", "--in", str(run / "classified.json"),
                         "--wiki", str(wiki), "--db", str(db)])
     assert page.read_text(encoding="utf-8") == first
+
+
+def test_render_enforcement_consolidation_preserves_omitted_prose(tmp_path: Path) -> None:
+    wiki = tmp_path / "wiki"
+    db = tmp_path / "i.sqlite"
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(json.dumps([_entry(
+        summary="Original summary.", allegations="Original allegations.")]), encoding="utf-8")
+    runner.invoke(app, ["render-enforcement", "--in", str(run / "classified.json"),
+                        "--wiki", str(wiki), "--db", str(db)])
+    # Consolidation item OMITS summary/allegations but adds a development + sets outcome.
+    settle = _entry(matter_id="ftc-c-4790", match_source="strong_key", summary=None,
+                    allegations=None, outcome="Settled.", status="settled",
+                    development={"date": "2025-06-01", "summary": "Final order.",
+                                 "source_url": "https://www.ftc.gov/b"},
+                    source_url="https://www.ftc.gov/b", sources={"FTC": "https://www.ftc.gov/b"})
+    (run / "classified.json").write_text(json.dumps([settle]), encoding="utf-8")
+    runner.invoke(app, ["render-enforcement", "--in", str(run / "classified.json"),
+                        "--wiki", str(wiki), "--db", str(db)])
+    page = wiki / "federal" / "enforcement" / "ftc-c-4790.md"
+    action = from_page(page.read_text(encoding="utf-8"))
+    assert isinstance(action, EnforcementAction)
+    assert action.allegations == "Original allegations."
+    assert action.summary == "Original summary."
+    assert action.outcome == "Settled."
+    assert len(action.developments) == 2

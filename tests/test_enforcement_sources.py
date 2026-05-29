@@ -10,6 +10,7 @@ from zwiadbrain.sources.enforcement.base import (
     parse_feed,
 )
 from zwiadbrain.sources.enforcement.ftc import FTCSource
+from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 
 _FIX = Path(__file__).parent / "fixtures" / "enforcement"
 _RSS_URL = "https://www.ftc.gov/feeds/press-release.xml"
@@ -79,3 +80,36 @@ def test_ftc_fetch_text_extracts_body() -> None:
     assert "Acme, Inc. failed to implement reasonable data security" in text
     assert "File No. 2023155" in text
     assert "analytics()" not in text
+
+
+@respx.mock
+def test_state_ag_rss_discover() -> None:
+    url = "https://oag.ca.gov/news/press-releases/feed"
+    respx.get(url).mock(return_value=httpx.Response(200, text=(_FIX / "ag_ca_rss.xml").read_text()))
+    source = StateAGSource(name="California OAG", agency_slug="ca-oag",
+                           jurisdiction="US-CA", url=url, kind="rss")
+    cands = source.discover(limit=10)
+    assert cands[0].agency == "California OAG" and cands[0].jurisdiction == "US-CA"
+    assert "DoorDash" in cands[0].title
+
+
+@respx.mock
+def test_state_ag_html_discover_uses_item_selector() -> None:
+    url = "https://oag.example/news"
+    html_text = (_FIX / "ag_html_list.html").read_text()
+    respx.get(url).mock(return_value=httpx.Response(200, text=html_text))
+    source = StateAGSource(name="Example OAG", agency_slug="ex-oag", jurisdiction="US-XX",
+                           url=url, kind="html", item_selector="li.press-item a")
+    cands = source.discover(limit=10)
+    titles = [c.title for c in cands]
+    assert "AG Sues Sephora Over Data Broker Violations" in titles
+    assert cands[0].url.startswith("https://oag.example/news/2025/sephora")
+
+
+@respx.mock
+def test_state_ag_discover_failure_is_isolated() -> None:
+    url = "https://oag.broken/news"
+    respx.get(url).mock(return_value=httpx.Response(500))
+    source = StateAGSource(name="Broken OAG", agency_slug="bk-oag", jurisdiction="US-XX",
+                           url=url, kind="html", item_selector="a")
+    assert source.discover(limit=10) == []

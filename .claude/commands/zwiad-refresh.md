@@ -30,29 +30,31 @@ re-fetches each via Congress.gov, compares cursors, and writes
 `refreshable.json` to `data/runs/<id>/`. **Note the exact path it prints.**
 
 ### 2. Fetch refreshable — state (Python, deterministic)
-Run:
+Run (write to a `state/` SUBDIRECTORY so it cannot collide with the federal file):
 ```
-uv run zwiadbrain fetch-state-refreshable --out data/runs/<id>
+uv run zwiadbrain fetch-state-refreshable --out data/runs/<id>/state
 ```
-(Use the same `<id>` directory that step 1 printed.) Scans
-`wiki/states/*/bills/*.md` frontmatter for tracking=true state bills that
-carry `legiscan_bill_id`, calls `getMasterListRaw` once per state to get the
-full current-session `change_hash` map, re-fetches only bills whose stored
-hash differs via `getBill`, and **appends** its results to
-`data/runs/<id>/refreshable.json` — the same file step 1 wrote.
+(Use the same `<id>` directory that step 1 printed.) This writes a SEPARATE
+`data/runs/<id>/state/refreshable.json` — it does NOT append to or overwrite the
+federal `refreshable.json` from step 1. Scans `wiki/states/*/bills/*.md`
+frontmatter for tracking=true state bills that carry `legiscan_bill_id`, calls
+`getMasterListRaw` once per state to get the full current-session `change_hash`
+map, and re-fetches only bills whose stored hash differs via `getBill`.
 
-**Invariant:** the union of federal and state entries is rendered by a single
-`render-refreshed` call in step 6. State bill entries carry their new
-`change_hash` and `legiscan_bill_id` through unchanged, so the next refresh
-can diff correctly. Do not split the file or run two separate `render-refreshed`
-calls.
+**Invariant:** the federal `data/runs/<id>/refreshable.json` and the state
+`data/runs/<id>/state/refreshable.json` are TWO files. The interactive session
+concatenates their arrays into one in-memory list of entries, which is rendered
+by a SINGLE `render-refreshed` call in step 6. State bill entries carry their new
+`change_hash` and `legiscan_bill_id` through unchanged, so the next refresh can
+diff correctly. Do not run two separate `render-refreshed` calls.
 
-**Early-exit rule:** after both fetch steps, `Read` the combined
-`refreshable.json`. If it is `[]`, every tracked bill (federal and state) is up
-to date — report `no refreshable bills` and STOP. Do not run the subagents.
+### 3. Read the refreshable lists and merge
+`Read` BOTH files and concatenate their arrays into one in-memory list of entries:
+- `data/runs/<id>/refreshable.json` (federal, from step 1)
+- `data/runs/<id>/state/refreshable.json` (state, from step 2 — if it does not
+  exist because there were no tracked state bills, treat it as `[]`)
 
-### 3. Read the refreshable list
-`Read` the `refreshable.json`. Each entry is:
+Each entry (federal or state) is:
 ```json
 {
   "bill_id": "...",
@@ -66,6 +68,10 @@ to date — report `no refreshable bills` and STOP. Do not run the subagents.
 Federal and state entries share this schema. State entries additionally have
 `legiscan_bill_id` and `change_hash` inside `fresh` — leave them untouched
 when merging subagent outputs back.
+
+**Early-exit rule:** the rule applies to the CONCATENATED list. If the union of
+federal and state entries is empty, every tracked bill is up to date — report
+`no refreshable bills` and STOP. Do not run the subagents.
 
 ### 4. Per-bill subagent dispatch
 For each entry, build a `bill` object starting from a copy of `fresh`, then:

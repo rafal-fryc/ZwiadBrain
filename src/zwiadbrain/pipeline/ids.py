@@ -85,3 +85,75 @@ def format_state_bill_number(bill_number: str) -> str:
     """Render a display bill number: uppercased prefix, a space, stripped-zero number."""
     prefix, number = _split_bill_number(bill_number)
     return f"{prefix.upper()} {number}"
+
+
+# ---------------------------------------------------------------------------
+# Enforcement-action identifiers (D53)
+# ---------------------------------------------------------------------------
+
+# Strong matter identifiers, tried highest-confidence first. Court dockets and FTC
+# administrative dockets are unambiguous; the bare 7-digit FTC file number is the
+# weakest (restricted to a "File No." context to avoid matching ZIPs/phone numbers).
+_COURT_DOCKET_RE = re.compile(r"\b(\d{1,2}):(\d{2})-([a-z]{2,3})-(\d{3,6})\b", re.IGNORECASE)
+_FTC_DOCKET_RE = re.compile(r"\b([CD])-(\d{3,4})\b")
+_FTC_FILE_RE = re.compile(r"\bFile\s+No\.?\s*(\d{3}\s?\d{4})\b", re.IGNORECASE)
+
+
+def parse_strong_key(text: str) -> str | None:
+    """Extract a deterministic strong matter identifier from *text*, or None.
+
+    Returns a lowercased, hyphen-normalized key suitable for an id segment:
+    court docket ``2:25-cv-12295`` -> ``2-25-cv-12295``; FTC docket ``C-4790`` ->
+    ``c-4790``; FTC file number ``2023155`` -> ``2023155``. None when nothing matches
+    (the LLM-matcher path). Court dockets win over file numbers when both appear.
+    """
+    court = _COURT_DOCKET_RE.search(text)
+    if court is not None:
+        return "-".join(g.lower() for g in court.groups())
+    ftc = _FTC_DOCKET_RE.search(text)
+    if ftc is not None:
+        return f"{ftc.group(1).lower()}-{ftc.group(2)}"
+    file_no = _FTC_FILE_RE.search(text)
+    if file_no is not None:
+        return file_no.group(1).replace(" ", "")
+    return None
+
+
+# Corporate-suffix tokens stripped before slugging respondent names so that
+# "Acme, Inc." and "Acme" produce the same id segment.
+_CORP_SUFFIX_RE = re.compile(
+    r"\b(inc|llc|corp|ltd|co|lp|llp|pllc|pc|pa)\b\.?",
+    re.IGNORECASE,
+)
+
+
+def _slug(value: str) -> str:
+    """Lowercase, strip corporate suffixes, keep alphanumerics, collapse other chars to hyphens."""
+    cleaned = _CORP_SUFFIX_RE.sub(" ", value)
+    out = re.sub(r"[^a-z0-9]+", "-", cleaned.lower()).strip("-")
+    return out or "unknown"
+
+
+def build_enforcement_id(
+    agency_slug: str,
+    *,
+    strong_key: str | None,
+    respondent: str | None,
+    year: int,
+    existing_ids: frozenset[str] | set[str] = frozenset(),
+) -> str:
+    """Build a matter-stable, globally-unique enforcement page id (D53).
+
+    With a strong key: ``{agency_slug}-{slug(strong_key)}``. Without: ``{agency_slug}-
+    {year}-{slug(respondent)}``, with a numeric suffix appended on collision against
+    *existing_ids* (two no-docket actions vs the same respondent in one year).
+    """
+    if strong_key:
+        return f"{_slug(agency_slug)}-{_slug(strong_key)}"
+    base = f"{_slug(agency_slug)}-{year}-{_slug(respondent or 'unknown')}"
+    if base not in existing_ids:
+        return base
+    n = 2
+    while f"{base}-{n}" in existing_ids:
+        n += 1
+    return f"{base}-{n}"

@@ -406,5 +406,3 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** A bill summary is re-derived by re-running the summarizer on each refresh, but enforcement prose is an LLM extraction from a transient article that is never re-fetched — consolidation loads the page from disk and merges, so the prose must round-trip through `from_page` (i.e. persist to frontmatter) for the merge to be monotonic (a settlement item that omits the complaint's allegations must not blank them). Same D40 principle (persist non-re-derivable LLM output); the body is still re-rendered from the persisted model, so D20 holds.
 **Trade-offs:** Enforcement frontmatter carries multi-line prose (like the leg_history narrative); slight redundancy (prose in both frontmatter and body). Bill behavior is unchanged.
 **Revisit if:** Enforcement prose grows large enough that frontmatter bloat matters, or a re-extract-on-refresh path is added.
-
----

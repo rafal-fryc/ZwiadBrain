@@ -23,7 +23,8 @@ from tenacity import (
 )
 
 from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
-from zwiadbrain.models import Bill
+from zwiadbrain.models import Action, Amendment, Bill, TextVersion
+from zwiadbrain.pipeline.ids import build_state_bill_id, format_state_bill_number
 from zwiadbrain.sources._redact import redact_api_key
 
 LEGISCAN_API_BASE = "https://api.legiscan.com/"
@@ -31,6 +32,12 @@ _LOGGER = logging.getLogger(__name__)
 # Substrings that mark a body-level ERROR as a quota exhaustion (D51 — undocumented, so
 # matched leniently; any other ERROR is a plain fetch failure).
 _QUOTA_MARKERS: tuple[str, ...] = ("limit", "quota", "exceeded")
+_STATUS_TEXT: dict[int, str] = {
+    0: "Prefiled", 1: "Introduced", 2: "Engrossed", 3: "Enrolled",
+    4: "Passed", 5: "Vetoed", 6: "Failed",
+}
+_CHAPTERED_EVENT = 8  # progress[].event code for Chaptered (enactment signal)
+_PASSED_STATUS = 4
 
 
 class _Retryable(SourceError):
@@ -47,11 +54,11 @@ def _is_quota(message: str) -> bool:
     return any(marker in lowered for marker in _QUOTA_MARKERS)
 
 
-def _opt_str(value: Any) -> str | None:  # pyright: ignore[reportUnusedFunction]  # used in T5
+def _opt_str(value: Any) -> str | None:
     return str(value) if value is not None else None
 
 
-def _items(value: Any) -> list[dict[str, Any]]:  # pyright: ignore[reportUnusedFunction]  # used in T5
+def _items(value: Any) -> list[dict[str, Any]]:
     return value if value is not None else []
 
 
@@ -59,7 +66,7 @@ def _obj(value: Any) -> dict[str, Any]:
     return value if value is not None else {}
 
 
-def _parse_date(value: Any) -> dt.date | None:  # pyright: ignore[reportUnusedFunction]  # used in T5
+def _parse_date(value: Any) -> dt.date | None:
     """Parse a LegiScan ``YYYY-MM-DD`` date, treating the ``0000-00-00`` placeholder as None."""
     text = str(value or "")
     if not text or text.startswith("0000"):
@@ -143,5 +150,77 @@ class LegiScanSource:
         """States need no policyArea probe — full-text search is the recall stage (D50)."""
         return None
 
-    def _to_bill(self, detail: dict[str, Any]) -> Bill:  # fleshed out in T5
-        raise NotImplementedError
+    def _to_bill(self, detail: dict[str, Any]) -> Bill:
+        session = _obj(detail.get("session"))
+        year_start = int(session.get("year_start") or 0)
+        state = str(detail.get("state") or self.state).upper()
+        raw_number = str(detail.get("bill_number") or "")
+        status_int = int(detail.get("status") or 0)
+        events = {int(p.get("event") or 0) for p in _items(detail.get("progress"))}
+        enacted = status_int == _PASSED_STATUS or _CHAPTERED_EVENT in events
+        sponsors = sorted(
+            _items(detail.get("sponsors")),
+            key=lambda s: (int(s.get("sponsor_type_id") or 9), int(s.get("sponsor_order") or 99)),
+        )
+        sponsor_names = [str(s.get("name")) for s in sponsors if s.get("name")]
+        history = _items(detail.get("history"))
+        actions = [
+            Action(
+                date=_parse_date(h.get("date")),
+                text=str(h.get("action") or ""),
+                chamber=_opt_str(h.get("chamber")),
+            )
+            for h in history
+        ]
+        actions.sort(key=lambda a: (a.date is None, a.date or dt.date.min))
+        introduced = actions[0].date if actions else None
+        text_versions = [
+            TextVersion(
+                code=str(t.get("type") or ""),
+                date=_parse_date(t.get("date")),
+                url=_opt_str(t.get("state_link") or t.get("url")),
+            )
+            for t in _items(detail.get("texts"))
+        ]
+        amendments = [
+            Amendment(
+                number=str(a.get("title") or a.get("amendment_id") or ""),
+                chamber=_opt_str(a.get("chamber")),
+                status="adopted" if a.get("adopted") else None,
+                latest_action_date=_parse_date(a.get("date")),
+            )
+            for a in _items(detail.get("amendments"))
+        ]
+        related = [
+            f"{s.get('type')}: {s.get('sast_bill_number')}"
+            for s in _items(detail.get("sasts"))
+            if s.get("sast_bill_number")
+        ]
+        sources: dict[str, str] = {}
+        if detail.get("url"):
+            sources["LegiScan"] = str(detail["url"])
+        if detail.get("state_link"):
+            sources["State source"] = str(detail["state_link"])
+        return Bill(
+            id=build_state_bill_id(state, year_start, raw_number),
+            jurisdiction=f"US-{state}",
+            title=str(detail.get("title") or ""),
+            bill_number=format_state_bill_number(raw_number),
+            chamber=_opt_str(detail.get("body")),
+            session=_opt_str(session.get("session_name")),
+            status=_STATUS_TEXT.get(status_int),
+            sponsors=sponsor_names,
+            introduced_date=introduced,
+            latest_action=actions[-1].text if actions else None,
+            latest_action_date=actions[-1].date if actions else None,
+            enacted=enacted,
+            summary=_opt_str(detail.get("description")),
+            actions=actions,
+            amendments=amendments,
+            text_versions=text_versions,
+            related_bills=related,
+            change_hash=_opt_str(detail.get("change_hash")),
+            update_date=_opt_str(detail.get("status_date")),
+            legiscan_bill_id=int(detail["bill_id"]) if detail.get("bill_id") is not None else None,
+            sources=sources,
+        )

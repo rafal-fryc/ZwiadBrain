@@ -1,0 +1,62 @@
+{
+  "status": "OK",
+  "bill": {
+    "bill_id": 1789012,
+    "change_hash": "abc123def4567890abc123def4567890",
+    "session_id": 1995,
+    "session": {
+      "session_id": 1995,
+      "state_id": 5,
+      "year_start": 2023,
+      "year_end": 2024,
+      "prefile": 0,
+      "sine_die": 1,
+      "prior": 1,
+      "special": 0,
+      "session_tag": "Regular Session",
+      "session_title": "2023-2024 Regular Session",
+      "session_name": "2023-2024 Regular Session"
+    },
+    "url": "https://legiscan.com/CA/bill/SB362/2023",
+    "state_link": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB362",
+    "completed": 1,
+    "status": 4,
+    "status_date": "2023-10-10",
+    "progress": [
+      { "date": "2023-02-08", "event": 1 },
+      { "date": "2023-10-10", "event": 8 }
+    ],
+    "state": "CA",
+    "state_id": 5,
+    "bill_number": "SB362",
+    "bill_type": "B",
+    "bill_type_id": "1",
+    "body": "S",
+    "current_body": "S",
+    "title": "Data broker registration: accessible deletion mechanism.",
+    "description": "The California Delete Act requires data brokers to register and honor deletion requests.",
+    "pending_committee_id": 0,
+    "committee": {},
+    "referrals": [],
+    "history": [
+      { "date": "2023-02-08", "action": "Introduced. Read first time.", "chamber": "S", "chamber_id": 35, "importance": 1 },
+      { "date": "2023-10-10", "action": "Chaptered by Secretary of State. Chapter 709.", "chamber": "S", "chamber_id": 35, "importance": 1 }
+    ],
+    "sponsors": [
+      { "people_id": 4718, "name": "Josh Becker", "first_name": "Josh", "last_name": "Becker", "party": "D", "role": "Sen", "role_id": 2, "sponsor_type_id": 1, "sponsor_order": 1, "committee_sponsor": 0, "committee_id": "0" },
+      { "people_id": 5001, "name": "Bill Dodd", "first_name": "Bill", "last_name": "Dodd", "party": "D", "role": "Sen", "role_id": 2, "sponsor_type_id": 2, "sponsor_order": 2, "committee_sponsor": 0, "committee_id": "0" }
+    ],
+    "sasts": [
+      { "type_id": 1, "type": "Same As", "sast_bill_number": "AB1194", "sast_bill_id": 1789500 }
+    ],
+    "subjects": [ { "subject_id": 3309, "subject_name": "Privacy" } ],
+    "texts": [
+      { "doc_id": 2700111, "date": "2023-02-08", "type": "Introduced", "type_id": 1, "mime": "application/pdf", "mime_id": 2, "url": "https://legiscan.com/CA/text/SB362/id/2700111", "state_link": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB362" },
+      { "doc_id": 2900222, "date": "2023-10-10", "type": "Chaptered", "type_id": 6, "mime": "application/pdf", "mime_id": 2, "url": "https://legiscan.com/CA/text/SB362/id/2900222", "state_link": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB362&chap=1" }
+    ],
+    "votes": [],
+    "amendments": [],
+    "supplements": [],
+    "calendar": []
+  }
+}

@@ -4,6 +4,7 @@ All HTTP is mocked with respx against committed fixture JSON — no live calls. 
 are routed by the `op` query parameter via a side_effect handler.
 """
 
+import datetime as dt
 import json
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ import pytest
 import respx
 
 from zwiadbrain.exceptions import RateLimitError, SourceFetchError
+from zwiadbrain.models import Bill
 from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE, LegiScanSource
 
 _FIX = Path(__file__).parent / "fixtures" / "legiscan"
@@ -65,3 +67,51 @@ def test_http_500_retries_then_raises_fetch_error() -> None:
         with pytest.raises(SourceFetchError):
             _source().fetch("42")
         assert route.call_count == 3
+
+
+def test_fetch_maps_getbill_to_state_bill() -> None:
+    """should map a getBill payload onto a Bill with the D48 id and US-CA jurisdiction"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill.json")})
+        bill = _source().fetch("1789012")
+    assert isinstance(bill, Bill)
+    assert bill.id == "ca-2023-sb-362"
+    assert bill.jurisdiction == "US-CA"
+    assert bill.legiscan_bill_id == 1789012
+    assert bill.bill_number == "SB 362"
+    assert bill.session == "2023-2024 Regular Session"
+    assert bill.congress is None
+    assert bill.change_hash == "abc123def4567890abc123def4567890"
+    assert bill.sources["LegiScan"] == "https://legiscan.com/CA/bill/SB362/2023"
+
+
+def test_fetch_marks_chaptered_bill_enacted() -> None:
+    """should treat status==4 / a Chaptered progress event as enacted"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill.json")})
+        bill = _source().fetch("1789012")
+    assert bill.enacted is True
+
+
+def test_fetch_maps_sponsors_primary_first_and_timeline() -> None:
+    """should order sponsors primary-first and map history into a dated timeline"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill.json")})
+        bill = _source().fetch("1789012")
+    assert bill.sponsors[0] == "Josh Becker"
+    assert bill.introduced_date == dt.date(2023, 2, 8)
+    assert bill.actions[0].date == dt.date(2023, 2, 8)
+    assert bill.actions[-1].text.startswith("Chaptered")
+    assert [t.code for t in bill.text_versions] == ["Introduced", "Chaptered"]
+    assert bill.related_bills == ["Same As: AB1194"]
+
+
+def test_state_bill_renders_to_states_path_and_roundtrips() -> None:
+    """should render a state bill under states/ca/bills and re-render byte-identically"""
+    from zwiadbrain.pipeline.render import page_path, render_page
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill.json")})
+        bill = _source().fetch("1789012")
+    expected_suffix = "wiki/states/ca/bills/ca-2023-sb-362.md"
+    assert page_path(bill, Path("wiki")).as_posix().endswith(expected_suffix)
+    assert render_page(bill) == render_page(bill)

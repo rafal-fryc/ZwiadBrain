@@ -54,3 +54,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 include = ["src", "tests"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
+reportMissingTypeStubs = false

@@ -16,6 +16,7 @@ from zwiadbrain.exceptions import SourceError, SourceFetchError
 from zwiadbrain.sources.enforcement.base import (
     EnforcementCandidate,
     extract_article_text,
+    make_client,
     parse_feed,
 )
 
@@ -45,7 +46,7 @@ class FTCSource:
         timeout: float = 30.0,
     ) -> None:
         self.rss_url = rss_url
-        self.client = client or httpx.Client(timeout=timeout, follow_redirects=True)
+        self.client = client or make_client(timeout)
         self._retrying = Retrying(
             retry=retry_if_exception_type((_Retryable, httpx.TransportError)),
             stop=stop_after_attempt(max_attempts),

@@ -12,8 +12,22 @@ import datetime as dt
 from typing import Any, Protocol, runtime_checkable
 
 import feedparser  # type: ignore[import-untyped]
+import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
+
+# A browser-like UA: public agency feeds (FTC, state AGs) sit behind bot filters that
+# 403 the default httpx User-Agent. The feeds are published for consumption; a realistic
+# UA is required to read them (UAT-confirmed: FTC returns 403 without it).
+_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+
+
+def make_client(timeout: float = 30.0) -> httpx.Client:
+    """An httpx client preconfigured for enforcement-feed fetching (browser UA, redirects)."""
+    return httpx.Client(timeout=timeout, follow_redirects=True, headers={"User-Agent": _USER_AGENT})
 
 
 class EnforcementCandidate(BaseModel):

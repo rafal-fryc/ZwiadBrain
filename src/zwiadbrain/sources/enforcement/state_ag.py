@@ -18,6 +18,7 @@ from bs4.element import Tag
 from zwiadbrain.sources.enforcement.base import (
     EnforcementCandidate,
     extract_article_text,
+    make_client,
     parse_feed,
 )
 
@@ -67,7 +68,7 @@ class StateAGSource:
         self.url = url
         self.kind = kind
         self.item_selector = item_selector
-        self.client = client or httpx.Client(timeout=timeout, follow_redirects=True)
+        self.client = client or make_client(timeout)
 
     def _candidate(
         self, title: str, link: str, published: dt.date | None

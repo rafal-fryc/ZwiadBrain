@@ -113,3 +113,13 @@ def test_state_ag_discover_failure_is_isolated() -> None:
     source = StateAGSource(name="Broken OAG", agency_slug="bk-oag", jurisdiction="US-XX",
                            url=url, kind="html", item_selector="a")
     assert source.discover(limit=10) == []
+
+
+def test_enforcement_sources_send_browser_user_agent() -> None:
+    from zwiadbrain.sources.enforcement.ftc import FTCSource
+    from zwiadbrain.sources.enforcement.state_ag import StateAGSource
+    ftc = FTCSource()
+    ag = StateAGSource(name="X", agency_slug="x-oag", jurisdiction="US-XX",
+                       url="https://example.gov/feed", kind="rss")
+    assert "Mozilla" in ftc.client.headers.get("user-agent", "")
+    assert "Mozilla" in ag.client.headers.get("user-agent", "")

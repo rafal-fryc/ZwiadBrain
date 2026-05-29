@@ -10,6 +10,7 @@ from zwiadbrain.models import (
     CommentarySource,
     Enactment,
     EnforcementAction,
+    FlipOutAudit,
     FloorAction,
     Hearing,
     LegHistory,
@@ -18,7 +19,7 @@ from zwiadbrain.models import (
     Vote,
 )
 from zwiadbrain.pipeline.render import page_path, render_page, write_page
-from zwiadbrain.wiki.schema import from_page
+from zwiadbrain.wiki.schema import from_page, to_frontmatter
 from zwiadbrain.wiki.templates import render_bill_body
 
 
@@ -591,3 +592,131 @@ def test_commentary_level6_heading_caps_at_h6() -> None:
     assert "\n###### Deep heading" in body  # already at h6, stays h6 (no h7)
     assert "####### " not in body            # never produces a 7-hash heading
     assert "\n### Shallow heading" in body   # h2 still demotes to h3
+
+
+# --- D20 round-trip idempotency (B75) -------------------------------------
+#
+# The literal "render the same page bytes after a fresh clone" property cannot be
+# proven from a page alone: body content (summary prose, the leg-history spine,
+# amendments, enforcement narrative, copied commentary bodies) is in
+# `_BODY_ONLY_FIELDS` — rendered into the body but re-derived from sources each run,
+# never serialized to frontmatter — so `from_page` returns those fields empty by
+# design (D20/D37). Two honest guards capture the invariant that actually governs a
+# clean `git status`:
+#   1. the FRONTMATTER persisted surface is byte-stable across render -> parse, and
+#   2. a page whose model carries ONLY persisted fields re-renders byte-identically.
+
+
+def test_frontmatter_round_trips_byte_identical_for_full_bill() -> None:
+    """should keep bill frontmatter byte-identical across a render -> from_page round-trip (D20)
+
+    A fully-populated bill (incl. body-only `summary` and a leg-history spine that
+    `from_page` drops) must still round-trip its persisted surface unchanged:
+    metadata + refresh cursors + flip audit + the persisted leg_history
+    hearings/statements/narrative (D40). Body-only fields are excluded from
+    `to_frontmatter` on both sides, so they cannot perturb the comparison.
+    """
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="Full Persisted Bill",
+        bill_number="H.R. 1",
+        status="enrolled",
+        summary="A body-only CRS summary that from_page intentionally drops.",
+        update_date="2026-05-01T00:00:00Z",
+        update_date_text="2026-05-02T00:00:00Z",
+        summary_hash="deadbeefcafe",
+        amendments_count=2,
+        actions=[Action(text="Introduced", date=dt.date(2024, 1, 3), chamber="House")],
+        flipped_out=FlipOutAudit(date=dt.date(2026, 6, 4), reason="classifier: scope drift"),
+        leg_history=LegHistory(
+            narrative="Introduced narrow, broadened in markup, enacted in December.",
+            # Spine fields are body-only and intentionally NOT persisted:
+            enactment=Enactment(public_law="118-1", url="https://congress.gov/law"),
+            hearings=[
+                Hearing(
+                    title="Hearing on H.R. 1",
+                    committee="House Judiciary",
+                    date=dt.date(2024, 1, 10),
+                    url="https://congress.gov/hearing/hr-1",
+                ),
+            ],
+            statements=[
+                Statement(
+                    speaker="Rep. Smith",
+                    role="sponsor",
+                    date=dt.date(2024, 2, 5),
+                    quote="This bill will protect consumers nationwide.",
+                    source_url="https://congress.gov/crec/smith",
+                    source_type="CREC",
+                    verified=True,
+                ),
+            ],
+        ),
+    )
+    before = to_frontmatter(bill)
+    after = to_frontmatter(from_page(render_page(bill)))
+    assert after == before
+
+
+def test_frontmatter_round_trips_byte_identical_for_enforcement() -> None:
+    """should keep enforcement frontmatter byte-identical across render -> from_page (D20)
+
+    Every prose body field (summary/background/allegations/outcome/significance) is
+    body-only; the persisted surface is metadata only and must round-trip unchanged.
+    """
+    action = EnforcementAction(
+        id="ftc-acme",
+        jurisdiction="US",
+        title="FTC v. Acme",
+        agency="FTC",
+        summary="The FTC alleged unfair data practices.",
+        background="Acme operated a broker network.",
+        allegations="Failure to honor deletion requests.",
+        outcome="Consent order with injunctive relief.",
+        significance="First enforcement under the new rule.",
+        sources={"FTC": "https://ftc.gov/acme"},
+    )
+    before = to_frontmatter(action)
+    after = to_frontmatter(from_page(render_page(action)))
+    assert after == before
+
+
+def test_render_from_page_render_is_byte_identical_for_persisted_only_bill() -> None:
+    """should re-render a persisted-only page byte-identically: render -> from_page -> render (D20)
+
+    A bill whose populated fields are all frontmatter-persisted (metadata, refresh
+    cursors, flip audit, and the persisted leg_history hearings/statements/narrative)
+    carries no body-only content for `from_page` to lose, so the full page round-trips
+    exactly. This is the literal "clean git status on unchanged input" guarantee for a
+    page composed only of persisted-derivable content.
+    """
+    bill = Bill(
+        id="118-hr-2",
+        jurisdiction="US",
+        title="Persisted-Only Bill",
+        bill_number="H.R. 2",
+        update_date="2026-05-01T00:00:00Z",
+        update_date_text="2026-05-02T00:00:00Z",
+        summary_hash="cafef00dbeef",
+        flipped_out=FlipOutAudit(
+            date=dt.date(2026, 6, 4), reason="classifier: drifted out of scope"
+        ),
+        leg_history=LegHistory(
+            narrative="Introduced, heard in committee, and reported favorably.",
+            statements=[
+                Statement(
+                    speaker="Rep. Doe",
+                    role="member",
+                    date=dt.date(2024, 3, 1),
+                    quote="The committee adopted this measure unanimously today.",
+                    source_url="https://congress.gov/crec/doe",
+                    source_type="CREC",
+                    verified=True,
+                ),
+            ],
+        ),
+    )
+    p1 = render_page(bill)
+    p2 = render_page(from_page(p1))
+    assert p1 == p2

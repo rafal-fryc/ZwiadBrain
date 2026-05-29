@@ -546,3 +546,24 @@ def test_fetch_maps_per_amendment_latest_action_date() -> None:
     assert len(bill.amendments) == 2
     assert bill.amendments[0].latest_action_date == dt.date(2026, 4, 15)
     assert bill.amendments[1].latest_action_date == dt.date(2026, 4, 20)
+
+
+def test_fetch_tolerates_non_integer_related_bill_congress() -> None:
+    """should not raise when a related bill's congress is non-numeric — drop the ordinal suffix"""
+    detail_payload: dict[str, Any] = {
+        "bill": {"congress": 118, "type": "HR", "number": 2670, "title": "x"}
+    }
+    related_payload: dict[str, Any] = {
+        "relatedBills": [{"type": "S", "number": 2024, "congress": "one-eighteen"}]
+    }
+    base = "/bill/118/hr/2670"
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get(base).respond(json=detail_payload)
+        mock.get(f"{base}/actions").respond(json={"actions": []})
+        mock.get(f"{base}/amendments").respond(json={"amendments": []})
+        mock.get(f"{base}/text").respond(json={"textVersions": []})
+        mock.get(f"{base}/summaries").respond(json={"summaries": []})
+        mock.get(f"{base}/relatedbills").respond(json=related_payload)
+        bill = _source().fetch("118/hr/2670")
+    # falls back to the bare label rather than raising on int("one-eighteen")
+    assert bill.related_bills == ["S. 2024"]

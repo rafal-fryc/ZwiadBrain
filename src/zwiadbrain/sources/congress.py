@@ -230,7 +230,14 @@ def _to_related(raw: dict[str, Any]) -> str:
     number = raw.get("number")
     label = _format_bill_number(str(raw.get("type") or ""), number)
     congress = raw.get("congress")
-    return f"{label} ({_ordinal(int(congress))})" if congress is not None else label
+    if congress is None:
+        return label
+    try:
+        return f"{label} ({_ordinal(int(congress))})"
+    except (TypeError, ValueError):
+        # Preview-tolerance: a non-numeric congress drops to the bare label, matching
+        # the module-wide "never let an untyped JSON scalar raise" discipline.
+        return label
 
 
 class CongressSource:

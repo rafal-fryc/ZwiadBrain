@@ -46,6 +46,7 @@ from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
+from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
 
@@ -217,6 +218,43 @@ def render_classified(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"rendered {written} page(s) into {wiki}")
+
+
+@app.command(name="fetch-state-candidates")
+def fetch_state_candidates(
+    state: Annotated[str, typer.Option(help="Two-letter state, e.g. ca.")],
+    limit: Annotated[int, typer.Option(min=1, help="Max candidates to fetch.")] = 5,
+    query: Annotated[
+        str | None,
+        typer.Option(help="LegiScan full-text query; defaults to topics.yaml seeds."),
+    ] = None,
+    out: Annotated[Path | None, typer.Option(help="Run directory for candidates.json.")] = None,
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+) -> None:
+    """Search a state via LegiScan and stage enriched candidate bills for classification.
+
+    The deterministic first half of ``/zwiad-scan-states``: getSearchRaw recall →
+    getBill enrich → ``candidates.json`` for the interactive classifier/summarizer
+    subagents. The search query is the recall stage (D50), so no title pre-filter runs.
+    """
+    try:
+        if query:
+            search_query = query
+        else:
+            seeds = load_reference(topics).seeds
+            # Quote multi-word seeds as exact phrases; OR-join (D50 §8).
+            terms = [f'"{s}"' if " " in s else s for s in seeds]
+            search_query = " OR ".join(terms)
+        api_key = load_settings().require_legiscan_api_key()
+        source = LegiScanSource(api_key, state, query=search_query)
+        candidates = source.discover(limit=limit)
+        bills = [enrich(source, candidate) for candidate in candidates]
+        payload = [bill.model_dump(mode="json") for bill in bills]
+        path = stage_json(payload, name="candidates.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"fetched {len(bills)} {state} candidate(s) to {path}")
 
 
 @app.command(name="fetch-leg-history")

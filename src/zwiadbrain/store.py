@@ -192,6 +192,9 @@ class Store:
         )
 
     # --- queries --------------------------------------------------------
+    # NOTE: get / tracked / search / count read the derived index. search is
+    # lexical (FTS5/BM25), best-effort, and ahead of its phase-07 retrieval
+    # consumers — it is exercised by tests today, not yet by a CLI command.
 
     def count(self) -> int:
         row = self.conn.execute("SELECT COUNT(*) FROM items").fetchone()
@@ -206,9 +209,18 @@ class Store:
         ).fetchall()
 
     def search(self, query: str) -> list[str]:
-        rows = self.conn.execute(
-            "SELECT id FROM items_fts WHERE items_fts MATCH ? ORDER BY rank", (query,)
-        ).fetchall()
+        """Return item ids matching *query* (FTS5/BM25), best-effort.
+
+        A malformed FTS5 query (unbalanced quotes, stray metacharacters from an
+        external consumer) degrades to an empty result rather than raising — lexical
+        search is best-effort, not a trust boundary.
+        """
+        try:
+            rows = self.conn.execute(
+                "SELECT id FROM items_fts WHERE items_fts MATCH ? ORDER BY rank", (query,)
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []
         return [str(row[0]) for row in rows]
 
     # --- law-brain page cache ------------------------------------------

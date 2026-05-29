@@ -128,6 +128,19 @@ def test_indexing_same_id_twice_yields_one_fts_row(tmp_path: Path) -> None:
         assert "us-ca-sb-362" in store.search("Delete")
 
 
+def test_search_returns_empty_on_fts_metacharacter_query_instead_of_raising(tmp_path: Path) -> None:
+    """should not raise OperationalError when a query contains unbalanced FTS metacharacters"""
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    _seed_wiki(wiki)
+    with Store(tmp_path / "index.sqlite") as store:
+        store.reindex(wiki)
+        # an unbalanced quote is a malformed FTS5 query — must degrade to [] not crash
+        assert store.search('"unterminated') == []
+        # a normal query still works after the failed one (connection not poisoned)
+        assert "us-ca-sb-362" in store.search("Delete")
+
+
 def test_reindex_rolls_back_on_mid_loop_failure(tmp_path: Path) -> None:
     """should leave the prior index intact when a write fails partway through a rebuild"""
     wiki = tmp_path / "wiki"

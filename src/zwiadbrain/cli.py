@@ -26,12 +26,13 @@ import typer
 from pydantic import ValidationError
 
 from zwiadbrain import __version__
-from zwiadbrain.config import load_settings
+from zwiadbrain.config import Settings, load_settings
 from zwiadbrain.exceptions import AppError, ConfigError, WikiSchemaError
-from zwiadbrain.models import Bill, Hearing, LegHistory, Statement
+from zwiadbrain.models import Bill, EnforcementAction, Hearing, LegHistory, Statement
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
+from zwiadbrain.pipeline.enforcement import MatterRef
 from zwiadbrain.pipeline.enrich import enrich
-from zwiadbrain.pipeline.ids import parse_bill_id
+from zwiadbrain.pipeline.ids import parse_bill_id, parse_strong_key
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
@@ -46,6 +47,9 @@ from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CongressSource
+from zwiadbrain.sources.enforcement.base import EnforcementSource
+from zwiadbrain.sources.enforcement.ftc import FTCSource
+from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.store import Store
@@ -496,6 +500,112 @@ def render_refreshed(
     )
     for bill_id, reason in flipped_out:
         typer.echo(f"  flipped-out: {bill_id} — \"{reason}\"")
+
+
+def _enforcement_sources(settings: Settings, agency: str | None) -> list[EnforcementSource]:
+    """Build the enabled enforcement sources, optionally filtered to one --agency."""
+    sources: list[EnforcementSource] = []
+    enf = settings.enforcement
+    if enf.ftc.enabled and agency in (None, "ftc"):
+        sources.append(FTCSource(enf.ftc.rss_url))
+    for ag in enf.enabled_state_ags():
+        if agency in (None, ag.agency_slug):
+            sources.append(
+                StateAGSource(
+                    name=ag.name,
+                    agency_slug=ag.agency_slug,
+                    jurisdiction=ag.jurisdiction,
+                    url=ag.url,
+                    kind=ag.kind,
+                    item_selector=ag.item_selector,
+                )
+            )
+    return sources
+
+
+def _jurisdiction_slug_map(settings: Settings) -> dict[str, str]:
+    """Map a page jurisdiction -> agency_slug from config (one source per jurisdiction)."""
+    mapping = {"US": "ftc"}
+    for ag in settings.enforcement.state_ag:
+        mapping[ag.jurisdiction] = ag.agency_slug
+    return mapping
+
+
+def _existing_matters(wiki: Path, settings: Settings) -> list[MatterRef]:
+    """Read every tracked enforcement page into a MatterRef (for matching/shortlists)."""
+    juris_slug = _jurisdiction_slug_map(settings)
+    matters: list[MatterRef] = []
+    for page in sorted(wiki.glob("**/enforcement/*.md")):
+        try:
+            item = from_page(page.read_text(encoding="utf-8"))
+        except (WikiSchemaError, ConfigError):
+            continue
+        if not isinstance(item, EnforcementAction):
+            continue
+        matters.append(
+            MatterRef(
+                id=item.id,
+                agency_slug=juris_slug.get(item.jurisdiction, ""),
+                jurisdiction=item.jurisdiction,
+                respondent=item.respondent,
+                date_filed=item.date_filed,
+                strong_key=item.docket,
+            )
+        )
+    return matters
+
+
+@app.command(name="fetch-enforcement-candidates")
+def fetch_enforcement_candidates(
+    agency: Annotated[
+        str | None, typer.Option(help="One source: 'ftc' or an AG slug; omit for all.")
+    ] = None,
+    limit: Annotated[int, typer.Option(min=1, help="Max items per source.")] = 5,
+    lookback_days: Annotated[
+        int | None, typer.Option(help="Override config lookback window.")
+    ] = None,
+    wiki: Annotated[Path, typer.Option(help="Wiki root (for existing matters).")] = Path("wiki"),
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for candidates.json.")
+    ] = None,
+) -> None:
+    """Discover enforcement items (forward-from-now), fetch article text, parse strong
+    keys, and stage candidates.json + matters.json for the interactive subagents."""
+    try:
+        settings = load_settings()
+        window = (
+            lookback_days
+            if lookback_days is not None
+            else settings.enforcement.lookback_days
+        )
+        since = dt.datetime.now(dt.UTC) - dt.timedelta(days=window)
+        sources = _enforcement_sources(settings, agency)
+        matters = _existing_matters(wiki, settings) if wiki.exists() else []
+        by_key = {m.strong_key: m.id for m in matters if m.strong_key}
+        candidates: list[dict[str, object]] = []
+        for source in sources:
+            for cand in source.discover(since=since, limit=limit):
+                text = source.fetch_text(cand)
+                strong_key = parse_strong_key(f"{cand.title}\n{text}")
+                matter_id = by_key.get(strong_key) if strong_key else None
+                entry: dict[str, object] = dict(cand.model_dump(mode="json"))
+                entry["text"] = text
+                entry["strong_key"] = strong_key
+                entry["matter_id"] = matter_id
+                entry["match_source"] = "strong_key" if matter_id else None
+                candidates.append(entry)
+        # Stage both files in the SAME run directory: stage_json writes <out>/<name>
+        # and returns that path, so matters.json reuses the candidates file's parent.
+        path = stage_json(candidates, name="candidates.json", out=out)
+        stage_json(
+            [m.model_dump(mode="json") for m in matters],
+            name="matters.json",
+            out=path.parent,
+        )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged {len(candidates)} enforcement candidate(s) to {path.parent}")
 
 
 def _as_list(value: object, key: str) -> list[object]:

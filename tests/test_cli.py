@@ -1483,3 +1483,15 @@ def test_backfill_force_retracks_single_flipped_out_bill(
     page = (wiki / "federal" / "bills" / "118-hr-8818.md").read_text(encoding="utf-8")
     assert "tracking: true" in page or "tracking:" not in page  # default True is omitted
     assert "flipped-out" not in page
+
+
+def test_backfill_rejects_nonpositive_limit() -> None:
+    """should exit 2 when --limit is below 1"""
+    result = runner.invoke(app, ["backfill", "--congress", "118", "--limit", "0"])
+    assert result.exit_code == 2
+
+
+def test_fetch_candidates_rejects_nonpositive_congress() -> None:
+    """should exit 2 when --congress is below 1"""
+    result = runner.invoke(app, ["fetch-candidates", "--congress", "0", "--limit", "1"])
+    assert result.exit_code == 2

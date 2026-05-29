@@ -90,8 +90,8 @@ def reindex(
 
 @app.command()
 def backfill(
-    congress: Annotated[int, typer.Option(help="Congress number, e.g. 118.")],
-    limit: Annotated[int, typer.Option(help="Max bills to enrich and render.")] = 5,
+    congress: Annotated[int, typer.Option(min=1, help="Congress number, e.g. 118.")],
+    limit: Annotated[int, typer.Option(min=1, help="Max bills to enrich and render.")] = 5,
     wiki: Annotated[Path, typer.Option(help="Wiki root to write pages under.")] = Path("wiki"),
     seed: Annotated[
         list[str] | None, typer.Option(help="Keyword seed for recall filtering (repeatable).")
@@ -135,8 +135,8 @@ def backfill(
 
 @app.command(name="fetch-candidates")
 def fetch_candidates(
-    congress: Annotated[int, typer.Option(help="Congress number, e.g. 118.")],
-    limit: Annotated[int, typer.Option(help="Max candidates to fetch.")] = 5,
+    congress: Annotated[int, typer.Option(min=1, help="Congress number, e.g. 118.")],
+    limit: Annotated[int, typer.Option(min=1, help="Max candidates to fetch.")] = 5,
     seed: Annotated[
         list[str] | None,
         typer.Option(help="Keyword seed (repeatable); defaults to topics.yaml seeds."),

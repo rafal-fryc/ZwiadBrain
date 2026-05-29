@@ -996,3 +996,45 @@ def test_ground_items_still_rejects_genuinely_absent_quote() -> None:
     )
     assert len(result.statements) == 0
     assert any(d.reason == "quote not found on source page" for d in result.dropped)
+
+
+def test_quote_inside_script_tag_is_not_grounded() -> None:
+    """should not match a quote that appears only inside a <script> block (not human-visible)"""
+    page = (
+        '<html><body><p>Unrelated visible prose.</p>'
+        '<script>var q = "This bill will protect consumers everywhere.";</script>'
+        "</body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", page) is False
+
+
+def test_quote_inside_style_tag_is_not_grounded() -> None:
+    """should not match a quote that appears only inside a <style> block"""
+    page = (
+        '<html><head><style>/* This bill will protect consumers everywhere. */</style></head>'
+        "<body><p>Unrelated visible prose.</p></body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", page) is False
+
+
+def test_quote_inside_html_comment_is_not_grounded() -> None:
+    """should not match a quote that appears only inside an HTML comment"""
+    page = (
+        "<html><body><p>Unrelated visible prose.</p>"
+        "<!-- This bill will protect consumers everywhere. --></body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", page) is False
+
+
+def test_quote_inside_noscript_and_template_is_not_grounded() -> None:
+    """should not match a quote present only inside <noscript> or <template>"""
+    noscript_page = (
+        "<html><body><p>Visible.</p>"
+        "<noscript>This bill will protect consumers everywhere.</noscript></body></html>"
+    )
+    template_page = (
+        "<html><body><p>Visible.</p>"
+        "<template>This bill will protect consumers everywhere.</template></body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", noscript_page) is False
+    assert _quote_present("This bill will protect consumers everywhere.", template_page) is False

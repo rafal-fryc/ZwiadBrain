@@ -26,7 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 
 from zwiadbrain.models import (
     Bill,
@@ -191,8 +191,18 @@ def _page_text(page: str) -> str:
     verifier subagent independently checks speaker attribution.  A
     misattributed-but-present quote is therefore kept by this gate and dropped
     by the verifier, by design.
+
+    Text inside ``<script>``, ``<style>``, ``<noscript>``, and ``<template>``
+    elements, and inside HTML comments, is removed before extraction: it is not
+    human-visible, so a quote found only there is a false-positive against the
+    verbatim-presence gate (D36) and must not ground a statement.
     """
-    return BeautifulSoup(page, "html.parser").get_text(separator=" ")
+    soup = BeautifulSoup(page, "html.parser")
+    for element in soup(["script", "style", "noscript", "template"]):
+        element.decompose()
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+    return soup.get_text(separator=" ")
 
 
 def _quote_present(quote: str, page_text: str) -> bool:

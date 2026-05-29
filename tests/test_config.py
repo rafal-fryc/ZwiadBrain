@@ -155,7 +155,7 @@ def test_require_legiscan_api_key_raises_when_unset() -> None:
         Settings(legiscan_api_key=None).require_legiscan_api_key()
 
 
-def test_enforcement_settings_loaded_from_toml(tmp_path) -> None:
+def test_enforcement_settings_loaded_from_toml(tmp_path: Path) -> None:
     from zwiadbrain.config import load_settings
     toml = tmp_path / "zwiadbrain.toml"
     toml.write_text(

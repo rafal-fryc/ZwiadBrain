@@ -11,13 +11,14 @@ embeddings (decision 13).
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import sqlite3
 from pathlib import Path
 from types import TracebackType
 
-from zwiadbrain.exceptions import WikiSchemaError
+from zwiadbrain.exceptions import StoreError, WikiSchemaError
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.wiki.schema import from_page
 
@@ -57,9 +58,36 @@ class Store:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(db_path)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.executescript(_SCHEMA)
+        self.conn = self._connect_and_init(db_path)
+
+    def _connect_and_init(self, db_path: Path) -> sqlite3.Connection:
+        """Open the index and apply the schema, self-healing a corrupt file.
+
+        The index is derived and disposable (rebuilt from committed frontmatter by
+        :meth:`reindex`), so a corrupt on-disk file is deleted and recreated rather
+        than surfaced. Any other sqlite failure is translated to StoreError so the
+        CLI's single `except AppError` boundary catches it instead of a raw traceback.
+        """
+        conn: sqlite3.Connection | None = None
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            conn.executescript(_SCHEMA)
+            return conn
+        except sqlite3.DatabaseError:
+            # Corrupt or non-sqlite file: it is a derived cache, so discard and rebuild.
+            # Close the connection first (required on Windows to release the file lock).
+            if conn is not None:
+                with contextlib.suppress(Exception):
+                    conn.close()
+            db_path.unlink(missing_ok=True)
+            try:
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                conn.executescript(_SCHEMA)
+                return conn
+            except sqlite3.Error as exc:
+                raise StoreError(f"could not initialize index at {db_path}: {exc}") from exc
 
     def __enter__(self) -> Store:
         return self

@@ -91,3 +91,15 @@ def test_lawbrain_page_cache_upsert_and_fetch(tmp_path: Path) -> None:
         store.upsert_lawbrain_page("regulation-x", "hash1", dt.date(2026, 5, 6))
         store.upsert_lawbrain_page("regulation-x", "hash2", dt.date(2026, 5, 7))
         assert store.lawbrain_hashes() == {"regulation-x": "hash2"}
+
+
+def test_corrupt_index_file_self_heals_on_open(tmp_path: Path) -> None:
+    """should rebuild a corrupt (non-sqlite) index file instead of leaking a raw DatabaseError"""
+    db_path = tmp_path / "index.sqlite"
+    db_path.write_bytes(b"this is not a sqlite database header")
+    with Store(db_path) as store:
+        # the disposable index opened cleanly and is queryable from a fresh schema
+        assert store.count() == 0
+    # a real sqlite file now lives at the path
+    header = db_path.read_bytes()[:16]
+    assert header.startswith(b"SQLite format 3")

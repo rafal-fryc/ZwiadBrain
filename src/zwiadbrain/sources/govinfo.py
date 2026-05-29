@@ -29,6 +29,7 @@ from tenacity.wait import wait_base
 
 from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
 from zwiadbrain.models import CommitteeReport, Enactment, FloorAction, Hearing, StatutesAtLarge
+from zwiadbrain.sources._redact import redact_api_key
 
 GOVINFO_API_BASE = "https://api.govinfo.gov"
 
@@ -217,7 +218,7 @@ class GovInfoSource:
             response = self._retrying(self._request_get, path, params)
         except _Retryable as exc:
             raise SourceFetchError(
-                f"GovInfo returned {exc.status} for {exc.path} after retries"
+                f"GovInfo returned {exc.status} for {redact_api_key(exc.path)} after retries"
             ) from exc
         data: dict[str, Any] = response.json()
         return data
@@ -228,7 +229,7 @@ class GovInfoSource:
             response = self._retrying(self._request_post, path, body)
         except _Retryable as exc:
             raise SourceFetchError(
-                f"GovInfo returned {exc.status} for {exc.path} after retries"
+                f"GovInfo returned {exc.status} for {redact_api_key(exc.path)} after retries"
             ) from exc
         data: dict[str, Any] = response.json()
         return data

@@ -334,3 +334,12 @@ standing engineering rules (language/tooling, merge strategy).
 **Revisit if:** A run is observed stalling on an oversized `Retry-After` (then cap it at `wait_max`), or GovInfo's 429 proves to be a short rolling window worth retrying.
 
 ---
+
+## 2026-05-28 — 42. Source API keys are query-param auth; redact before logging
+**Chosen:** Both Congress.gov and GovInfo are called with the key as a `?api_key=` query parameter (their only supported auth), and every string that could carry a request URL into a message or log is routed through `redact_api_key`, which masks the value to `REDACTED`.
+**Alternatives:** Header-based auth (not offered by either API); trust that URLs never reach logs.
+**Why:** Query-param auth is forced by the upstream APIs, so the key inevitably appears in full request URLs. A single redaction helper makes leak-prevention a one-liner at every boundary rather than a per-message judgment call.
+**Trade-offs:** A new helper to remember to apply; it only catches the `api_key` param name (sufficient for these two sources).
+**Revisit if:** A third source uses a different secret param name or header — then generalize the redactor to a configurable set of secret keys.
+
+---

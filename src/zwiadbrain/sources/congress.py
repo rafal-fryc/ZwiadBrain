@@ -31,6 +31,7 @@ from tenacity.wait import wait_base
 
 from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
 from zwiadbrain.models import Action, Amendment, Bill, TextVersion, Vote
+from zwiadbrain.sources._redact import redact_api_key
 from zwiadbrain.sources.base import Candidate
 
 CONGRESS_API_BASE = "https://api.congress.gov/v3"
@@ -287,7 +288,7 @@ class CongressSource:
             response = self._retrying(self._request, path, params)
         except _Retryable as exc:
             raise SourceFetchError(
-                f"Congress.gov returned {exc.status} for {exc.path} after retries"
+                f"Congress.gov returned {exc.status} for {redact_api_key(exc.path)} after retries"
             ) from exc
         data: dict[str, Any] = response.json()
         return data

@@ -13,7 +13,7 @@ import httpx
 import pytest
 import respx
 
-from zwiadbrain.exceptions import RateLimitError, SourceFetchError
+from zwiadbrain.exceptions import ConfigError, RateLimitError, SourceFetchError
 from zwiadbrain.models import Bill
 from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE, LegiScanSource
 
@@ -125,3 +125,29 @@ def test_state_bill_renders_to_states_path_and_roundtrips() -> None:
     expected_suffix = "wiki/states/ca/bills/ca-2023-sb-362.md"
     assert page_path(bill, Path("wiki")).as_posix().endswith(expected_suffix)
     assert render_page(bill) == render_page(bill)
+
+
+def test_discover_maps_search_results_to_candidates() -> None:
+    """should yield relevance-ordered bill_id candidates with US-CA jurisdiction"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getSearchRaw": _fixture("getSearchRaw.json")})
+        cands = _source(query="privacy").discover(limit=10)
+    assert [c.native_id for c in cands] == ["1789012", "1789055", "1789099"]
+    assert cands[0].jurisdiction == "US-CA"
+    assert cands[0].source == "legiscan"
+    assert cands[0].title == ""  # getSearchRaw returns no titles
+    assert cands[0].raw["change_hash"] == "abc123"
+
+
+def test_discover_respects_limit() -> None:
+    """should return no more than `limit` candidates"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getSearchRaw": _fixture("getSearchRaw.json")})
+        cands = _source(query="privacy").discover(limit=2)
+    assert len(cands) == 2
+
+
+def test_discover_without_query_raises() -> None:
+    """should raise ConfigError when discover is called with no search query bound"""
+    with pytest.raises(ConfigError):
+        _source(query=None).discover(limit=5)

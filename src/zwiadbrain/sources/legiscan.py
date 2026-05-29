@@ -22,10 +22,11 @@ from tenacity import (
     wait_exponential,
 )
 
-from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
+from zwiadbrain.exceptions import ConfigError, RateLimitError, SourceError, SourceFetchError
 from zwiadbrain.models import Action, Amendment, Bill, TextVersion
 from zwiadbrain.pipeline.ids import build_state_bill_id, format_state_bill_number
 from zwiadbrain.sources._redact import redact_api_key
+from zwiadbrain.sources.base import Candidate
 
 LEGISCAN_API_BASE = "https://api.legiscan.com/"
 _LOGGER = logging.getLogger(__name__)
@@ -149,6 +150,48 @@ class LegiScanSource:
     def fetch_policy_area(self, native_id: str) -> str | None:
         """States need no policyArea probe — full-text search is the recall stage (D50)."""
         return None
+
+    def discover(
+        self,
+        *,
+        congress: int | None = None,  # noqa: ARG002  — federal-only; LegiScan ignores it
+        since: dt.datetime | None = None,  # noqa: ARG002 — v1 uses year=2 (current)
+        limit: int = 20,
+    ) -> list[Candidate]:
+        """Search the state's current session for ``self.query`` → relevance-ranked candidates.
+
+        ``getSearchRaw`` returns only ``relevance``/``bill_id``/``change_hash`` per result
+        (no titles), because the full-text query is the recall stage (D50). The federal
+        title ``keyword_filter`` therefore does not apply here.
+        """
+        if not self.query:
+            raise ConfigError("LegiScanSource.discover requires a search query")
+        payload = self._get("getSearchRaw", state=self.state, query=self.query, year=2)
+        results = _items(_obj(payload.get("searchresult")).get("results"))
+        candidates: list[Candidate] = []
+        for entry in results[:limit]:
+            bill_id = entry.get("bill_id")
+            if bill_id is None:
+                continue
+            candidates.append(
+                Candidate(
+                    source=self.name,
+                    native_id=str(bill_id),
+                    jurisdiction=f"US-{self.state.upper()}",
+                    title="",
+                    raw={
+                        "relevance": entry.get("relevance"),
+                        "change_hash": entry.get("change_hash"),
+                    },
+                )
+            )
+        total = _obj(_obj(payload.get("searchresult")).get("summary")).get("count")
+        if isinstance(total, int) and total > len(candidates):
+            _LOGGER.info(
+                "discovery kept %d of %d search results for state=%s",
+                len(candidates), total, self.state,
+            )
+        return candidates
 
     def _to_bill(self, detail: dict[str, Any]) -> Bill:
         session = _obj(detail.get("session"))

@@ -488,3 +488,49 @@ def test_429_stays_non_retryable_rate_limit_error() -> None:
         with pytest.raises(RateLimitError):
             _source().enacted_law(118, "HR", 8818)
     assert route.call_count == 1  # fail-fast, no in-process retry of an hourly quota
+
+
+def test_hearings_flattens_list_valued_granule_id() -> None:
+    """should coerce a list-valued granuleId to its most-specific string before building the URL"""
+    list_granule_result = {
+        "count": 1,
+        "results": [
+            {
+                "title": "Hearing on AI",
+                "packageId": "CHRG-118shrg99001",
+                "granuleId": ["CHRG-118shrg99001", "CHRG-118shrg99001-gpo1"],
+                "collectionCode": "CHRG",
+                "dateIssued": "2024-03-15",
+            }
+        ],
+    }
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.post("/search").respond(json=list_granule_result)
+        hearings = _source().hearings(118, "H.R. 8818")
+    assert len(hearings) == 1
+    assert hearings[0].url == (
+        "https://www.govinfo.gov/app/details/CHRG-118shrg99001/CHRG-118shrg99001-gpo1"
+    )
+
+
+def test_record_references_flattens_list_valued_granule_id() -> None:
+    """should coerce a list-valued granuleId in a CREC result to its most-specific string"""
+    list_granule_result = {
+        "count": 1,
+        "results": [
+            {
+                "title": "Floor consideration",
+                "packageId": "CREC-2024-12-18",
+                "granuleId": ["CREC-2024-12-18", "CREC-2024-12-18-pt1-PgH8818"],
+                "collectionCode": "CREC",
+                "dateIssued": "2024-12-18",
+            }
+        ],
+    }
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.post("/search").respond(json=list_granule_result)
+        actions = _source().record_references(118, "H.R. 8818")
+    assert len(actions) == 1
+    assert actions[0].url == (
+        "https://www.govinfo.gov/app/details/CREC-2024-12-18/CREC-2024-12-18-pt1-PgH8818"
+    )

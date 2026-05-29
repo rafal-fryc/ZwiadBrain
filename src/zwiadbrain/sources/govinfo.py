@@ -333,7 +333,7 @@ class GovInfoSource:
         hearings: list[Hearing] = []
         for r in results:
             package_id = str(r.get("packageId") or "")
-            granule_id: str | None = r.get("granuleId")
+            granule_id = _flatten_str(r.get("granuleId"))
             hearings.append(
                 Hearing(
                     title=_flatten_str(r.get("title")) or "",
@@ -354,7 +354,7 @@ class GovInfoSource:
         actions: list[FloorAction] = []
         for r in results:
             package_id = str(r.get("packageId") or "")
-            granule_id: str | None = r.get("granuleId")
+            granule_id = _flatten_str(r.get("granuleId"))
             actions.append(
                 FloorAction(
                     date=_parse_date(r.get("dateIssued")),

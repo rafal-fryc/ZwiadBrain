@@ -1,0 +1,8 @@
+{
+  "status": "OK",
+  "masterlist": {
+    "session": { "session_id": 1995, "session_name": "2023-2024 Regular Session" },
+    "0": { "bill_id": 1789012, "number": "SB362", "change_hash": "abc123-NEW" },
+    "1": { "bill_id": 1789055, "number": "SB400", "change_hash": "def456" }
+  }
+}

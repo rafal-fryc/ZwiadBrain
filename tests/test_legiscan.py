@@ -151,3 +151,11 @@ def test_discover_without_query_raises() -> None:
     """should raise ConfigError when discover is called with no search query bound"""
     with pytest.raises(ConfigError):
         _source(query=None).discover(limit=5)
+
+
+def test_change_hashes_maps_bill_id_to_hash_skipping_non_bill_entries() -> None:
+    """should return {bill_id: change_hash}, skipping the masterlist 'session' sub-object"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterListRaw": _fixture("getMasterListRaw.json")})
+        hashes = _source().change_hashes()
+    assert hashes == {1789012: "abc123-NEW", 1789055: "def456"}

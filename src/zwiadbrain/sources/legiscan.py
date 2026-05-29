@@ -193,6 +193,24 @@ class LegiScanSource:
             )
         return candidates
 
+    def change_hashes(self) -> dict[int, str]:
+        """Return ``{bill_id: change_hash}`` for the state's current session (refresh cursor).
+
+        One ``getMasterListRaw?state=`` call covers the whole session. The ``masterlist``
+        container is a numeric-keyed object whose values are bill entries; a non-bill
+        member (e.g. a ``session`` sub-object) is skipped by requiring a ``bill_id``.
+        """
+        masterlist = _obj(self._get("getMasterListRaw", state=self.state).get("masterlist"))
+        out: dict[int, str] = {}
+        for entry in masterlist.values():
+            row = _obj(entry)
+            bill_id = row.get("bill_id")
+            change_hash = row.get("change_hash")
+            if bill_id is None or change_hash is None:
+                continue
+            out[int(bill_id)] = str(change_hash)
+        return out
+
     def _to_bill(self, detail: dict[str, Any]) -> Bill:
         session = _obj(detail.get("session"))
         year_start = int(session.get("year_start") or 0)

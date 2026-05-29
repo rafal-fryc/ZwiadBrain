@@ -17,6 +17,7 @@ State sources, enforcement, and law-brain commands are not yet implemented; see
 import contextlib
 import datetime as dt
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -54,6 +55,8 @@ from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
+
+_LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_TOPICS = Path("reference/topics.yaml")
 _SCAN_LIMIT = 250  # bills to scan per fetch-candidates run (Congress list single-request max)
@@ -585,7 +588,15 @@ def fetch_enforcement_candidates(
         candidates: list[dict[str, object]] = []
         for source in sources:
             for cand in source.discover(since=since, limit=limit):
-                text = source.fetch_text(cand)
+                # Isolate per-article failures: a single moved/4xx press-release URL
+                # must not abort the whole run (D54 isolation, at the article level).
+                # FTC raises SourceFetchError (AppError); StateAG raises
+                # httpx.HTTPStatusError (NOT an AppError) — catch both, skip, continue.
+                try:
+                    text = source.fetch_text(cand)
+                except (AppError, httpx.HTTPError) as exc:
+                    _LOGGER.warning("fetch_text failed for %s: %s", cand.url, exc)
+                    continue
                 strong_key = parse_strong_key(f"{cand.title}\n{text}")
                 matter_id = by_key.get(strong_key) if strong_key else None
                 entry: dict[str, object] = dict(cand.model_dump(mode="json"))

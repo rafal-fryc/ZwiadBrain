@@ -78,14 +78,14 @@ disqualify:
 # above; the classifier subagent applies these enforcement-specific criteria, NOT the
 # bill criteria, when judging an FTC/AG action.
 positive_criteria_enforcement:
-  - "An FTC or state-AG action (complaint, consent order, settlement, civil penalty, assurance of discontinuance) whose charges concern AI or automated-decision systems."
+  - "An FTC or state-AG action (complaint, consent order, settlement, civil penalty, assurance of discontinuance, warning letter, or enforcement-commencement notice) whose charges or compliance demands concern AI or automated-decision systems."
   - "An action charging unlawful collection/processing/sale/sharing of personal data, data-broker conduct, children's-privacy (COPPA), biometric data, or a data breach."
   - "An action charging a data-security or cybersecurity failure (inadequate safeguards, breach response, unauthorized access)."
   - "An action concerning government or commercial biometric, surveillance, or facial-recognition use."
 
 disqualify_enforcement:
   - "Antitrust, merger, or competition action with no AI/privacy/cyber/data nexus."
-  - "Deceptive-advertising or consumer-protection action about a non-data product (e.g. weight-loss, earnings claims) where no data/AI/security duty is charged."
+  - "Deceptive-advertising or consumer-protection action about a non-data product (e.g. weight-loss, earnings claims) where no data/AI/security duty is charged — but this does NOT apply when the misrepresentation itself concerns an AI, data-collection, privacy, or security capability (e.g. false claims about an AI service or about consumer consent to data collection are IN scope)."
   - "Pure payment-fraud, do-not-call/TSR, or financial-disclosure action with no data-protection or data-security dimension."
   - "AI/privacy/cyber is mentioned only incidentally and is not a basis of the charges."
 

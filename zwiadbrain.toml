@@ -53,9 +53,13 @@ rss_url = "https://www.ftc.gov/feeds/press-release.xml"   # validated in UAT (T1
 name = "California OAG"
 agency_slug = "ca-oag"
 jurisdiction = "US-CA"
-url = "https://oag.ca.gov/news/press-releases/feed"
-kind = "rss"
-enabled = true
+# UAT (2026-05-29): no public RSS (the /feed path 404s) and the listing page returns a
+# 404 status with body; the working URL + html item_selector need per-site tuning before
+# enabling (D54 — AG selectors are tuned during the rollout, not on spec).
+url = "https://oag.ca.gov/news/press-releases"
+kind = "html"
+item_selector = ""
+enabled = false
 
 [[enforcement.state_ag]]
 name = "New York OAG"

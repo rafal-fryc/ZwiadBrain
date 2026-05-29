@@ -1,5 +1,5 @@
 # Phase 08 — Enforcement actions (FTC + state AGs)
-Status: ACTIVE — implementation complete (v0.8.0); awaiting operator interactive scan + phase-close sign-off
+Status: DONE — implementation complete (v0.8.0); merged to main via PR #3 (cfd71a2); live FTC UAT validated; 2 enforcement wiki pages shipped
 
 > Full design: docs/superpowers/specs/2026-05-29-phase08-enforcement-actions-design.md
 > Full plan:   docs/superpowers/plans/2026-05-29-phase08-enforcement-actions.md

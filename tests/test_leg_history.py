@@ -1038,3 +1038,20 @@ def test_quote_inside_noscript_and_template_is_not_grounded() -> None:
     )
     assert _quote_present("This bill will protect consumers everywhere.", noscript_page) is False
     assert _quote_present("This bill will protect consumers everywhere.", template_page) is False
+
+
+def test_gate_alone_does_not_catch_cross_attribution_span() -> None:
+    """documents the gate's blindspot: a span concatenating two adjacent speakers still matches
+
+    _quote_present only checks verbatim *presence*, not speaker attribution. A quote that
+    stitches together the tail of speaker A and the head of speaker B substring-matches the
+    page and passes this gate. Catching this misattribution is the verifier subagent's job
+    (verifier check (c), Batch 3) — NOT this deterministic gate. This test pins the limitation
+    so the gate is not mistaken for an attribution check.
+    """
+    page = (
+        "Rep. A: The bill protects consumers. "
+        "Rep. B: I oppose this measure entirely."
+    )
+    cross_attribution_span = "protects consumers. Rep. B: I oppose this measure"
+    assert _quote_present(cross_attribution_span, page) is True

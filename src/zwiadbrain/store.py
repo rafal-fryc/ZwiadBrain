@@ -166,6 +166,7 @@ class Store:
                 rel_path,
             ),
         )
+        self.conn.execute("DELETE FROM items_fts WHERE id = ?", (item.id,))
         self.conn.execute(
             "INSERT INTO items_fts"
             " (id, title, jurisdiction, status, bill_number, topics, agency, docket)"

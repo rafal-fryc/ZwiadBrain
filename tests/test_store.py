@@ -109,6 +109,25 @@ def test_corrupt_index_file_self_heals_on_open(tmp_path: Path) -> None:
     assert header.startswith(b"SQLite format 3")
 
 
+def test_indexing_same_id_twice_yields_one_fts_row(tmp_path: Path) -> None:
+    """should not leave a stale duplicate FTS row when an item is re-indexed in place"""
+    with Store(tmp_path / "index.sqlite") as store:
+        bill = Bill(
+            id="us-ca-sb-362",
+            jurisdiction="US-CA",
+            title="California Delete Act",
+            bill_number="SB 362",
+        )
+        store._index_item(bill, "states/ca/bills/us-ca-sb-362.md")  # pyright: ignore[reportPrivateUsage]
+        store._index_item(bill, "states/ca/bills/us-ca-sb-362.md")  # pyright: ignore[reportPrivateUsage]
+        row = store.conn.execute(
+            "SELECT COUNT(*) FROM items_fts WHERE id = ?", ("us-ca-sb-362",)
+        ).fetchone()
+        assert int(row[0]) == 1
+        # and the row is still findable
+        assert "us-ca-sb-362" in store.search("Delete")
+
+
 def test_reindex_rolls_back_on_mid_loop_failure(tmp_path: Path) -> None:
     """should leave the prior index intact when a write fails partway through a rebuild"""
     wiki = tmp_path / "wiki"

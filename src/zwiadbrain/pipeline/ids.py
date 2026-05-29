@@ -140,6 +140,11 @@ def _slug(value: str) -> str:
     return out or "unknown"
 
 
+def _cap_slug(slug: str, max_tokens: int = 6) -> str:
+    """Keep at most the first *max_tokens* hyphen-separated tokens of a slug."""
+    return "-".join(slug.split("-")[:max_tokens])
+
+
 def build_enforcement_id(
     agency_slug: str,
     *,
@@ -153,10 +158,12 @@ def build_enforcement_id(
     With a strong key: ``{agency_slug}-{slug(strong_key)}``. Without: ``{agency_slug}-
     {year}-{slug(respondent)}``, with a numeric suffix appended on collision against
     *existing_ids* (two no-docket actions vs the same respondent in one year).
+    The respondent slug is capped to 6 tokens on the fallback path to prevent
+    verbose multi-party respondent strings from producing giant page ids.
     """
     if strong_key is not None:
         return f"{_slug(agency_slug)}-{_slug(strong_key)}"
-    base = f"{_slug(agency_slug)}-{year}-{_slug(respondent or 'unknown')}"
+    base = f"{_slug(agency_slug)}-{year}-{_cap_slug(_slug(respondent or 'unknown'))}"
     if base not in existing_ids:
         return base
     n = 2

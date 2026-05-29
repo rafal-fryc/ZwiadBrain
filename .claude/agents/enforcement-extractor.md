@@ -20,7 +20,7 @@ Extract only what the text supports — never invent a docket, penalty, or date.
 
 - `summary`: 2-4 plain-language sentences — what the agency alleged, against whom, and
   where it stands.
-- `respondent`: the target company/person (the "investigation target").
+- `respondent`: the concise name of the PRIMARY target entity (the lead company/person), not a descriptive phrase or a full list — e.g. "Cox Media Group", not "Cox Media Group (CMG Media Corporation), MindSift LLC, and 1010 Digital Works LLC". If there is no named respondent (e.g. a regulatory announcement), use null.
 - `action_type`: e.g. "complaint", "consent order", "settlement", "civil penalty".
 - `statutes`: list of laws/sections charged (e.g. "FTC Act Section 5", "COPPA", "CCPA").
 - `penalties`: monetary/injunctive relief as stated, else null.

@@ -45,6 +45,14 @@ def test_build_enforcement_id_disambiguates_collision() -> None:
                                 existing_ids=existing) == "ftc-2025-acme-2"
 
 
+def test_build_enforcement_id_caps_long_respondent() -> None:
+    long = "Cox Media Group CMG Media Corporation MindSift LLC and 1010 Digital Works LLC"
+    eid = build_enforcement_id("ftc", strong_key=None, respondent=long, year=2026)
+    # capped to agency + year + first 6 respondent tokens
+    assert eid == "ftc-2026-cox-media-group-cmg-media-corporation"
+    assert len(eid.split("-")) <= 2 + 6  # agency(1) + year(1) + <=6 respondent tokens
+
+
 def test_enforcement_id_never_collides_with_bill_ids() -> None:
     eid = build_enforcement_id("ca-oag", strong_key=None, respondent="DoorDash", year=2025)
     assert eid == "ca-oag-2025-doordash"

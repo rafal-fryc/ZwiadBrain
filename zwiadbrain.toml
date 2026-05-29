@@ -39,13 +39,77 @@ guidance = "enforcement"
 incident = "enforcement"
 enforcement = "enforcement"
 
-# State AG enforcement sources are config-driven (expanded in PHASE-08), e.g.:
-# [[enforcement.state_ag]]
-# name = "California OAG"
-# jurisdiction = "US-CA"
-# url = "https://oag.ca.gov/news/press-releases/feed"
-# kind = "rss"          # or "html"
-# item_selector = ""    # CSS selector when kind = "html"
+[enforcement]
+enabled = true
+lookback_days = 30
+min_confidence = 0.75
+match_window_days = 120
+
+[enforcement.ftc]
+enabled = true
+rss_url = "https://www.ftc.gov/feeds/press-release.xml"   # validated in UAT (T15)
+
+[[enforcement.state_ag]]
+name = "California OAG"
+agency_slug = "ca-oag"
+jurisdiction = "US-CA"
+url = "https://oag.ca.gov/news/press-releases/feed"
+kind = "rss"
+enabled = true
+
+[[enforcement.state_ag]]
+name = "New York OAG"
+agency_slug = "ny-oag"
+jurisdiction = "US-NY"
+url = "https://ag.ny.gov/press-releases"
+kind = "html"
+item_selector = ""
+enabled = false
+
+[[enforcement.state_ag]]
+name = "Texas OAG"
+agency_slug = "tx-oag"
+jurisdiction = "US-TX"
+url = "https://www.texasattorneygeneral.gov/news/releases"
+kind = "html"
+item_selector = ""
+enabled = false
+
+[[enforcement.state_ag]]
+name = "Colorado OAG"
+agency_slug = "co-oag"
+jurisdiction = "US-CO"
+url = "https://coag.gov/press-releases/"
+kind = "html"
+item_selector = ""
+enabled = false
+
+[[enforcement.state_ag]]
+name = "Virginia OAG"
+agency_slug = "va-oag"
+jurisdiction = "US-VA"
+url = "https://www.oag.state.va.us/media-center/news-releases"
+kind = "html"
+item_selector = ""
+enabled = false
+
+[[enforcement.state_ag]]
+name = "Washington OAG"
+agency_slug = "wa-oag"
+jurisdiction = "US-WA"
+url = "https://www.atg.wa.gov/news/news-releases"
+kind = "html"
+item_selector = ""
+enabled = false
+
+[[enforcement.state_ag]]
+name = "Illinois OAG"
+agency_slug = "il-oag"
+jurisdiction = "US-IL"
+url = "https://illinoisattorneygeneral.gov/news/"
+kind = "html"
+item_selector = ""
+enabled = false
 
 # Topic taxonomy, keyword seed lexicon, and the DISQUALIFY lexicon (decision 17)
 # live in reference/topics.yaml (added in PHASE-04).

@@ -153,3 +153,32 @@ def test_require_legiscan_api_key_raises_when_unset() -> None:
     """should raise ConfigError when the LegiScan key is missing"""
     with pytest.raises(ConfigError):
         Settings(legiscan_api_key=None).require_legiscan_api_key()
+
+
+def test_enforcement_settings_loaded_from_toml(tmp_path) -> None:
+    from zwiadbrain.config import load_settings
+    toml = tmp_path / "zwiadbrain.toml"
+    toml.write_text(
+        "[enforcement]\n"
+        "enabled = true\n"
+        "lookback_days = 45\n"
+        "min_confidence = 0.8\n"
+        "match_window_days = 90\n"
+        "[enforcement.ftc]\n"
+        'rss_url = "https://www.ftc.gov/feeds/press-release.xml"\n'
+        "enabled = true\n"
+        "[[enforcement.state_ag]]\n"
+        'name = "California OAG"\n'
+        'agency_slug = "ca-oag"\n'
+        'jurisdiction = "US-CA"\n'
+        'url = "https://oag.ca.gov/news/press-releases/feed"\n'
+        'kind = "rss"\n'
+        "enabled = true\n",
+        encoding="utf-8",
+    )
+    settings = load_settings(toml_path=toml, env_file=tmp_path / ".env")
+    assert settings.enforcement.lookback_days == 45
+    assert settings.enforcement.min_confidence == 0.8
+    assert settings.enforcement.ftc.rss_url.endswith("press-release.xml")
+    assert settings.enforcement.state_ag[0].agency_slug == "ca-oag"
+    assert settings.enforcement.enabled_state_ags()[0].kind == "rss"

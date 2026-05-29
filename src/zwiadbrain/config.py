@@ -48,6 +48,40 @@ class StatesSettings(BaseModel):
     enabled: list[str] = []
 
 
+class FTCSettings(BaseModel):
+    """FTC source config (see ``[enforcement.ftc]``)."""
+
+    enabled: bool = True
+    rss_url: str = "https://www.ftc.gov/feeds/press-release.xml"
+
+
+class StateAGConfig(BaseModel):
+    """A single config-driven state-AG source (see ``[[enforcement.state_ag]]``)."""
+
+    name: str
+    agency_slug: str
+    jurisdiction: str
+    url: str
+    kind: str = "rss"            # "rss" | "html"
+    item_selector: str = ""      # CSS selector when kind == "html"
+    enabled: bool = True
+
+
+class EnforcementSettings(BaseModel):
+    """Enforcement tracking config (see ``[enforcement]``)."""
+
+    enabled: bool = False
+    lookback_days: int = 30
+    min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.75
+    match_window_days: int = 120
+    ftc: FTCSettings = FTCSettings()
+    state_ag: list[StateAGConfig] = []
+
+    def enabled_state_ags(self) -> list[StateAGConfig]:
+        """The state-AG sources with ``enabled = true``."""
+        return [ag for ag in self.state_ag if ag.enabled]
+
+
 class LawBrainSettings(BaseModel):
     """Read-only law-brain integration settings (see ``[lawbrain]``)."""
 
@@ -79,6 +113,7 @@ class Settings(BaseSettings):
     llm: LLMSettings = LLMSettings()
     sources: SourcesSettings = SourcesSettings()
     states: StatesSettings = StatesSettings()
+    enforcement: EnforcementSettings = EnforcementSettings()
     lawbrain: LawBrainSettings = LawBrainSettings()
 
     @property

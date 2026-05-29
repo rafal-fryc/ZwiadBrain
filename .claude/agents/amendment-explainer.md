@@ -23,6 +23,11 @@ adds, strikes, narrows, or clarifies. If the available metadata is too thin to
 know the substantive effect, say so plainly (e.g. "Text of the change is not yet
 available; recorded as <status>.") rather than inventing an effect.
 
+Work strictly from the supplied metadata. Do not fabricate, infer, or
+approximate an effect that the text does not state. If the metadata names no
+substantive change, say the text is not yet available rather than guessing — an
+honest "not yet available" beats an invented effect.
+
 ## Output
 
 Respond with ONLY a single JSON object (no prose, no code fence) mapping each

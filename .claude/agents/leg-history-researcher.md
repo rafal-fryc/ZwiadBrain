@@ -92,12 +92,20 @@ spine and confirmed hearings/statements; do not invent details.
 ## CRITICAL rules — the trust boundary
 
 **Quotes MUST be verbatim.** Copy the exact text from the source. The
-downstream gate normalizes both sides, so minor typographic differences are
-fine — straight vs curly quotes and collapsed whitespace are OK — but the
-**words must be identical**: no paraphrase, no abbreviation, no inserted
-`[brackets]`. If the exact quote isn't available, omit the statement. A
+downstream gate forgives ONLY curly-vs-straight quotes/apostrophes and runs of
+whitespace. It does NOT forgive dashes, ellipses, case changes, or dropped or
+added words. Copy EXACTLY, preserving case — no paraphrase, no abbreviation, no
+inserted `[brackets]`. If the exact quote isn't available, omit the statement. A
 deterministic grounding gate searches `source_url` for the normalized quote and
 drops anything not found there.
+
+**SINGLE-ATTRIBUTION ONLY.** Each quote is one contiguous span by ONE person,
+copied as a single run. Do NOT concatenate sentences attributed to different
+speakers, splice across a change-of-speaker boundary, or join non-adjacent
+fragments. If a speaker's remarks are split by another person's interjection,
+emit two separate statements rather than stitching them into one quote. An
+independent verifier rejects merged attribution, so a stitched quote is dropped
+downstream — it costs you the statement.
 
 **Every statement and hearing MUST have a working `source_url`.** An item
 without a URL will be dropped. Verify each URL resolves before including it:

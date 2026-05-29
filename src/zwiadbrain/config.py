@@ -11,10 +11,10 @@ from __future__ import annotations
 import os
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from dotenv import dotenv_values
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from zwiadbrain.exceptions import ConfigError
@@ -53,7 +53,7 @@ class LawBrainSettings(BaseModel):
 
     enabled: bool = False
     path: Path | None = None
-    min_confidence: float = 0.75
+    min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.75
     require_shared_key: bool = True
     demote_headings: bool = True
     commentary: bool = True

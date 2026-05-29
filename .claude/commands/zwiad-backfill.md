@@ -1,6 +1,6 @@
 ---
 description: Backfill federal bills into the ZwiadBrain wiki, classifying and summarizing each via subagents (runs on your regular Claude plan usage).
-argument-hint: <congress> [limit]
+argument-hint: <congress> [limit] [--force <congress/type/number>]
 allowed-tools: Bash, Read, Write, Task
 ---
 
@@ -10,6 +10,8 @@ Orchestrate a federal backfill end to end. Python does the deterministic fetch a
 render; you (this interactive session) do the LLM steps by dispatching subagents,
 so the work runs on the regular Claude plan — **not** the API or the Agent SDK
 credit. Arguments: `$1` = congress number (required), `$2` = limit (default 5).
+`$3` = optional `--force <congress/type/number>` to re-track a previously flipped-out bill
+(skips discovery: re-fetches that one bill, then classify it — an in-scope verdict keeps it tracked).
 
 ## Steps
 
@@ -29,9 +31,13 @@ summary, status, sponsors, actions, amendments).
 ### 3. Classify each bill (subagent: `classifier`)
 For every candidate, dispatch the **classifier** subagent with the bill's `title`
 and `summary`. It reads `reference/topics.yaml` and returns
-`{in_scope, topics, confidence, rationale, criterion}`.
-- Log each decision (id, in_scope, confidence, criterion) to the transcript.
+`{in_scope, topics, confidence, rationale, positive_criterion, disqualifier_survived, disqualifier_applied}`.
+- Log each decision (id, in_scope, confidence, positive_criterion/disqualifier) to the transcript.
 - **Drop** bills where `in_scope` is false. Keep the returned `topics` for the rest.
+- **Validate topics**: if the classifier returns any topic not in `{ai, privacy, cyber}`,
+  treat it as a classifier error — drop the bill to the transcript and do NOT enrich it.
+  (`render-classified` validates topics again, but catching it here avoids a wasted
+  summarizer/amendment-explainer dispatch.)
 
 ### 4. Enrich the in-scope bills (subagents: `summarizer`, `amendment-explainer`)
 For each in-scope bill:
@@ -59,4 +65,4 @@ reasons), and pages rendered. Do not commit — leave the wiki changes for revie
 
 ## Notes
 - Keep `ANTHROPIC_API_KEY` unset so subagents use your plan session, not the API.
-- Only `topics[]` is persisted; confidence/rationale/criterion stay in the transcript.
+- Only `topics[]` is persisted; confidence/rationale/criteria fields stay in the transcript.

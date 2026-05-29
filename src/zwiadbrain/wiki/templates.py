@@ -44,7 +44,12 @@ _COMMENTARY_NOTE = (
 
 
 def _demote_headings(text: str) -> str:
-    """Demote ATX headings by one level (e.g. ## -> ###) in copied commentary."""
+    """Demote ATX headings by one level (## -> ###) in copied commentary.
+
+    Markdown has no h7, so the demotion is clamped at h6: an h1-h5 heading gains
+    one ``#``, and an h6 heading is left at h6 (the ``{1,5}`` bound never matches
+    a 6-hash run, so it cannot produce a 7-hash heading).
+    """
     return re.sub(r"(?m)^(#{1,5})(?= )", r"#\1", text)
 
 
@@ -136,7 +141,8 @@ def _enactment_block(enactment: Enactment) -> str:
     elif enactment.public_law:
         rows.append(f"Public Law: {enactment.public_law}")
     if enactment.statutes_at_large:
-        rows.append(f"Statutes at Large: {enactment.statutes_at_large}")
+        s = enactment.statutes_at_large
+        rows.append(f"Statutes at Large: [{s.citation}]({s.url})")
     return "\n".join(f"- {row}" for row in rows)
 
 
@@ -235,7 +241,15 @@ def _commentary(sources: list[CommentarySource]) -> str:
 
 
 def render_bill_body(bill: Bill) -> str:
-    """Render the Markdown body for a bill page (no frontmatter)."""
+    """Render the Markdown body for a bill page (no frontmatter).
+
+    When ``bill.flipped_out`` is set, an HTML comment marker is prepended to the
+    body for audit visibility in ``git log -p``.  The marker escapes two
+    characters/sequences in the reason: ``-->`` (HTML comment terminator) is
+    replaced with ``--&gt;``, and embedded double quotes are backslash-escaped,
+    so the attribute stays well-formed even when the classifier emits prose
+    containing either sequence.
+    """
     sections: list[dict[str, str]] = []
     if bill.summary:
         sections.append({"heading": "Summary", "body": bill.summary.strip()})
@@ -244,7 +258,9 @@ def render_bill_body(bill: Bill) -> str:
     if bill.amendments:
         sections.append({"heading": "Amendments", "body": _amendments(bill.amendments)})
     if bill.leg_history:
-        sections.append({"heading": "Legislative History", "body": _leg_history(bill.leg_history)})
+        leg_history_body = _leg_history(bill.leg_history)
+        if leg_history_body:
+            sections.append({"heading": "Legislative History", "body": leg_history_body})
     if bill.text_versions:
         sections.append({"heading": "Full Text", "body": _text_versions(bill.text_versions)})
     if bill.related_bills:
@@ -255,7 +271,16 @@ def render_bill_body(bill: Bill) -> str:
         )
     if bill.sources:
         sections.append({"heading": "Sources", "body": _sources(bill.sources)})
-    return _BODY.render(sections=sections)
+    body = _BODY.render(sections=sections)
+    if bill.flipped_out:
+        reason = bill.flipped_out.reason
+        reason = reason.replace("-->", "--&gt;").replace('"', '\\"')
+        marker = (
+            f'<!-- zwiadbrain:flipped-out date="{bill.flipped_out.date.isoformat()}"'
+            f' reason="{reason}" -->\n\n'
+        )
+        body = marker + body
+    return body
 
 
 def render_enforcement_body(action: EnforcementAction) -> str:

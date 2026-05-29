@@ -26,6 +26,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
+from bs4 import BeautifulSoup, Comment
+
 from zwiadbrain.models import (
     Bill,
     CommitteeReport,
@@ -36,6 +38,7 @@ from zwiadbrain.models import (
     Statement,
     Vote,
 )
+from zwiadbrain.pipeline.ids import parse_bill_id
 
 # ---------------------------------------------------------------------------
 # Grounding gate result types
@@ -81,7 +84,7 @@ class _CongressLike(Protocol):
 class _GovInfoLike(Protocol):
     """Structural interface: the leg-history slice of GovInfoSource.
 
-    *number* is typed as ``str`` here because ``_parse_id`` always returns a
+    *number* is typed as ``str`` here because ``parse_bill_id`` always returns a
     ``str``; the concrete ``GovInfoSource`` accepts ``str | int``, which is a
     wider supertype and satisfies contravariance.
     """
@@ -106,36 +109,6 @@ class _GovInfoLike(Protocol):
 # ---------------------------------------------------------------------------
 # Module-private helpers
 # ---------------------------------------------------------------------------
-
-
-def _parse_id(bill_id: str) -> tuple[int, str, str]:
-    """Parse ``bill.id`` (``"{congress}-{type}-{number}"``) into its three parts.
-
-    Returns ``(congress: int, bill_type: str, number: str)``.
-
-    Example::
-
-        _parse_id("118-hr-9020")  # -> (118, "hr", "9020")
-        _parse_id("118-hjres-45")  # -> (118, "hjres", "45")
-
-    The format is ``<congress>-<type>-<number>`` where ``<type>`` may itself
-    contain no hyphens (hr, s, hjres, sjres, hconres, sconres, hres, sres).
-    Congress is always an integer, number is always numeric, and type is the
-    remainder -- so split on the first and last hyphen to be robust.
-
-    Raises :class:`ValueError` if *bill_id* does not have three
-    hyphen-separated segments.
-    """
-    first_dash = bill_id.find("-")
-    last_dash = bill_id.rfind("-")
-    if first_dash == -1 or first_dash == last_dash:
-        raise ValueError(
-            f"bill.id must be '<congress>-<type>-<number>', got: {bill_id!r}"
-        )
-    congress = int(bill_id[:first_dash])
-    bill_type = bill_id[first_dash + 1 : last_dash]
-    number = bill_id[last_dash + 1 :]
-    return congress, bill_type, number
 
 
 def _signed_date(bill: Bill) -> dt.date | None:
@@ -201,17 +174,50 @@ def _normalize_text(s: str) -> str:
     return " ".join(s.split())
 
 
+def _page_text(page: str) -> str:
+    """Extract human-visible text from an HTML page for quote-presence comparison.
+
+    HTML byte-substring matching over-rejects on JS-rendered press-release pages
+    and CREC pages where the quote sits across tag boundaries (e.g. a ``<br/>``
+    split, a ``<span>`` wrapper, or an inline ``&nbsp;``).  BeautifulSoup's
+    ``get_text(separator=' ')`` walks the parsed DOM and returns a single string
+    with tag boundaries replaced by spaces; downstream
+    :func:`_normalize_text` then collapses runs of whitespace, so a quote
+    fragmented across markup matches as long as its WORDS appear in order.
+
+    NOTE on the trust boundary: this raises recall (more true-positives) without
+    lowering precision — the deterministic gate still requires the exact
+    normalized quote to appear in the extracted text, and the cross-modal
+    verifier subagent independently checks speaker attribution.  A
+    misattributed-but-present quote is therefore kept by this gate and dropped
+    by the verifier, by design.
+
+    Text inside ``<script>``, ``<style>``, ``<noscript>``, and ``<template>``
+    elements, and inside HTML comments, is removed before extraction: it is not
+    human-visible, so a quote found only there is a false-positive against the
+    verbatim-presence gate (D36) and must not ground a statement.
+    """
+    soup = BeautifulSoup(page, "html.parser")
+    for element in soup(["script", "style", "noscript", "template"]):
+        element.decompose()
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+    return soup.get_text(separator=" ")
+
+
 def _quote_present(quote: str, page_text: str) -> bool:
     """Return True when *quote* appears (after normalization) inside *page_text*.
 
-    An empty or blank-only *quote* always returns False -- an empty string must
-    not be treated as matching.  The comparison is case-sensitive: attributed
-    quotes must match the source verbatim.
+    *page_text* is treated as HTML and extracted to plain text before
+    normalization; see :func:`_page_text`.  An empty or blank-only *quote*
+    always returns False — an empty string must not be treated as matching.
+    The comparison is case-sensitive: attributed quotes must match the source
+    verbatim.
     """
     normalized_quote = _normalize_text(quote)
     if not normalized_quote:
         return False
-    return normalized_quote in _normalize_text(page_text)
+    return normalized_quote in _normalize_text(_page_text(page_text))
 
 
 def _statement_identifier(statement: Statement) -> str:
@@ -372,7 +378,7 @@ def assemble_spine(
     *congress_source* and *govinfo_source* are accepted structurally (Protocol),
     so tests may pass lightweight fakes without subclassing the concrete clients.
     """
-    congress, bill_type, number = _parse_id(bill.id)
+    congress, bill_type, number = parse_bill_id(bill.id)
     native_id = f"{congress}/{bill_type}/{number}"
     citation = bill.bill_number
 
@@ -437,7 +443,7 @@ def collect_leads(
     *govinfo_source* is accepted structurally (Protocol), so tests may pass
     lightweight fakes without subclassing the concrete client.
     """
-    congress, _, _ = _parse_id(bill.id)
+    congress, _, _ = parse_bill_id(bill.id)
     citation = bill.bill_number
 
     hearings = govinfo_source.hearings(congress, citation)

@@ -14,6 +14,7 @@ an httpx.Client with tenacity retry on 5xx / network errors; 429 surfaces as
 from __future__ import annotations
 
 import datetime as dt
+import email.utils
 import re
 from typing import Any, cast
 
@@ -24,9 +25,11 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+from tenacity.wait import wait_base
 
 from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
-from zwiadbrain.models import CommitteeReport, Enactment, FloorAction, Hearing
+from zwiadbrain.models import CommitteeReport, Enactment, FloorAction, Hearing, StatutesAtLarge
+from zwiadbrain.sources._redact import redact_api_key
 
 GOVINFO_API_BASE = "https://api.govinfo.gov"
 
@@ -107,10 +110,48 @@ def _flatten_str(value: Any) -> str | None:
 class _Retryable(SourceError):
     """Internal marker for a transient HTTP status that should be retried."""
 
-    def __init__(self, status: int, path: str) -> None:
+    def __init__(self, status: int, path: str, *, retry_after: float | None = None) -> None:
         super().__init__(f"transient GovInfo error {status} for {path}")
         self.status = status
         self.path = path
+        self.retry_after = retry_after
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """Parse a ``Retry-After`` header to non-negative seconds, or ``None`` if absent/invalid.
+
+    Accepts the two RFC 7231 forms: an integer delta-seconds, or an HTTP-date (in which
+    case the wait is the date minus now, floored at 0). Anything unparseable → ``None``.
+    """
+    raw = response.headers.get("Retry-After")
+    if not raw:
+        return None
+    raw = raw.strip()
+    if raw.isdigit():
+        return float(raw)
+    try:
+        parsed = email.utils.parsedate_to_datetime(raw)
+    except (ValueError, TypeError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.UTC)
+    delta = (parsed - dt.datetime.now(dt.UTC)).total_seconds()
+    return max(delta, 0.0)
+
+
+class _wait_retry_after(wait_base):
+    """Wait the exception's ``Retry-After`` seconds if present, else fall back to exponential."""
+
+    def __init__(self, fallback: wait_base) -> None:
+        self._fallback = fallback
+
+    def __call__(self, retry_state: Any) -> float:
+        outcome = retry_state.outcome
+        if outcome is not None and outcome.failed:
+            exc = outcome.exception()
+            if isinstance(exc, _Retryable) and exc.retry_after is not None:
+                return exc.retry_after
+        return self._fallback(retry_state)
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +181,7 @@ class GovInfoSource:
         self._retrying = Retrying(
             retry=retry_if_exception_type((_Retryable, httpx.TransportError)),
             stop=stop_after_attempt(max_attempts),
-            wait=wait_exponential(multiplier=wait_initial, max=wait_max),
+            wait=_wait_retry_after(wait_exponential(multiplier=wait_initial, max=wait_max)),
             reraise=True,
         )
 
@@ -151,7 +192,9 @@ class GovInfoSource:
         if response.status_code == 429:
             raise RateLimitError(f"GovInfo rate limit hit for {path}")
         if response.status_code >= 500:
-            raise _Retryable(response.status_code, path)
+            raise _Retryable(
+                response.status_code, path, retry_after=_retry_after_seconds(response)
+            )
         if response.status_code >= 400:
             raise SourceFetchError(f"GovInfo returned {response.status_code} for {path}")
         return response
@@ -175,7 +218,7 @@ class GovInfoSource:
             response = self._retrying(self._request_get, path, params)
         except _Retryable as exc:
             raise SourceFetchError(
-                f"GovInfo returned {exc.status} for {exc.path} after retries"
+                f"GovInfo returned {exc.status} for {redact_api_key(exc.path)} after retries"
             ) from exc
         data: dict[str, Any] = response.json()
         return data
@@ -186,7 +229,7 @@ class GovInfoSource:
             response = self._retrying(self._request_post, path, body)
         except _Retryable as exc:
             raise SourceFetchError(
-                f"GovInfo returned {exc.status} for {exc.path} after retries"
+                f"GovInfo returned {exc.status} for {redact_api_key(exc.path)} after retries"
             ) from exc
         data: dict[str, Any] = response.json()
         return data
@@ -248,6 +291,24 @@ class GovInfoSource:
             if r.get("packageId")
         ]
 
+    def fetch_statutes_at_large(self, plaw_package_id: str) -> StatutesAtLarge | None:
+        """Resolve a PLAW package's Statutes-at-Large citation, or ``None`` if absent.
+
+        Calls ``GET /related/{plawPackageId}/STATUTE``.  Some PLAW packages do
+        not yet have a published STATUTE row (the volume hasn't been printed),
+        in which case the related list is empty and this returns ``None``
+        (fail-quiet, matching the project's "no link, no render" rule).
+        """
+        results = self.related(plaw_package_id, "STATUTE")
+        if not results:
+            return None
+        first = results[0]
+        package_id = str(first.get("packageId") or "")
+        if not package_id:
+            return None
+        title = _flatten_str(first.get("title")) or package_id
+        return StatutesAtLarge(citation=title, url=details_url(package_id))
+
     def enacted_law(
         self, congress: int, bill_type: str, number: int | str
     ) -> Enactment | None:
@@ -260,7 +321,7 @@ class GovInfoSource:
         package_id = str(first.get("packageId") or "")
         return Enactment(
             public_law=_parse_public_law(package_id),
-            statutes_at_large=None,
+            statutes_at_large=self.fetch_statutes_at_large(package_id) if package_id else None,
             url=details_url(package_id) if package_id else None,
             date_signed=None,
         )
@@ -273,7 +334,7 @@ class GovInfoSource:
         hearings: list[Hearing] = []
         for r in results:
             package_id = str(r.get("packageId") or "")
-            granule_id: str | None = r.get("granuleId")
+            granule_id = _flatten_str(r.get("granuleId"))
             hearings.append(
                 Hearing(
                     title=_flatten_str(r.get("title")) or "",
@@ -294,7 +355,7 @@ class GovInfoSource:
         actions: list[FloorAction] = []
         for r in results:
             package_id = str(r.get("packageId") or "")
-            granule_id: str | None = r.get("granuleId")
+            granule_id = _flatten_str(r.get("granuleId"))
             actions.append(
                 FloorAction(
                     date=_parse_date(r.get("dateIssued")),

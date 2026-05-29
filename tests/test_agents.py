@@ -23,7 +23,7 @@ _COMMAND = _ROOT / ".claude" / "commands" / "zwiad-backfill.md"
 _LEG_COMMAND = _ROOT / ".claude" / "commands" / "zwiad-leg-history.md"
 
 _EXPECTED_MODEL = {
-    "classifier": "haiku",
+    "classifier": "sonnet",
     "summarizer": "sonnet",
     "amendment-explainer": "sonnet",
 }
@@ -42,10 +42,19 @@ def test_agent_definition_is_well_formed(name: str) -> None:
 
 
 def test_classifier_prompt_states_its_rubric_and_json_contract() -> None:
-    """should tell the classifier to read topics.yaml and emit the in_scope JSON keys"""
+    """should tell the classifier to apply DISQUALIFY and emit the split criterion fields"""
     body = (_AGENTS / "classifier.md").read_text(encoding="utf-8")
     assert "topics.yaml" in body
-    for key in ("in_scope", "topics", "confidence", "rationale", "criterion"):
+    assert "DISQUALIFY" in body or "disqualify" in body
+    for key in (
+        "in_scope",
+        "topics",
+        "confidence",
+        "rationale",
+        "positive_criterion",
+        "disqualifier_survived",
+        "disqualifier_applied",
+    ):
         assert key in body
 
 
@@ -112,10 +121,23 @@ def test_leg_history_verifier_is_well_formed() -> None:
 
 
 def test_leg_history_verifier_prompt_states_output_contract() -> None:
-    """should instruct the verifier to emit an array of {index, verified, note} verdicts"""
+    """should show the full verdict shape in one block and require the contiguity check"""
     body = (_AGENTS / "leg-history-verifier.md").read_text(encoding="utf-8")
-    for key in ("index", "verified", "note"):
-        assert key in body
+    # The verdict JSON example must show all echo+verdict keys together in one
+    # fenced object, not scattered across the prompt.
+    assert '"index"' in body and '"verified"' in body and '"note"' in body
+    assert '"speaker"' in body
+    assert '"quote_prefix"' in body
+    one_object = [
+        line
+        for line in body.splitlines()
+        if '"index"' in line and '"verified"' in line and '"note"' in line
+    ]
+    assert one_object, "index, verified, and note must appear together in one JSON object line"
+    assert '"quote_prefix"' in one_object[0] and '"speaker"' in one_object[0]
+    # The single-speaker contiguity check (c) and its rejection note.
+    assert "contiguity" in body.lower()
+    assert "merged attribution" in body.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -167,3 +189,50 @@ def test_leg_history_command_references_both_subagents() -> None:
     # Python CLI commands wired by the orchestrator
     assert "fetch-leg-history" in body
     assert "render-leg-history" in body
+
+
+# ---------------------------------------------------------------------------
+# T9 — zwiad-refresh command
+# ---------------------------------------------------------------------------
+
+
+def test_zwiad_refresh_command_frontmatter_parses() -> None:
+    """should declare description, argument-hint, and allow Bash/Read/Write/Task"""
+    refresh_cmd = _ROOT / ".claude" / "commands" / "zwiad-refresh.md"
+    text = refresh_cmd.read_text(encoding="utf-8")
+    post = frontmatter.loads(text)
+    meta = post.metadata
+    assert meta.get("description"), "command must have a non-empty description"
+    allowed = str(meta.get("allowed-tools", ""))
+    assert "Bash" in allowed
+    assert "Read" in allowed
+    assert "Write" in allowed
+    assert "Task" in allowed
+
+
+def test_zwiad_refresh_references_existing_subagents() -> None:
+    """should reference the classifier, summarizer, amendment-explainer subagents"""
+    refresh_cmd = _ROOT / ".claude" / "commands" / "zwiad-refresh.md"
+    text = refresh_cmd.read_text(encoding="utf-8")
+    assert "classifier" in text
+    assert "summarizer" in text
+    assert "amendment-explainer" in text
+
+
+def test_zwiad_refresh_has_all_six_orchestration_steps() -> None:
+    """should contain all 6 H3 step headings, in order, in the slash command body"""
+    refresh_cmd = _ROOT / ".claude" / "commands" / "zwiad-refresh.md"
+    text = refresh_cmd.read_text(encoding="utf-8")
+    required_steps = [
+        "### 1. Fetch refreshable",
+        "### 2. Read the refreshable list",
+        "### 3. Per-bill subagent dispatch",
+        "### 4. Stage refreshed",
+        "### 5. Render + index",
+        "### 6. Report",
+    ]
+    last_pos = -1
+    for step in required_steps:
+        pos = text.find(step)
+        assert pos > last_pos, f"Step out of order or missing: {step!r}"
+        last_pos = pos

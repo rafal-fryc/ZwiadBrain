@@ -19,6 +19,7 @@ from zwiadbrain.sources.govinfo import (
     GovInfoSource,
     _flatten_str,  # pyright: ignore[reportPrivateUsage]
     _parse_public_law,  # pyright: ignore[reportPrivateUsage]
+    _retry_after_seconds,  # pyright: ignore[reportPrivateUsage]
     details_url,
     enrolled_bill_package_id,
 )
@@ -145,11 +146,12 @@ def test_enacted_law_maps_plaw_to_enactment() -> None:
     pkg_id = enrolled_bill_package_id(118, "HR", 8818)
     with respx.mock(base_url=GOVINFO_API_BASE) as mock:
         mock.get(f"/related/{pkg_id}/PLAW").respond(json=_fixture("related_plaw.json"))
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(json=_fixture("related_statute_empty.json"))
         enactment = _source().enacted_law(118, "HR", 8818)
     assert isinstance(enactment, Enactment)
     assert enactment.public_law == "118-42"
     assert enactment.url == "https://www.govinfo.gov/app/details/PLAW-118publ42"
-    # date_signed and statutes_at_large are filled by T7 merger; left None here
+    # date_signed is not populated by this method; statutes_at_large is None (empty fixture)
     assert enactment.date_signed is None
     assert enactment.statutes_at_large is None
 
@@ -341,6 +343,7 @@ def test_get_json_retries_on_transient_server_error() -> None:
             httpx.Response(503),
             httpx.Response(200, json=_fixture("related_plaw.json")),
         ]
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(json=_fixture("related_statute_empty.json"))
         enactment = _source().enacted_law(118, "HR", 8818)
     assert route.call_count == 2
     assert enactment is not None
@@ -401,3 +404,133 @@ def test_post_json_raises_source_fetch_error_on_4xx() -> None:
         mock.post("/search").respond(403)
         with pytest.raises(SourceFetchError):
             _source().hearings(118, "H.R. 8818")
+
+
+# --- fetch_statutes_at_large + enacted_law integration ----------------------
+
+
+def test_fetch_statutes_at_large_maps_first_row_to_statutes_at_large() -> None:
+    """should map STATUTE related row to StatutesAtLarge(citation, url)"""
+    import respx
+
+    from zwiadbrain.models import StatutesAtLarge
+    from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource
+
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get("/related/PLAW-118publ31/STATUTE").respond(json=_fixture("related_statute.json"))
+        result = GovInfoSource(api_key="k").fetch_statutes_at_large("PLAW-118publ31")
+    assert isinstance(result, StatutesAtLarge)
+    assert result.citation == "Statutes at Large Volume 138, Page 1234"
+    assert result.url == "https://www.govinfo.gov/app/details/STATUTE-138-Pg1234"
+
+
+def test_fetch_statutes_at_large_returns_none_on_empty_related() -> None:
+    """should return None when /related/{plaw}/STATUTE has no results (fail-quiet)"""
+    import respx
+
+    from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource
+
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get("/related/PLAW-118publ99/STATUTE").respond(json=_fixture("related_statute_empty.json"))
+        result = GovInfoSource(api_key="k").fetch_statutes_at_large("PLAW-118publ99")
+    assert result is None
+
+
+def test_enacted_law_now_populates_statutes_at_large() -> None:
+    """should call fetch_statutes_at_large and attach the result to Enactment"""
+    import respx
+
+    from zwiadbrain.sources.govinfo import GOVINFO_API_BASE, GovInfoSource, enrolled_bill_package_id
+
+    pkg_id = enrolled_bill_package_id(118, "HR", 8818)
+    plaw_results = {"results": [{"packageId": "PLAW-118publ42"}]}
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get(f"/related/{pkg_id}/PLAW").respond(json=plaw_results)
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(json=_fixture("related_statute.json"))
+        result = GovInfoSource(api_key="k").enacted_law(118, "HR", 8818)
+    assert result is not None
+    assert result.statutes_at_large is not None
+    assert result.statutes_at_large.citation == "Statutes at Large Volume 138, Page 1234"
+
+
+# --- Retry-After and 429 fail-fast ------------------------------------------
+
+
+def test_handle_response_parses_retry_after_onto_retryable() -> None:
+    """should read Retry-After on a 503 and carry it on the GovInfo retry marker"""
+    assert _retry_after_seconds(httpx.Response(503, headers={"Retry-After": "5"})) == 5.0
+    assert _retry_after_seconds(httpx.Response(503)) is None
+    assert _retry_after_seconds(httpx.Response(503, headers={"Retry-After": "later"})) is None
+
+
+def test_get_json_honors_retry_after_then_succeeds() -> None:
+    """should retry a 503-with-Retry-After GET and succeed using the header-driven wait"""
+    pkg_id = enrolled_bill_package_id(118, "HR", 8818)
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        route = mock.get(f"/related/{pkg_id}/PLAW")
+        route.side_effect = [
+            httpx.Response(503, headers={"Retry-After": "0"}),
+            httpx.Response(200, json=_fixture("related_plaw.json")),
+        ]
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(
+            json=_fixture("related_statute_empty.json")
+        )
+        enactment = _source().enacted_law(118, "HR", 8818)
+    assert route.call_count == 2
+    assert enactment is not None
+
+
+def test_429_stays_non_retryable_rate_limit_error() -> None:
+    """should NOT retry a 429 (hourly key quota) — surface RateLimitError on the first hit"""
+    pkg_id = enrolled_bill_package_id(118, "HR", 8818)
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        route = mock.get(f"/related/{pkg_id}/PLAW").respond(429)
+        with pytest.raises(RateLimitError):
+            _source().enacted_law(118, "HR", 8818)
+    assert route.call_count == 1  # fail-fast, no in-process retry of an hourly quota
+
+
+def test_hearings_flattens_list_valued_granule_id() -> None:
+    """should coerce a list-valued granuleId to its most-specific string before building the URL"""
+    list_granule_result = {
+        "count": 1,
+        "results": [
+            {
+                "title": "Hearing on AI",
+                "packageId": "CHRG-118shrg99001",
+                "granuleId": ["CHRG-118shrg99001", "CHRG-118shrg99001-gpo1"],
+                "collectionCode": "CHRG",
+                "dateIssued": "2024-03-15",
+            }
+        ],
+    }
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.post("/search").respond(json=list_granule_result)
+        hearings = _source().hearings(118, "H.R. 8818")
+    assert len(hearings) == 1
+    assert hearings[0].url == (
+        "https://www.govinfo.gov/app/details/CHRG-118shrg99001/CHRG-118shrg99001-gpo1"
+    )
+
+
+def test_record_references_flattens_list_valued_granule_id() -> None:
+    """should coerce a list-valued granuleId in a CREC result to its most-specific string"""
+    list_granule_result = {
+        "count": 1,
+        "results": [
+            {
+                "title": "Floor consideration",
+                "packageId": "CREC-2024-12-18",
+                "granuleId": ["CREC-2024-12-18", "CREC-2024-12-18-pt1-PgH8818"],
+                "collectionCode": "CREC",
+                "dateIssued": "2024-12-18",
+            }
+        ],
+    }
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.post("/search").respond(json=list_granule_result)
+        actions = _source().record_references(118, "H.R. 8818")
+    assert len(actions) == 1
+    assert actions[0].url == (
+        "https://www.govinfo.gov/app/details/CREC-2024-12-18/CREC-2024-12-18-pt1-PgH8818"
+    )

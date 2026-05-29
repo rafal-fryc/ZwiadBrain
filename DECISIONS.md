@@ -273,3 +273,73 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** Heavy multi-source research per bill is token-expensive and high-stakes; making it deliberate keeps routine scans cheap and gives the operator control over when the expensive pass runs.
 **Trade-offs:** An enacted bill has no legislative-history section until the command is run for it; PHASE-06 carries a preservation obligation (noted here, not built in this phase).
 **Revisit if:** Automating leg-history on enactment becomes worth the cost — wire it into Pass A together with the preservation logic.
+
+## 2026-05-28 — 39. `/zwiad-refresh` re-classifies on text change, overriding D9 for routine refresh
+**Chosen:** `/zwiad-refresh` dispatches the classifier on every bill whose `updateDateIncludingText` advanced or whose `summary_hash` changed, even if the bill was previously classified IN-scope and its identifiers haven't changed. Overrides D9 ("decided pages trusted until their identifiers change") narrowly — for the routine-refresh path only. Initial classification (`/zwiad-backfill`) still follows D9.
+**Alternatives:** (a) Trust the prior classification; re-run only summarizer + amendment-explainer on refresh; (b) Hold proposed flips in a review queue (requires the PHASE-09 review-queue machinery, which is not yet built).
+**Why:** User decision — wants prose freshness (summary + amendments) AND scope freshness (topics) to track together. Avoids the failure mode where a bill silently drifts out of scope (e.g. an AI clause struck in markup) while the wiki keeps tracking + summarizing it as if it were still in scope.
+**Trade-offs:** One extra classifier call per text-changed bill (plan usage). Possible flap if the classifier is noisy on borderline bills. Mitigated by the OUT→stay-with-`tracking=false` rule (the page is never deleted; flipping back IN requires explicit `/zwiad-backfill --force` — a follow-up, not built in this phase).
+**Revisit if:** Flap is observed (a bill toggles IN/OUT across runs without substantive change) — then narrow to summarizer + explainer per alternative (a), or add the review-queue gate.
+
+## 2026-05-28 — 40. `LegHistory.narrative` persists to frontmatter alongside hearings/statements
+**Chosen:** Extend D37's partial-persistence carve-out: page frontmatter's `leg_history` block now carries `{hearings, statements, narrative}` (D37 was `{hearings, statements}` only). Spine fields (versions, committee_reports, votes, floor_consideration, enactment) remain body-only / re-derived per D37.
+**Alternatives:** Leave D37 as-is; a routine refresh strips the narrative; user re-runs `/zwiad-leg-history` to regenerate.
+**Why:** The narrative is the same kind of expensive, non-deterministic, model-generated output as the verified statements — losing it on routine refresh would silently degrade the most-read part of the leg-history section. Surviving in frontmatter is the same property `hearings`/`statements` already have.
+**Trade-offs:** Slightly longer YAML (the narrative is prose, not a structured list). Splits `LegHistory` persistence further: structured research + narrative in frontmatter; spine body-only.
+**Revisit if:** Narrative prose in YAML proves unwieldy — then encode it as a path reference to a sidecar file and keep the frontmatter slim.
+
+## 2026-05-28 — 41. Automation is hybrid: headless deterministic detection + interactive LLM dispatch (RECOMMENDED — confirm before PHASE-10)
+**Chosen (RECOMMENDED, not yet locked):** Resolve the contradiction between the headline promise of a "scheduled scan a few times/week" and D26 (all LLM work is interactive Claude Code subagents; Python makes zero LLM calls) with a **hybrid**: a real OS cron job runs ONLY the headless, deterministic detection commands — `fetch-candidates` and `fetch-refreshable`, which make zero LLM calls — and writes a "pending dispatch" signal (the gitignored `data/runs/<id>/` candidate/refreshable JSON already serves as this signal). The LLM subagent dispatch (classifier / summarizer / amendment-explainer) still requires an interactive Claude Code session — invoked manually or via `/loop` — because D26 keeps that work on the regular plan. Cron detects and queues; a human (or `/loop`) drains the queue interactively.
+**Alternatives:**
+1. **Hybrid (recommended):** cron runs headless deterministic detection + writes a pending-dispatch signal; LLM dispatch stays interactive (`/loop` or manual). Keeps detection unattended and cheap; keeps every LLM call on the regular plan per D26.
+2. **Pure-interactive + `/loop`:** no OS cron at all; an open Claude Code session runs `/loop` on an interval that does detection AND dispatch in one place. Simplest, fully D26-compliant, but nothing runs when no session is open.
+3. **`claude -p` / Agent SDK headless:** make the whole scan unattended by dispatching subagents headless. Rejected for v1 — per D26, `claude -p` and the Agent SDK draw a separate capped *Agent SDK credit* then bill API rates and do not support claude.ai subscription auth, which violates the "runs on the regular plan" constraint.
+**Why:** The README/PLAN headline ("scheduled scan a few times/week") implied fully-unattended automation, which D26 explicitly forbids. The hybrid is the only option that honors BOTH the freshness goal (detection runs on a schedule) and D26 (LLM calls stay interactive). Detection is pure deterministic HTTP, so it is safe to run headless; dispatch is the part D26 reserves for interactive sessions.
+**Trade-offs:** Not fully hands-off — a person (or an open `/loop` session) must drain the pending-dispatch queue, so freshness of the LLM-derived prose depends on someone running the interactive pass. Cron only guarantees fresh *detection*, not fresh *pages*.
+**Revisit if:** D26 is revisited (a headless/API path is adopted), or the pending-dispatch backlog regularly goes stale because no one runs the interactive pass — then reconsider option 3 on the Agent SDK credit. **This decision is RECOMMENDED only; confirm the automation direction with the user before PHASE-10 implements scheduling.**
+
+## 2026-05-28 — 42. Classifier subagent runs on `sonnet`, not `haiku`
+**Chosen:** The `classifier` subagent's frontmatter `model:` is `sonnet` (was `haiku`).
+**Alternatives:** Keep `haiku` (cheapest, fastest); use `opus` (most capable, matches the leg-history verifier in D36).
+**Why:** The classifier is the D17 precision gate — it applies the `positive_criteria` + `disqualify` rubric to decide operative-vs-incidental scope, which is genuinely subtle. The D32 financial-privacy line is the canonical hard case: a credit-report "trigger-leads" restriction is IN (operative data-privacy core), but an FIO-subpoena-power bill is OUT (data mention incidental). The Phase-04 UAT already recorded a haiku false-positive on `118-s-3502`. This borderline operative-substance judgment is sonnet-class work; haiku rubber-stamps near the boundary, which is exactly the failure D17 warns against ("vague verifier criteria rubber-stamp everything and make the loop theater"). `opus` is reserved for the highest-stakes output (the leg-history verifier, D36); routine per-candidate classification does not need it.
+**Trade-offs:** Higher plan usage per candidate — the classifier runs once per candidate bill in `/zwiad-backfill`, and once per text-changed bill in `/zwiad-refresh` (D39), so the sonnet cost is multiplied by candidate volume.
+**Revisit if:** Plan usage from classification proves too high — then re-validate `haiku` against a curated borderline set (including `118-s-3502` and the two D32 financial bills) before reverting; revert only if haiku reproduces the sonnet verdicts on that set.
+
+## 2026-05-28 — 43. D36 grounding gate is fixed-strength; recall recovery is a prompt fix, never a gate loosening
+**Chosen:** When researched leg-history quotes are dropped at a rate that looks too high, the remedy is to improve the `leg-history-researcher` / `leg-history-verifier` subagent PROMPTS (better source selection, more precise verbatim capture) — handled as a Batch 3 prompt task — NOT to weaken the D36 deterministic grounding gate (HTTP 200 + normalized verbatim substring present + ≥20 normalized chars + cross-modal verifier confirm).
+**Alternatives:** Loosen normalization, lower the 20-char floor, or drop the second-model verifier to raise quote recall.
+**Why:** D36 fixed the trust boundary deliberately: attributed quotes are the highest-stakes output, and the gate favors false-rejects over false-accepts on purpose. A misattributed quote is worse than a missed one. Recovering recall by loosening the gate trades the project's core correctness guarantee for coverage — the wrong trade. The honest lever is the prompt that produces better-grounded candidates upstream of the gate.
+**Trade-offs:** Recall improvements are slower (prompt iteration under interactive UAT) than a one-line threshold change would be.
+**Revisit if:** D36 itself is formally revisited (its own "Revisit if" — drop rate persistently too high AND prompt fixes are exhausted) — only then consider loosening normalization or the length floor, with the change logged against D36.
+
+## 2026-05-28 — 44. Historical pagination has a home: v1 tracks forward from now; full back-catalog pagination is PHASE-03.1's deferred follow-up
+**Chosen:** The comprehensive historical backfill deferred in D33 (offset pagination over a whole congress) is explicitly assigned a home rather than left floating: **v1 tracks forward from now** — discovery recalls from the newest-updated 250 bills + the `policyArea` probe, so a topical bill not recently updated in a historical congress stays out of reach until offset pagination lands. Offset pagination remains a deferred follow-up to PHASE-03.1, not part of PHASE-06.1.
+**Alternatives:** Build offset pagination now; or leave the gap undocumented (the status quo before this entry).
+**Why:** D33 deferred this but never stated where it lives or what the v1 contract is, leaving an ambiguous gap. Pinning it as "forward-from-now is the v1 contract; back-catalog is a named deferred follow-up" makes the limitation explicit and auditable instead of an unspoken surprise.
+**Trade-offs:** Historical bills (not recently updated) are not auto-discovered in v1; comprehensive back-catalog coverage waits for the deferred pagination work.
+**Revisit if:** Recall in practice misses bills that are not recently updated in a historical congress — then implement offset pagination as the named PHASE-03.1 follow-up.
+
+## 2026-05-28 — 45. Topics are retained when a refresh flips a bill out of scope — a deliberate historical-record choice
+**Chosen:** When `/zwiad-refresh` re-classifies a tracked bill OUT of scope (D39), the page's existing `topics[]` are RETAINED, not cleared; the page stays with `tracking=false` (the OUT→stay rule) but keeps its recorded topics as a historical record of why it was once tracked.
+**Alternatives:** Clear `topics[]` on an out-of-scope flip so frontmatter reflects only current scope.
+**Why:** A page flipped OUT is never deleted (D39); retaining its topics preserves the audit trail of why it entered the tracker, which matters for understanding scope drift (e.g. an AI clause struck in markup). Logging this makes the behavior an auditable, intentional choice rather than an accident of the refresh code.
+**Trade-offs:** Frontmatter `topics[]` on a `tracking=false` page reflects historical, not current, scope — readers must use `tracking` (not `topics`) as the current-scope signal.
+**Revisit if:** Retained topics on flipped-out pages cause confusion in the index or FTS results — then clear them on flip and record the scope history elsewhere (e.g. a `former_topics` field or the git history).
+
+## 2026-05-28 — 46. Retry-After honored on 5xx; GovInfo 429 stays non-retryable
+**Chosen:** Both source clients parse `Retry-After` (delta-seconds or HTTP-date) on a 503 and prefer it over the blind exponential wait via a tenacity wait callable; an absent/invalid header falls back to exponential. GovInfo 429 remains a non-retryable `RateLimitError` (fail-fast, no in-process retry).
+**Alternatives:** (a) Keep blind exponential backoff everywhere; (b) make GovInfo 429 retryable-with-Retry-After.
+**Why:** A server-supplied `Retry-After` is more accurate than guessing, and respecting it is polite to a shared public API. GovInfo's 429 is an hourly per-key quota (~the 40/sec shared limit), not a short transient — retrying it in-process cannot clear the quota and only burns attempts; the operator should back off the whole run instead.
+**Trade-offs:** A hostile/buggy `Retry-After` could stall a run for the header's duration (bounded only by the server, not `wait_max`); acceptable for these trusted gov APIs. GovInfo 429 still aborts the command rather than degrading gracefully.
+**Revisit if:** A run is observed stalling on an oversized `Retry-After` (then cap it at `wait_max`), or GovInfo's 429 proves to be a short rolling window worth retrying.
+
+---
+
+## 2026-05-28 — 47. Source API keys are query-param auth; redact before logging
+**Chosen:** Both Congress.gov and GovInfo are called with the key as a `?api_key=` query parameter (their only supported auth), and every string that could carry a request URL into a message or log is routed through `redact_api_key`, which masks the value to `REDACTED`.
+**Alternatives:** Header-based auth (not offered by either API); trust that URLs never reach logs.
+**Why:** Query-param auth is forced by the upstream APIs, so the key inevitably appears in full request URLs. A single redaction helper makes leak-prevention a one-liner at every boundary rather than a per-message judgment call.
+**Trade-offs:** A new helper to remember to apply; it only catches the `api_key` param name (sufficient for these two sources).
+**Revisit if:** A third source uses a different secret param name or header — then generalize the redactor to a configurable set of secret keys.
+
+---

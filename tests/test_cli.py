@@ -54,7 +54,7 @@ def test_version_command_prints_package_version() -> None:
 def test_reindex_command_reports_indexed_count(tmp_path: Path) -> None:
     """should rebuild the index from a wiki root and report how many pages it indexed"""
     wiki = tmp_path / "wiki"
-    write_page(Bill(id="hr-1", jurisdiction="US", title="A bill", bill_number="HR 1"), wiki)
+    write_page(Bill(id="118-hr-1", jurisdiction="US", title="A bill", bill_number="HR 1"), wiki)
     result = runner.invoke(
         app, ["reindex", "--wiki", str(wiki), "--db", str(tmp_path / "i.sqlite")]
     )
@@ -160,7 +160,13 @@ def test_fetch_candidates_recovers_title_miss_via_policy_area(
         ]
     }
     base = "/bill/118/s/9999"
-    detail = {"bill": {"title": "Quarterly Filing Reform Act", "policyArea": {"name": "Commerce"}}}
+    detail = {
+        "bill": {
+            "congress": 118, "type": "S", "number": "9999",
+            "title": "Quarterly Filing Reform Act",
+            "policyArea": {"name": "Commerce"},
+        }
+    }
     with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
         mock.get("/bill/118").respond(json=bill_list)
         mock.get(base).respond(json=detail)
@@ -246,6 +252,39 @@ def test_render_classified_is_idempotent(tmp_path: Path) -> None:
     first = page.read_text(encoding="utf-8")
     runner.invoke(app, args)
     assert page.read_text(encoding="utf-8") == first
+
+
+def test_render_classified_reports_clean_error_on_malformed_json(tmp_path: Path) -> None:
+    """should exit 1 with an 'error:' message (no traceback) on invalid JSON"""
+    bad = tmp_path / "classified.json"
+    bad.write_text("{not valid json", encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, _render_args(bad, wiki))
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_render_classified_reports_clean_error_on_missing_required_field(tmp_path: Path) -> None:
+    """should exit 1 with an 'error:' message when a bill is missing a required field"""
+    bad = tmp_path / "classified.json"
+    # Missing required 'bill_number' (and 'jurisdiction'/'title') -> ValidationError.
+    bad.write_text(json.dumps([{"id": "118-hr-1", "type": "bill"}]), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, _render_args(bad, wiki))
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_render_classified_reports_clean_error_when_top_level_not_list(tmp_path: Path) -> None:
+    """should exit 1 with an 'error:' message when classified.json is not a JSON list"""
+    bad = tmp_path / "classified.json"
+    bad.write_text(json.dumps({"id": "118-hr-1"}), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, _render_args(bad, wiki))
+    assert result.exit_code == 1
+    assert "error:" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +459,15 @@ def test_fetch_leg_history_errors_without_govinfo_api_key(
     monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
     monkeypatch.delenv("GOVINFO_API_KEY", raising=False)
 
+    # GovInfoSource construction now happens after the enacted check; patch
+    # CongressSource.fetch so the code reaches require_govinfo_api_key() cleanly.
+    enacted = _make_enacted_bill()
+
+    def _fake_fetch_enacted(self: object, native_id: str) -> Bill:  # noqa: ARG001
+        return enacted
+
+    monkeypatch.setattr("zwiadbrain.cli.CongressSource.fetch", _fake_fetch_enacted)
+
     result = runner.invoke(
         app,
         ["fetch-leg-history", "--bill", "118/hr/8818"],
@@ -516,8 +564,20 @@ def _make_leg_history_staging(tmp_path: Path) -> Path:
         ),
     ]
     verdicts = [
-        {"index": 0, "verified": True, "note": "Quote confirmed in CR."},
-        {"index": 1, "verified": True, "note": "Quote confirmed in CR."},
+        {
+            "index": 0,
+            "verified": True,
+            "speaker": "Rep. Lieu, Ted",
+            "quote_prefix": _QUOTE_A[:40],
+            "note": "Quote confirmed in CR.",
+        },
+        {
+            "index": 1,
+            "verified": True,
+            "speaker": "Rep. Smith, Jane",
+            "quote_prefix": _QUOTE_B[:40],
+            "note": "Quote confirmed in CR.",
+        },
     ]
     narrative = (
         "This landmark bill establishes the first comprehensive federal framework"
@@ -819,9 +879,12 @@ def test_render_leg_history_verdict_aligned_to_surviving_statements_after_parse_
         },
     ]
     verdicts: list[object] = [
-        {"index": 0, "verified": True},   # original index 0 — parse-dropped, verdict unused
-        {"index": 1, "verified": False},   # original index 1 — verifier REJECTED
-        {"index": 2, "verified": True},    # original index 2 — verifier CONFIRMED
+        # original index 0 — parse-dropped, verdict unused
+        {"index": 0, "verified": True, "speaker": "Rep. A", "quote_prefix": _QUOTE_A[:40]},
+        # original index 1 — verifier REJECTED
+        {"index": 1, "verified": False},
+        # original index 2 — verifier CONFIRMED
+        {"index": 2, "verified": True, "speaker": "Rep. C", "quote_prefix": _QUOTE_A[:40]},
     ]
     staging = tmp_path / "c1_regression.json"
     staging.write_text(
@@ -908,3 +971,527 @@ def test_render_leg_history_input_verified_flag_does_not_bypass_verifier(
     # The statement must NOT appear: input verified=true does not bypass the gate.
     assert _QUOTE_A not in content
     assert "1 input / 0 grounded" in result.output
+
+
+def test_fetch_refreshable_writes_json_for_changed_bills_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should re-fetch tracked bills, write refreshable.json for those whose update_date moved"""
+    import json
+
+    import respx
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+    from zwiadbrain.sources.congress import CONGRESS_API_BASE
+
+    # Wiki with two tracked bills committed to disk.
+    wiki = tmp_path / "wiki"
+    (wiki / "federal" / "bills").mkdir(parents=True)
+    (wiki / "federal" / "bills" / "118-hr-1.md").write_text(
+        "---\n"
+        "id: 118-hr-1\n"
+        "jurisdiction: US\n"
+        "title: Bill One\n"
+        "bill_number: H.R. 1\n"
+        "type: bill\n"
+        "tracking: true\n"
+        "update_date: '2026-05-01T00:00:00Z'\n"
+        "update_date_text: '2026-05-01T00:00:00Z'\n"
+        "summary_hash: hash-1\n"
+        "amendments_count: 0\n"
+        "---\n\n## Summary\n\nx\n",
+        encoding="utf-8",
+    )
+    (wiki / "federal" / "bills" / "118-hr-2.md").write_text(
+        "---\n"
+        "id: 118-hr-2\n"
+        "jurisdiction: US\n"
+        "title: Bill Two\n"
+        "bill_number: H.R. 2\n"
+        "type: bill\n"
+        "tracking: true\n"
+        "update_date: '2026-05-01T00:00:00Z'\n"
+        "update_date_text: '2026-05-01T00:00:00Z'\n"
+        "summary_hash: hash-2\n"
+        "amendments_count: 0\n"
+        "---\n\n## Summary\n\ny\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CONGRESS_API_KEY", "test")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test")
+
+    # Bill 1 fresh: update_date unchanged → skipped.
+    bill1_detail = {"bill": {"congress": 118, "type": "HR", "number": 1, "title": "Bill One",
+                              "updateDate": "2026-05-01T00:00:00Z",
+                              "updateDateIncludingText": "2026-05-01T00:00:00Z"}}
+    # Bill 2 fresh: update_date_text advanced → refreshable, text-changed.
+    bill2_detail = {"bill": {"congress": 118, "type": "HR", "number": 2, "title": "Bill Two",
+                              "updateDate": "2026-05-05T00:00:00Z",
+                              "updateDateIncludingText": "2026-05-05T00:00:00Z"}}
+    empty_subs: dict[str, list[object]] = {"actions": [], "amendments": [], "textVersions": [],
+                                           "summaries": [], "relatedBills": []}
+
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        for n, payload in [(1, bill1_detail), (2, bill2_detail)]:
+            mock.get(f"/bill/118/hr/{n}").respond(json=payload)
+            mock.get(f"/bill/118/hr/{n}/actions").respond(json={"actions": empty_subs["actions"]})
+            mock.get(f"/bill/118/hr/{n}/amendments").respond(
+                json={"amendments": empty_subs["amendments"]}
+            )
+            mock.get(f"/bill/118/hr/{n}/text").respond(
+                json={"textVersions": empty_subs["textVersions"]}
+            )
+            mock.get(f"/bill/118/hr/{n}/summaries").respond(
+                json={"summaries": empty_subs["summaries"]}
+            )
+            mock.get(f"/bill/118/hr/{n}/relatedbills").respond(
+                json={"relatedBills": empty_subs["relatedBills"]}
+            )
+
+        out_dir = tmp_path / "run"
+        result = CliRunner().invoke(app, [
+            "fetch-refreshable", "--wiki", str(wiki), "--out", str(out_dir),
+        ])
+    assert result.exit_code == 0, result.output
+    refreshable = json.loads((out_dir / "refreshable.json").read_text(encoding="utf-8"))
+    ids = [r["bill_id"] for r in refreshable]
+    assert ids == ["118-hr-2"]
+    entry = refreshable[0]
+    assert entry["needs_classifier"] is True
+    assert entry["needs_summarizer"] is True
+    assert entry["changed_amendment_numbers"] == []
+
+
+def test_fetch_refreshable_writes_empty_list_when_nothing_changed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should write refreshable.json with [] when no tracked bill moved"""
+    import json
+
+    import respx
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+    from zwiadbrain.sources.congress import CONGRESS_API_BASE
+
+    wiki = tmp_path / "wiki"
+    (wiki / "federal" / "bills").mkdir(parents=True)
+    (wiki / "federal" / "bills" / "118-hr-1.md").write_text(
+        "---\n"
+        "id: 118-hr-1\njurisdiction: US\ntitle: Bill One\nbill_number: H.R. 1\n"
+        "type: bill\ntracking: true\nupdate_date: '2026-05-01T00:00:00Z'\n---\n\nx\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CONGRESS_API_KEY", "test")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test")
+
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get("/bill/118/hr/1").respond(
+            json={"bill": {"congress": 118, "type": "HR", "number": 1, "title": "Bill One",
+                            "updateDate": "2026-05-01T00:00:00Z"}}
+        )
+        for sub in ("actions", "amendments", "text", "summaries", "relatedbills"):
+            key = {"actions": "actions", "amendments": "amendments", "text": "textVersions",
+                   "summaries": "summaries", "relatedbills": "relatedBills"}[sub]
+            mock.get(f"/bill/118/hr/1/{sub}").respond(json={key: []})
+        out_dir = tmp_path / "run"
+        result = CliRunner().invoke(app, [
+            "fetch-refreshable", "--wiki", str(wiki), "--out", str(out_dir),
+        ])
+    assert result.exit_code == 0, result.output
+    refreshable = json.loads((out_dir / "refreshable.json").read_text(encoding="utf-8"))
+    assert refreshable == []
+
+
+def test_render_refreshed_applies_preservation_and_renders(tmp_path: Path) -> None:
+    """should re-attach prev leg_history, write the page, and report counts"""
+    import json
+
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+
+    # Fresh bill (from fetch-refreshable) — enacted, with re-derived spine, no hearings.
+    fresh = {
+        "id": "118-hr-1", "jurisdiction": "US", "title": "Bill One",
+        "bill_number": "H.R. 1", "type": "bill", "tracking": True, "enacted": True,
+        "leg_history": {
+            "versions": [],
+            "committee_reports": [
+                {"citation": "H. Rept. 1", "url": "https://example.test/c"}
+            ],
+            "floor_consideration": [], "votes": [], "hearings": [], "statements": [],
+            "narrative": None, "conference": None, "enactment": None,
+        },
+        "topics": ["ai"],
+        "summary": "Refreshed summary.",
+    }
+    # Prev (committed page) — has a hearing + narrative that must survive.
+    prev = {
+        **fresh,
+        "summary": "Old summary.",
+        "leg_history": {
+            "versions": [], "committee_reports": [],
+            "floor_consideration": [], "votes": [],
+            "hearings": [{"title": "Hearing X", "url": "https://example.test/h"}],
+            "statements": [],
+            "narrative": "The arc of the debate.",
+            "conference": None, "enactment": None,
+        },
+    }
+    refreshed = [{
+        "bill_id": "118-hr-1",
+        "prev": prev,
+        "bill": fresh,                  # fresh + subagent outputs merged by the slash command
+        "classifier_in_scope": True,
+        "classifier_rationale": "still about AI",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+
+    page = (wiki / "federal" / "bills" / "118-hr-1.md").read_text(encoding="utf-8")
+    # research carried from prev
+    assert "Hearing X" in page
+    assert "The arc of the debate." in page
+    # spine taken from fresh
+    assert "H. Rept. 1" in page
+    # summary refreshed
+    assert "Refreshed summary." in page
+    # report mentions the count
+    assert "refreshed 1" in result.output
+
+
+def test_render_refreshed_flips_out_when_classifier_out_of_scope(tmp_path: Path) -> None:
+    """should set tracking=False and emit the audit marker on IN→OUT flip"""
+    import json
+
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+
+    refreshed = [{
+        "bill_id": "118-hr-9",
+        "prev": {
+            "id": "118-hr-9", "jurisdiction": "US", "title": "Old Title",
+            "bill_number": "H.R. 9", "type": "bill", "tracking": True, "topics": ["ai"],
+        },
+        "bill": {
+            "id": "118-hr-9", "jurisdiction": "US", "title": "Old Title",
+            "bill_number": "H.R. 9", "type": "bill", "tracking": True, "topics": ["ai"],
+            "summary": "Updated",
+        },
+        "classifier_in_scope": False,
+        "classifier_rationale": "telehealth scope drift",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+
+    page = (wiki / "federal" / "bills" / "118-hr-9.md").read_text(encoding="utf-8")
+    assert "tracking: false" in page
+    assert "<!-- zwiadbrain:flipped-out " in page
+    assert "telehealth scope drift" in page
+    # topics preserved (the prior classification's record stands)
+    assert "ai" in page
+    assert "1 flipped-out" in result.output
+
+
+def test_render_refreshed_carries_prev_leg_history_when_bill_has_none(tmp_path: Path) -> None:
+    """should carry prev.leg_history through unchanged when fresh bill has none
+
+    Defensive case: a non-enacted fresh bill has no spine, but prev had
+    research that must not be lost on refresh.
+    """
+    import json
+
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+
+    fresh = {
+        "id": "118-hr-5", "jurisdiction": "US", "title": "Bill Five",
+        "bill_number": "H.R. 5", "type": "bill", "tracking": True, "enacted": False,
+        "topics": ["ai"],
+        "summary": "Refreshed.",
+        # leg_history intentionally omitted — fresh non-enacted bill has no spine
+    }
+    prev = {
+        **fresh,
+        "summary": "Old.",
+        "leg_history": {
+            "versions": [], "committee_reports": [],
+            "floor_consideration": [], "votes": [],
+            "hearings": [{"title": "Old Hearing", "url": "https://example.test/h"}],
+            "statements": [],
+            "narrative": "Old narrative we must keep.",
+            "conference": None, "enactment": None,
+        },
+    }
+    refreshed = [{
+        "bill_id": "118-hr-5",
+        "prev": prev,
+        "bill": fresh,
+        "classifier_in_scope": True,
+        "classifier_rationale": "",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+
+    page = (wiki / "federal" / "bills" / "118-hr-5.md").read_text(encoding="utf-8")
+    # prev's research carried through onto the fresh bill
+    assert "Old Hearing" in page
+    assert "Old narrative we must keep." in page
+
+
+def test_render_refreshed_reports_clean_error_on_missing_key(tmp_path: Path) -> None:
+    """should exit with code 1 and a clean message when entry lacks 'bill' or 'prev'"""
+    import json
+
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+
+    # Entry missing 'bill'
+    refreshed = [{"bill_id": "118-hr-1", "prev": {"id": "118-hr-1", "jurisdiction": "US",
+                  "title": "x", "bill_number": "H.R. 1", "type": "bill"}}]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(tmp_path / "wiki"),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 1
+    assert "missing required key 'bill'" in result.output
+
+
+def test_fetch_refreshable_rejects_malformed_bill_id(tmp_path: Path) -> None:
+    """should raise ConfigError (not a bare unpacking ValueError) on a non-three-segment id"""
+    from zwiadbrain.exceptions import ConfigError
+    from zwiadbrain.pipeline.ids import parse_bill_id
+
+    # The cli path delegates id parsing to parse_bill_id; a 4-segment state id
+    # must surface as ConfigError, the type fetch_refreshable's AppError handler catches.
+    with pytest.raises(ConfigError):
+        parse_bill_id("us-ca-sb-362")
+
+
+def test_reindex_skips_corrupt_page_and_indexes_the_rest(tmp_path: Path) -> None:
+    """should index the valid page and skip a page whose frontmatter YAML is malformed"""
+    wiki = tmp_path / "wiki"
+    write_page(Bill(id="118-hr-1", jurisdiction="US", title="Good", bill_number="H.R. 1"), wiki)
+    (wiki / "federal" / "bills" / "corrupt.md").write_text(
+        "---\nid: 118-hr-2\njurisdiction: {US\n---\nbody", encoding="utf-8"
+    )
+    result = runner.invoke(
+        app, ["reindex", "--wiki", str(wiki), "--db", str(tmp_path / "i.sqlite")]
+    )
+    assert result.exit_code == 0, result.output
+    assert "reindexed 1 pages" in result.stdout
+
+
+def test_render_leg_history_stamps_summary_hash_on_page(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should write a summary_hash into frontmatter for a leg-history page with a summary"""
+    from zwiadbrain.pipeline.refresh import summary_hash
+    from zwiadbrain.wiki.schema import from_page
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch)
+    bill = Bill(
+        id="118-hr-8818", jurisdiction="US", title="t", bill_number="H.R. 8818",
+        congress="118", enacted=True, summary="A Claude-written summary of the Act.",
+    )
+    spine = LegHistory()
+    staging = tmp_path / "lh_hash.json"
+    staging.write_text(
+        json.dumps({
+            "bill": bill.model_dump(mode="json"),
+            "spine": spine.model_dump(mode="json"),
+            "hearings": [], "statements": [], "narrative": None, "verdicts": [],
+        }),
+        encoding="utf-8",
+    )
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+    page = (wiki / "federal" / "bills" / "118-hr-8818.md").read_text(encoding="utf-8")
+    parsed = from_page(page)
+    assert isinstance(parsed, Bill)
+    assert parsed.summary_hash == summary_hash("A Claude-written summary of the Act.")
+    assert parsed.summary_hash is not None
+
+
+def test_render_refreshed_recomputes_cursors_deterministically(tmp_path: Path) -> None:
+    """should re-stamp summary_hash/amendments_count from the merged bill, ignoring stale input"""
+    import json
+
+    from typer.testing import CliRunner
+
+    from zwiadbrain.cli import app
+    from zwiadbrain.pipeline.refresh import summary_hash
+    from zwiadbrain.wiki.schema import from_page
+
+    fresh = {
+        "id": "118-hr-1", "jurisdiction": "US", "title": "Bill One",
+        "bill_number": "H.R. 1", "type": "bill", "tracking": True,
+        "topics": ["ai"], "summary": "Refreshed summary text.",
+        "summary_hash": "STALE-HASH-FROM-SUBAGENT", "amendments_count": 99, "amendments": [],
+    }
+    prev = {**fresh, "summary": "Old summary.", "summary_hash": "old", "amendments_count": 0}
+    refreshed = [{
+        "bill_id": "118-hr-1", "prev": prev, "bill": fresh,
+        "classifier_in_scope": True, "classifier_rationale": "still about AI",
+    }]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "refreshed.json").write_text(json.dumps(refreshed), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = CliRunner().invoke(app, [
+        "render-refreshed", "--in", str(run / "refreshed.json"), "--wiki", str(wiki),
+        "--db", str(tmp_path / "idx.sqlite"),
+    ])
+    assert result.exit_code == 0, result.output
+    parsed = from_page((wiki / "federal" / "bills" / "118-hr-1.md").read_text(encoding="utf-8"))
+    assert isinstance(parsed, Bill)
+    assert parsed.summary_hash == summary_hash("Refreshed summary text.")
+    assert parsed.summary_hash != "STALE-HASH-FROM-SUBAGENT"
+    assert parsed.amendments_count == 0
+
+
+def test_fetch_refreshable_skips_bad_page_and_processes_others(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should skip a page with a malformed id, log it to stderr, and still process valid bills"""
+    import respx
+
+    from zwiadbrain.sources.congress import CONGRESS_API_BASE
+
+    wiki = tmp_path / "wiki"
+    (wiki / "federal" / "bills").mkdir(parents=True)
+    # Malformed id: "118-hr" has only two segments -> parse_bill_id raises ConfigError.
+    (wiki / "federal" / "bills" / "bad.md").write_text(
+        "---\nid: 118-hr\njurisdiction: US\ntitle: Bad\nbill_number: H.R.\n"
+        "type: bill\ntracking: true\nupdate_date: '2026-05-01T00:00:00Z'\n---\n\nx\n",
+        encoding="utf-8",
+    )
+    # Valid, changed bill.
+    (wiki / "federal" / "bills" / "118-hr-2.md").write_text(
+        "---\nid: 118-hr-2\njurisdiction: US\ntitle: Bill Two\nbill_number: H.R. 2\n"
+        "type: bill\ntracking: true\nupdate_date: '2026-05-01T00:00:00Z'\n"
+        "update_date_text: '2026-05-01T00:00:00Z'\nsummary_hash: hash-2\n---\n\ny\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CONGRESS_API_KEY", "test")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test")
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        mock.get("/bill/118/hr/2").respond(
+            json={"bill": {"congress": 118, "type": "HR", "number": 2, "title": "Bill Two",
+                           "updateDate": "2026-05-05T00:00:00Z",
+                           "updateDateIncludingText": "2026-05-05T00:00:00Z"}}
+        )
+        for sub, key in [("actions", "actions"), ("amendments", "amendments"),
+                         ("text", "textVersions"), ("summaries", "summaries"),
+                         ("relatedbills", "relatedBills")]:
+            mock.get(f"/bill/118/hr/2/{sub}").respond(json={key: []})
+        out_dir = tmp_path / "run"
+        result = runner.invoke(
+            app, ["fetch-refreshable", "--wiki", str(wiki), "--out", str(out_dir)]
+        )
+    assert result.exit_code == 0, result.output
+    refreshable = json.loads((out_dir / "refreshable.json").read_text(encoding="utf-8"))
+    assert [r["bill_id"] for r in refreshable] == ["118-hr-2"]
+    assert "skipped" in result.output
+    assert "bad.md" in result.output
+    assert "1 skipped" in result.output
+
+
+def test_fetch_leg_history_rejects_malformed_bill_arg(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit 1 with a clean ConfigError when --bill is not congress/type/number"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setenv("GOVINFO_API_KEY", "test-govinfo-key")
+    result = runner.invoke(
+        app, ["fetch-leg-history", "--bill", "foo", "--out", str(tmp_path / "r")]
+    )
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output
+    assert not (tmp_path / "r" / "leghistory.json").exists()
+
+
+def test_reindex_command_reports_store_error_without_traceback(tmp_path: Path) -> None:
+    """should exit 1 with a clean message when the index path is an unwritable directory"""
+    runner = CliRunner()
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    # Point --db at a directory: sqlite cannot open it as a file, surfacing StoreError.
+    bad_db = tmp_path / "adir"
+    bad_db.mkdir()
+    result = runner.invoke(app, ["reindex", "--wiki", str(wiki), "--db", str(bad_db)])
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_backfill_force_retracks_single_flipped_out_bill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should re-fetch a single bill and write it re-tracked (tracking=true, no flip audit)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    wiki = tmp_path / "wiki"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        base = "/bill/118/hr/8818"
+        mock.get(base).respond(json=_fixture("detail.json"))
+        mock.get(f"{base}/actions").respond(json=_fixture("actions.json"))
+        mock.get(f"{base}/amendments").respond(json=_fixture("amendments.json"))
+        mock.get(f"{base}/text").respond(json=_fixture("text.json"))
+        mock.get(f"{base}/summaries").respond(json=_fixture("summaries.json"))
+        mock.get(f"{base}/relatedbills").respond(json=_fixture("relatedbills.json"))
+        result = runner.invoke(
+            app, ["backfill", "--congress", "118", "--force", "118/hr/8818", "--wiki", str(wiki)]
+        )
+    assert result.exit_code == 0, result.output
+    page = (wiki / "federal" / "bills" / "118-hr-8818.md").read_text(encoding="utf-8")
+    assert "tracking: true" in page or "tracking:" not in page  # default True is omitted
+    assert "flipped-out" not in page
+
+
+def test_backfill_rejects_nonpositive_limit() -> None:
+    """should exit 2 when --limit is below 1"""
+    result = runner.invoke(app, ["backfill", "--congress", "118", "--limit", "0"])
+    assert result.exit_code == 2
+
+
+def test_fetch_candidates_rejects_nonpositive_congress() -> None:
+    """should exit 2 when --congress is below 1"""
+    result = runner.invoke(app, ["fetch-candidates", "--congress", "0", "--limit", "1"])
+    assert result.exit_code == 2

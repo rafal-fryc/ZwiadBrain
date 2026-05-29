@@ -38,6 +38,10 @@ class WikiSchemaError(AppError):
     """Page frontmatter failed schema validation."""
 
 
+class StoreError(AppError):
+    """A SQLite-boundary operation failed (corrupt index, write error)."""
+
+
 class LawBrainError(AppError):
     """Base for law-brain integration errors."""
 

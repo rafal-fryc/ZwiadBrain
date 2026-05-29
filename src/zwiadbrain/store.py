@@ -11,13 +11,14 @@ embeddings (decision 13).
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import sqlite3
 from pathlib import Path
 from types import TracebackType
 
-from zwiadbrain.exceptions import WikiSchemaError
+from zwiadbrain.exceptions import StoreError, WikiSchemaError
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.wiki.schema import from_page
 
@@ -57,9 +58,44 @@ class Store:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(db_path)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.executescript(_SCHEMA)
+        self.conn = self._connect_and_init(db_path)
+
+    def _connect_and_init(self, db_path: Path) -> sqlite3.Connection:
+        """Open the index and apply the schema, self-healing a corrupt file.
+
+        The index is derived and disposable (rebuilt from committed frontmatter by
+        :meth:`reindex`), so a corrupt on-disk file is deleted and recreated rather
+        than surfaced. Any other sqlite failure is translated to StoreError so the
+        CLI's single `except AppError` boundary catches it instead of a raw traceback.
+        OSError (e.g. PermissionError when db_path is a directory on Windows) is also
+        wrapped into StoreError so it is not a raw traceback.
+        """
+        conn: sqlite3.Connection | None = None
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            conn.executescript(_SCHEMA)
+            return conn
+        except sqlite3.DatabaseError:
+            # Corrupt or non-sqlite file: it is a derived cache, so discard and rebuild.
+            # Close the connection first (required on Windows to release the file lock).
+            if conn is not None:
+                with contextlib.suppress(Exception):
+                    conn.close()
+            # unlink is suppressed: on Windows, db_path may be a directory (PermissionError)
+            # or already removed; either way, the rebuild attempt below will surface the error.
+            with contextlib.suppress(OSError):
+                db_path.unlink(missing_ok=True)
+            try:
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                conn.executescript(_SCHEMA)
+                return conn
+            except (sqlite3.Error, OSError) as exc:
+                raise StoreError(f"could not initialize index at {db_path}: {exc}") from exc
+        except OSError as exc:
+            # e.g. PermissionError on Windows when db_path is an existing directory.
+            raise StoreError(f"could not initialize index at {db_path}: {exc}") from exc
 
     def __enter__(self) -> Store:
         return self
@@ -80,22 +116,30 @@ class Store:
     def reindex(self, wiki_root: Path) -> int:
         """Rebuild the index from every committed page under ``wiki_root``.
 
+        The DELETE + reinsert loop runs inside a single ``with self.conn`` block so
+        the rebuild is atomic: on success it commits, and on any failure mid-loop it
+        rolls back, leaving the prior index intact rather than half-rebuilt. SQLite
+        write failures are translated to StoreError for the CLI's AppError boundary.
+
         Non-item Markdown (e.g. ``README.md``) is skipped. Returns the number of
         indexed pages.
         """
-        self.conn.execute("DELETE FROM items")
-        self.conn.execute("DELETE FROM items_fts")
-        count = 0
-        for path in sorted(wiki_root.rglob("*.md")):
-            text = path.read_text(encoding="utf-8")
-            try:
-                item = from_page(text)
-            except WikiSchemaError:
-                continue  # not a tracked-item page (README, index, etc.)
-            self._index_item(item, path.relative_to(wiki_root).as_posix())
-            count += 1
-        self.conn.commit()
-        return count
+        try:
+            with self.conn:
+                self.conn.execute("DELETE FROM items")
+                self.conn.execute("DELETE FROM items_fts")
+                count = 0
+                for path in sorted(wiki_root.rglob("*.md")):
+                    text = path.read_text(encoding="utf-8")
+                    try:
+                        item = from_page(text)
+                    except WikiSchemaError:
+                        continue  # not a tracked-item page (README, index, etc.)
+                    self._index_item(item, path.relative_to(wiki_root).as_posix())
+                    count += 1
+            return count
+        except sqlite3.Error as exc:
+            raise StoreError(f"reindex failed for {wiki_root}: {exc}") from exc
 
     def _index_item(self, item: Bill | EnforcementAction, rel_path: str) -> None:
         is_bill = isinstance(item, Bill)
@@ -130,6 +174,7 @@ class Store:
                 rel_path,
             ),
         )
+        self.conn.execute("DELETE FROM items_fts WHERE id = ?", (item.id,))
         self.conn.execute(
             "INSERT INTO items_fts"
             " (id, title, jurisdiction, status, bill_number, topics, agency, docket)"
@@ -147,6 +192,9 @@ class Store:
         )
 
     # --- queries --------------------------------------------------------
+    # NOTE: get / tracked / search / count read the derived index. search is
+    # lexical (FTS5/BM25), best-effort, and ahead of its phase-07 retrieval
+    # consumers — it is exercised by tests today, not yet by a CLI command.
 
     def count(self) -> int:
         row = self.conn.execute("SELECT COUNT(*) FROM items").fetchone()
@@ -161,9 +209,18 @@ class Store:
         ).fetchall()
 
     def search(self, query: str) -> list[str]:
-        rows = self.conn.execute(
-            "SELECT id FROM items_fts WHERE items_fts MATCH ? ORDER BY rank", (query,)
-        ).fetchall()
+        """Return item ids matching *query* (FTS5/BM25), best-effort.
+
+        A malformed FTS5 query (unbalanced quotes, stray metacharacters from an
+        external consumer) degrades to an empty result rather than raising — lexical
+        search is best-effort, not a trust boundary.
+        """
+        try:
+            rows = self.conn.execute(
+                "SELECT id FROM items_fts WHERE items_fts MATCH ? ORDER BY rank", (query,)
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []
         return [str(row[0]) for row in rows]
 
     # --- law-brain page cache ------------------------------------------

@@ -14,7 +14,23 @@ its annotation is evaluated.
 import datetime as dt
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, model_validator
+
+from zwiadbrain.exceptions import ConfigError
+
+
+def _require_http(value: str) -> str:
+    """Assert a URL string starts with ``http://`` or ``https://``.
+
+    Returns the value UNCHANGED on success so the serialized bytes are
+    byte-identical (D20) — unlike pydantic's ``HttpUrl``, which reformats.
+    """
+    if not (value.startswith("http://") or value.startswith("https://")):
+        raise ValueError(f"url must start with http:// or https://, got: {value!r}")
+    return value
+
+
+_HttpUrlStr = Annotated[str, AfterValidator(_require_http)]
 
 
 class CommentarySource(BaseModel):
@@ -29,7 +45,7 @@ class CommentarySource(BaseModel):
     updated: dt.date | None = None
     content_hash: str
     matched_by: Literal["deterministic", "llm"]
-    confidence: float
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     body: str | None = None  # verbatim copied page body; rendered, not stored in frontmatter
 
 
@@ -49,6 +65,7 @@ class Amendment(BaseModel):
     sponsor: str | None = None
     chamber: str | None = None
     status: str | None = None
+    latest_action_date: dt.date | None = None
     what_changed: str | None = None
 
 
@@ -102,11 +119,23 @@ class Statement(BaseModel):
     speaker: str
     role: Literal["sponsor", "cosponsor", "member", "witness", "other"]
     date: dt.date | None = None
-    quote: str
+    quote: Annotated[str, Field(min_length=20)]  # D36 grounding floor (_MIN_QUOTE_CHARS)
     context: str | None = None
-    source_url: str
+    source_url: _HttpUrlStr
     source_type: Literal["CREC", "hearing", "press", "news", "other"]
     verified: bool = False
+
+
+class StatutesAtLarge(BaseModel):
+    """Statutes-at-Large citation for an enacted public law.
+
+    Carries the canonical citation (e.g. ``"138 Stat. 1234"``) and a clickable
+    GovInfo ``app/details`` URL.  ``url`` is required: the project's leg-history
+    rule is "no link, no render" (matching ``Hearing``, ``CommitteeReport``, etc.).
+    """
+
+    citation: Annotated[str, Field(min_length=1)]
+    url: _HttpUrlStr
 
 
 class Enactment(BaseModel):
@@ -114,7 +143,7 @@ class Enactment(BaseModel):
 
     date_signed: dt.date | None = None
     public_law: str | None = None
-    statutes_at_large: str | None = None
+    statutes_at_large: StatutesAtLarge | None = None
     url: str | None = None
 
 
@@ -130,6 +159,18 @@ class LegHistory(BaseModel):
     hearings: list[Hearing] = []
     statements: list[Statement] = []
     narrative: str | None = None
+
+
+class FlipOutAudit(BaseModel):
+    """Audit record for a bill whose classifier verdict flipped IN→OUT during refresh.
+
+    Persisted to frontmatter so a future ``reindex`` re-reads it; the renderer
+    emits an ``<!-- zwiadbrain:flipped-out … -->`` comment in the body from it.
+    Survives a fresh clone via committed wiki history.
+    """
+
+    date: dt.date
+    reason: Annotated[str, Field(min_length=1)]
 
 
 class WikiItem(BaseModel):
@@ -168,7 +209,33 @@ class Bill(WikiItem):
     leg_history: LegHistory | None = None
     related_bills: list[str] = []
     change_hash: str | None = None
+    # str (not dt.date): a full ISO timestamp cursor (Congress.gov updateDate)
+    # compared by raw equality in refresh.detect_refreshable, never date math —
+    # retyping would drop the time component and reformat the bytes (D20).
     update_date: str | None = None
+    update_date_text: str | None = None
+    summary_hash: str | None = None
+    amendments_count: int = 0
+    flipped_out: FlipOutAudit | None = None
+
+    @model_validator(mode="after")
+    def _check_federal_id_shape(self) -> "Bill":
+        """Federal (``jurisdiction == "US"``) ids must be ``<congress>-<type>-<number>``.
+
+        Parsed via the shared :func:`parse_bill_id`, which raises ``ConfigError``
+        on a malformed id; re-raised here as ``ValueError`` so pydantic surfaces
+        it as a ``ValidationError``.  State ids (e.g. ``us-ca-sb-362``) use a
+        different shape and are left unchecked.  This only validates — it never
+        rewrites ``self.id`` — so serialized output is byte-identical (D20).
+        """
+        if self.jurisdiction == "US":
+            from zwiadbrain.pipeline.ids import parse_bill_id  # noqa: PLC0415
+
+            try:
+                parse_bill_id(self.id)
+            except ConfigError as exc:
+                raise ValueError(str(exc)) from exc
+        return self
 
 
 class EnforcementAction(WikiItem):

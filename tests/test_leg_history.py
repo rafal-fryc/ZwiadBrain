@@ -6,7 +6,9 @@ Uses simple fake source objects — no live network calls.
 import datetime as dt
 
 import pytest
+from pydantic import ValidationError
 
+from zwiadbrain.exceptions import ConfigError
 from zwiadbrain.models import (
     Action,
     Bill,
@@ -19,10 +21,10 @@ from zwiadbrain.models import (
     TextVersion,
     Vote,
 )
+from zwiadbrain.pipeline.ids import parse_bill_id
 from zwiadbrain.pipeline.leg_history import (
     _MIN_QUOTE_CHARS,  # pyright: ignore[reportPrivateUsage]
     GroundingResult,
-    _parse_id,  # pyright: ignore[reportPrivateUsage]
     _quote_present,  # pyright: ignore[reportPrivateUsage]
     assemble_spine,
     collect_leads,
@@ -262,17 +264,19 @@ def test_assemble_spine_enactment_signed_date_from_became_public_law_action() ->
 
 def test_assemble_spine_enactment_govinfo_public_law_preferred_over_bill() -> None:
     """should prefer govinfo public_law over bill.public_law when both are present"""
+    from zwiadbrain.models import StatutesAtLarge
     law = Enactment(
         public_law="118-200",  # different from bill's public_law
         url="https://govinfo.example",
-        statutes_at_large="138 Stat. 1234",
+        statutes_at_large=StatutesAtLarge(citation="138 Stat. 1234", url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1234"),
         date_signed=None,
     )
     bill = _enacted_bill(public_law="118-100")  # bill has its own
     spine = assemble_spine(bill, _FakeCongress(), _FakeGovInfo(enacted_law=law))
     assert spine.enactment is not None
     assert spine.enactment.public_law == "118-200"  # govinfo wins
-    assert spine.enactment.statutes_at_large == "138 Stat. 1234"
+    assert spine.enactment.statutes_at_large is not None
+    assert spine.enactment.statutes_at_large.citation == "138 Stat. 1234"
 
 
 def test_assemble_spine_enactment_url_falls_back_to_congress_source_when_govinfo_has_no_url() -> (  # noqa: E501
@@ -572,27 +576,27 @@ def test_identifier_parsing_joint_resolution() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _parse_id — direct validation
+# parse_bill_id — direct validation (shared parser, formerly _parse_id)
 # ---------------------------------------------------------------------------
 
 
 def test_parse_id_parses_well_formed_ids() -> None:
     """should parse well-formed ids into (congress:int, type, number)"""
-    assert _parse_id("118-hr-9020") == (118, "hr", "9020")
-    assert _parse_id("118-hjres-1") == (118, "hjres", "1")
-    assert _parse_id("117-s-2024") == (117, "s", "2024")
+    assert parse_bill_id("118-hr-9020") == (118, "hr", "9020")
+    assert parse_bill_id("118-hjres-1") == (118, "hjres", "1")
+    assert parse_bill_id("117-s-2024") == (117, "s", "2024")
 
 
 def test_parse_id_raises_on_missing_number_segment() -> None:
-    """should raise ValueError when the id has only two segments"""
-    with pytest.raises(ValueError, match="bill.id must be"):
-        _parse_id("118-hr")
+    """should raise ConfigError when the id has only two segments"""
+    with pytest.raises(ConfigError, match="bill.id must be"):
+        parse_bill_id("118-hr")
 
 
 def test_parse_id_raises_on_missing_type_segment() -> None:
-    """should raise ValueError when the id has no type segment (two segments only)"""
-    with pytest.raises(ValueError, match="bill.id must be"):
-        _parse_id("118-9020")
+    """should raise ConfigError when the id has no type segment (two segments only)"""
+    with pytest.raises(ConfigError, match="bill.id must be"):
+        parse_bill_id("118-9020")
 
 
 # ---------------------------------------------------------------------------
@@ -746,7 +750,7 @@ def test_ground_items_statement_dropped_when_url_returns_404() -> None:
     result = ground_items([stmt], [], fetch=fetch, verifier_verdicts={0: True})
     assert len(result.statements) == 0
     assert len(result.dropped) == 1
-    assert "404" in result.dropped[0].reason
+    assert result.dropped[0].reason == "source url returned status 404"
 
 
 def test_ground_items_statement_dropped_when_url_unreachable() -> None:
@@ -756,7 +760,7 @@ def test_ground_items_statement_dropped_when_url_unreachable() -> None:
     result = ground_items([stmt], [], fetch=fetch, verifier_verdicts={0: True})
     assert len(result.statements) == 0
     assert len(result.dropped) == 1
-    assert "0" in result.dropped[0].reason
+    assert result.dropped[0].reason == "source url returned status 0"
 
 
 def test_ground_items_statement_dropped_when_verifier_index_missing() -> None:
@@ -803,7 +807,7 @@ def test_ground_items_hearing_dropped_when_url_404() -> None:
     result = ground_items([], [hearing], fetch=fetch, verifier_verdicts={})
     assert len(result.hearings) == 0
     assert len(result.dropped) == 1
-    assert "404" in result.dropped[0].reason
+    assert result.dropped[0].reason == "hearing url returned status 404"
 
 
 def test_ground_items_hearing_dropped_when_no_url() -> None:
@@ -893,16 +897,11 @@ def test_ground_items_result_fields_are_immutable_tuples() -> None:
 
 
 def test_ground_items_statement_dropped_when_quote_too_short() -> None:
-    """should drop a trivially short quote with the too-short reason, before any fetch"""
-    short = _make_statement(quote="no")
-    # Even though the page contains the quote and the verifier says True,
-    # gate 0 (min length) drops it first — and no fetch entry is needed.
-    fetch = _fake_fetch({"https://example.com/record": (200, "no")})
-    result = ground_items([short], [], fetch=fetch, verifier_verdicts={0: True})
-    assert len(result.statements) == 0
-    assert len(result.dropped) == 1
-    assert "too short" in result.dropped[0].reason
-    assert "2 chars" in result.dropped[0].reason
+    """should reject a trivially short quote at the model level (D36 floor on Statement.quote)"""
+    # Since D36 floor is now co-located on Statement.quote (min_length=20),
+    # a sub-20-char quote cannot even be constructed — the model raises ValidationError.
+    with pytest.raises(ValidationError):
+        _make_statement(quote="no")
 
 
 def test_ground_items_min_length_uses_normalized_length() -> None:
@@ -918,14 +917,11 @@ def test_ground_items_min_length_uses_normalized_length() -> None:
 
 
 def test_ground_items_min_length_floor_runs_before_fetch() -> None:
-    """gate 0 must run before fetch — a short quote drops even if its url 404s"""
-    short = _make_statement(quote="ok")
-    fetch = _fake_fetch({})  # url unreachable (status 0)
-    result = ground_items([short], [], fetch=fetch, verifier_verdicts={0: True})
-    assert len(result.dropped) == 1
-    # The reason is about length, not the (unreached) url status.
-    assert "too short" in result.dropped[0].reason
-    assert "status" not in result.dropped[0].reason
+    """gate 0 (D36 floor) is enforced at model construction — sub-20-char quotes cannot be built"""
+    # Since D36 floor is now co-located on Statement.quote (min_length=20),
+    # a sub-20-char quote never reaches ground_items at all.
+    with pytest.raises(ValidationError):
+        _make_statement(quote="ok")
 
 
 def test_ground_items_quote_at_min_length_floor_passes() -> None:
@@ -940,11 +936,122 @@ def test_ground_items_quote_at_min_length_floor_passes() -> None:
 
 
 def test_ground_items_quote_just_below_floor_dropped() -> None:
-    """a quote one char below _MIN_QUOTE_CHARS is dropped as too short"""
+    """a quote one char below _MIN_QUOTE_CHARS is rejected by the model (D36 co-location)"""
+    # Since D36 floor is now co-located on Statement.quote (min_length=20),
+    # _MIN_QUOTE_CHARS - 1 chars cannot be constructed at all.
     quote = "A" * (_MIN_QUOTE_CHARS - 1)
-    stmt = _make_statement(quote=quote)
-    fetch = _fake_fetch({"https://example.com/record": (200, quote)})
-    result = ground_items([stmt], [], fetch=fetch, verifier_verdicts={0: True})
+    with pytest.raises(ValidationError):
+        _make_statement(quote=quote)
+
+
+def test_ground_items_accepts_quote_inside_html_when_text_extracted() -> None:
+    """should ground a quote present in extracted text but not in raw HTML byte-match"""
+    from zwiadbrain.models import Statement
+    from zwiadbrain.pipeline.leg_history import ground_items
+
+    # Mimics a press-release page where the quote text is split by <br/> tags +
+    # nbsp + a leading <span class="js-only"> wrapper that current raw-HTML
+    # substring match rejects.
+    html_page = (
+        '<html><body><div class="release">'
+        '<p><span class="js-only">Senator X said:</span>&nbsp;</p>'
+        '<p>"This is a very important and notable<br/>quote about AI."</p>'
+        "</body></html>"
+    )
+    statements = [
+        Statement(
+            speaker="Senator X", role="member",
+            quote='This is a very important and notable quote about AI.',
+            source_url="https://example.test/pr", source_type="press",
+        )
+    ]
+    result = ground_items(
+        statements, hearings=[],
+        fetch=lambda url: (200, html_page),
+        verifier_verdicts={0: True},
+    )
+    assert len(result.statements) == 1
+    assert result.statements[0].verified is True
+
+
+def test_ground_items_still_rejects_genuinely_absent_quote() -> None:
+    """should drop a quote that is not on the extracted-text page (precision held)"""
+    from zwiadbrain.models import Statement
+    from zwiadbrain.pipeline.leg_history import ground_items
+
+    html_page = (
+        "<html><body><p>An entirely unrelated discussion of fiscal policy.</p></body></html>"
+    )
+    statements = [
+        Statement(
+            speaker="Senator Y", role="member",
+            quote="This quote does not appear anywhere on the page at all.",
+            source_url="https://example.test/x", source_type="press",
+        )
+    ]
+    result = ground_items(
+        statements, hearings=[],
+        fetch=lambda url: (200, html_page),
+        verifier_verdicts={0: True},
+    )
     assert len(result.statements) == 0
-    assert len(result.dropped) == 1
-    assert "too short" in result.dropped[0].reason
+    assert any(d.reason == "quote not found on source page" for d in result.dropped)
+
+
+def test_quote_inside_script_tag_is_not_grounded() -> None:
+    """should not match a quote that appears only inside a <script> block (not human-visible)"""
+    page = (
+        '<html><body><p>Unrelated visible prose.</p>'
+        '<script>var q = "This bill will protect consumers everywhere.";</script>'
+        "</body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", page) is False
+
+
+def test_quote_inside_style_tag_is_not_grounded() -> None:
+    """should not match a quote that appears only inside a <style> block"""
+    page = (
+        '<html><head><style>/* This bill will protect consumers everywhere. */</style></head>'
+        "<body><p>Unrelated visible prose.</p></body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", page) is False
+
+
+def test_quote_inside_html_comment_is_not_grounded() -> None:
+    """should not match a quote that appears only inside an HTML comment"""
+    page = (
+        "<html><body><p>Unrelated visible prose.</p>"
+        "<!-- This bill will protect consumers everywhere. --></body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", page) is False
+
+
+def test_quote_inside_noscript_and_template_is_not_grounded() -> None:
+    """should not match a quote present only inside <noscript> or <template>"""
+    noscript_page = (
+        "<html><body><p>Visible.</p>"
+        "<noscript>This bill will protect consumers everywhere.</noscript></body></html>"
+    )
+    template_page = (
+        "<html><body><p>Visible.</p>"
+        "<template>This bill will protect consumers everywhere.</template></body></html>"
+    )
+    assert _quote_present("This bill will protect consumers everywhere.", noscript_page) is False
+    assert _quote_present("This bill will protect consumers everywhere.", template_page) is False
+
+
+def test_gate_alone_does_not_catch_cross_attribution_span() -> None:
+    """documents the gate's blindspot: a span concatenating two adjacent speakers still matches
+
+    _quote_present only checks verbatim *presence*, not speaker attribution. A quote that
+    stitches together the tail of speaker A and the head of speaker B substring-matches the
+    page and passes this gate. Catching this misattribution is the verifier subagent's job
+    (verifier check (c), Batch 3) — NOT this deterministic gate. This test pins the limitation
+    so the gate is not mistaken for an attribution check.
+    """
+    page = (
+        "Rep. A: The bill protects consumers. "
+        "Rep. B: I oppose this measure entirely."
+    )
+    cross_attribution_span = "protects consumers. Rep. B: I oppose this measure"
+    assert _quote_present(cross_attribution_span, page) is True

@@ -35,8 +35,18 @@ class Source(Protocol):
 
     name: str
 
-    def discover(self, *, since: dt.datetime | None = None, limit: int = 20) -> list[Candidate]:
-        """Surface up to ``limit`` candidates changed since ``since`` (newest first)."""
+    def discover(
+        self,
+        *,
+        congress: int | None = None,
+        since: dt.datetime | None = None,
+        limit: int = 20,
+    ) -> list[Candidate]:
+        """Surface up to ``limit`` candidates changed since ``since`` (newest first).
+
+        ``congress`` is optional: Congress.gov scopes discovery to a single
+        congress, while a future source with no congress concept simply ignores it.
+        """
         ...
 
     def fetch(self, native_id: str) -> Bill:

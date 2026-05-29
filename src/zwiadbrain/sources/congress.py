@@ -6,13 +6,17 @@ amendments, text, summaries, related bills) and maps everything onto the common
 :class:`~zwiadbrain.models.Bill`. Transport is httpx with a tenacity retry on
 transient (5xx / network) failures; 429 surfaces as :class:`RateLimitError`.
 
-The Congress.gov change cursor is ``updateDateIncludingText`` (stored on the
-bill as ``update_date``), which Pass A compares to detect changed bills.
+The Congress.gov change cursor is split across two fields on the bill:
+``update_date`` (bare ``updateDate`` — bumps on any change) and
+``update_date_text`` (``updateDateIncludingText`` — bumps when text/summary
+changes).  Pass A compares both to decide what to refresh.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import email.utils
+import logging
 import re
 from typing import Any
 
@@ -24,9 +28,11 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+from tenacity.wait import wait_base
 
 from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
 from zwiadbrain.models import Action, Amendment, Bill, TextVersion, Vote
+from zwiadbrain.sources._redact import redact_api_key
 from zwiadbrain.sources.base import Candidate
 
 CONGRESS_API_BASE = "https://api.congress.gov/v3"
@@ -54,15 +60,56 @@ _TYPE_URL_SEGMENT: dict[str, str] = {
 _AMENDMENT_DISPLAY: dict[str, str] = {"HAMDT": "H.Amdt.", "SAMDT": "S.Amdt."}
 _AMENDMENT_CHAMBER: dict[str, str] = {"HAMDT": "House", "SAMDT": "Senate"}
 _PUBLIC_LAW_RE = re.compile(r"Public Law No:?\s*(\d+-\d+)")
+# Ordered preference for which text-version format URL to keep, most-preferred first.
+_TEXT_FORMAT_PREFERENCE: tuple[str, ...] = ("Formatted Text", "XML", "PDF")
+_LOGGER = logging.getLogger(__name__)
 
 
 class _Retryable(SourceError):
     """Internal marker for a transient HTTP status that should be retried."""
 
-    def __init__(self, status: int, path: str) -> None:
+    def __init__(self, status: int, path: str, *, retry_after: float | None = None) -> None:
         super().__init__(f"transient Congress.gov error {status} for {path}")
         self.status = status
         self.path = path
+        self.retry_after = retry_after
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """Parse a ``Retry-After`` header to non-negative seconds, or ``None`` if absent/invalid.
+
+    Accepts the two RFC 7231 forms: an integer delta-seconds, or an HTTP-date (in which
+    case the wait is the date minus now, floored at 0). Anything unparseable → ``None``.
+    """
+    raw = response.headers.get("Retry-After")
+    if not raw:
+        return None
+    raw = raw.strip()
+    if raw.isdigit():
+        return float(raw)
+    try:
+        parsed = email.utils.parsedate_to_datetime(raw)
+    except (ValueError, TypeError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.UTC)
+    delta = (parsed - dt.datetime.now(dt.UTC)).total_seconds()
+    return max(delta, 0.0)
+
+
+class _wait_retry_after(wait_base):
+    """Wait the exception's ``Retry-After`` seconds if present, else fall back to exponential."""
+
+    def __init__(self, fallback: wait_base) -> None:
+        self._fallback = fallback
+
+    def __call__(self, retry_state: Any) -> float:
+        outcome = retry_state.outcome
+        if outcome is not None and outcome.failed:
+            exc = outcome.exception()
+            if isinstance(exc, _Retryable) and exc.retry_after is not None:
+                return exc.retry_after
+        return self._fallback(retry_state)
 
 
 def _opt_str(value: Any) -> str | None:
@@ -167,16 +214,18 @@ def _to_amendment(raw: dict[str, Any]) -> Amendment:
         number=designation,
         chamber=_AMENDMENT_CHAMBER.get(amdt_type),
         status=_opt_str(latest.get("text")),
+        latest_action_date=_parse_date(latest.get("actionDate")),
         what_changed=_opt_str(raw.get("purpose") or raw.get("description")),
     )
 
 
 def _to_text_version(raw: dict[str, Any]) -> TextVersion:
     formats = _items(raw.get("formats"))
+    by_type = {str(fmt.get("type")): _opt_str(fmt.get("url")) for fmt in formats}
     url: str | None = None
-    for fmt in formats:
-        if str(fmt.get("type")) == "Formatted Text":
-            url = _opt_str(fmt.get("url"))
+    for preferred in _TEXT_FORMAT_PREFERENCE:
+        if by_type.get(preferred):
+            url = by_type[preferred]
             break
     if url is None and formats:
         url = _opt_str(formats[0].get("url"))
@@ -187,7 +236,14 @@ def _to_related(raw: dict[str, Any]) -> str:
     number = raw.get("number")
     label = _format_bill_number(str(raw.get("type") or ""), number)
     congress = raw.get("congress")
-    return f"{label} ({_ordinal(int(congress))})" if congress is not None else label
+    if congress is None:
+        return label
+    try:
+        return f"{label} ({_ordinal(int(congress))})"
+    except (TypeError, ValueError):
+        # Preview-tolerance: a non-numeric congress drops to the bare label, matching
+        # the module-wide "never let an untyped JSON scalar raise" discipline.
+        return label
 
 
 class CongressSource:
@@ -212,7 +268,7 @@ class CongressSource:
         self._retrying = Retrying(
             retry=retry_if_exception_type((_Retryable, httpx.TransportError)),
             stop=stop_after_attempt(max_attempts),
-            wait=wait_exponential(multiplier=wait_initial, max=wait_max),
+            wait=_wait_retry_after(wait_exponential(multiplier=wait_initial, max=wait_max)),
             reraise=True,
         )
 
@@ -224,7 +280,7 @@ class CongressSource:
         if response.status_code == 429:
             raise RateLimitError(f"Congress.gov rate limit hit for {path}")
         if response.status_code >= 500:
-            raise _Retryable(response.status_code, path)
+            raise _Retryable(response.status_code, path, retry_after=_retry_after_seconds(response))
         if response.status_code >= 400:
             raise SourceFetchError(f"Congress.gov returned {response.status_code} for {path}")
         return response
@@ -234,7 +290,7 @@ class CongressSource:
             response = self._retrying(self._request, path, params)
         except _Retryable as exc:
             raise SourceFetchError(
-                f"Congress.gov returned {exc.status} for {exc.path} after retries"
+                f"Congress.gov returned {exc.status} for {redact_api_key(exc.path)} after retries"
             ) from exc
         data: dict[str, Any] = response.json()
         return data
@@ -251,8 +307,8 @@ class CongressSource:
         """List bills (newest-updated first) as candidates.
 
         With ``congress`` set, lists that congress; otherwise lists across
-        congresses. ``limit`` ≤ 250 maps to a single request (pagination-following
-        for larger windows is added with the scheduled scan phase).
+        congresses. Per D33 this is a single request (``limit`` ≤ 250 maps to one
+        page); a larger window is truncated and the discarded total is logged.
         """
         path = f"/bill/{congress}" if congress is not None else "/bill"
         params: dict[str, str | int] = {"sort": "updateDate desc", "limit": min(max(limit, 1), 250)}
@@ -260,7 +316,18 @@ class CongressSource:
             params["fromDateTime"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
         payload = self._get_json(path, **params)
         bills = _items(payload.get("bills"))
-        return [self._to_candidate(bill) for bill in bills][:limit]
+        candidates = [self._to_candidate(bill) for bill in bills][:limit]
+        total = _obj(payload.get("pagination")).get("count")
+        if isinstance(total, int) and total > len(candidates):
+            # D33: discovery is a single request (no pagination-following yet); a larger
+            # window is silently truncated, so surface the server's reported total.
+            _LOGGER.warning(
+                "discovery truncated: returned %d of %d reported bills for %s",
+                len(candidates),
+                total,
+                path,
+            )
+        return candidates
 
     def _to_candidate(self, raw: dict[str, Any]) -> Candidate:
         bill_type = str(raw.get("type") or "")
@@ -339,7 +406,8 @@ class CongressSource:
             amendments=[_to_amendment(a) for a in amendments],
             text_versions=[_to_text_version(t) for t in texts],
             related_bills=[_to_related(r) for r in related],
-            update_date=_opt_str(detail.get("updateDateIncludingText") or detail.get("updateDate")),
+            update_date=_opt_str(detail.get("updateDate")),
+            update_date_text=_opt_str(detail.get("updateDateIncludingText")),
             sources={"Congress.gov": _public_url(congress, bill_type, number)},
         )
 

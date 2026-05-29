@@ -10,6 +10,7 @@ from zwiadbrain.models import (
     CommentarySource,
     Enactment,
     EnforcementAction,
+    FlipOutAudit,
     FloorAction,
     Hearing,
     LegHistory,
@@ -18,7 +19,7 @@ from zwiadbrain.models import (
     Vote,
 )
 from zwiadbrain.pipeline.render import page_path, render_page, write_page
-from zwiadbrain.wiki.schema import from_page
+from zwiadbrain.wiki.schema import from_page, to_frontmatter
 from zwiadbrain.wiki.templates import render_bill_body
 
 
@@ -92,8 +93,8 @@ def test_commentary_section_demotes_headings_and_fences_with_markers() -> None:
 def test_page_path_routes_by_jurisdiction_and_type(tmp_path: Path) -> None:
     """should route to federal/state and bills/enforcement directories by id"""
     assert page_path(_bill(), tmp_path) == tmp_path / "states" / "ca" / "bills" / "us-ca-sb-362.md"
-    fed = Bill(id="hr-1", jurisdiction="US", title="t", bill_number="HR 1")
-    assert page_path(fed, tmp_path) == tmp_path / "federal" / "bills" / "hr-1.md"
+    fed = Bill(id="118-hr-1", jurisdiction="US", title="t", bill_number="HR 1")
+    assert page_path(fed, tmp_path) == tmp_path / "federal" / "bills" / "118-hr-1.md"
     enf = EnforcementAction(id="ftc-x", jurisdiction="US", title="t", agency="FTC")
     assert page_path(enf, tmp_path) == tmp_path / "federal" / "enforcement" / "ftc-x.md"
 
@@ -114,8 +115,9 @@ def test_write_page_is_idempotent(tmp_path: Path) -> None:
 
 def _bill_with_full_leg_history() -> Bill:
     """A Bill with every LegHistory subsection populated for rendering tests."""
+    from zwiadbrain.models import StatutesAtLarge
     return Bill(
-        id="hr-1-full",
+        id="118-hr-1",
         jurisdiction="US",
         title="Full History Bill",
         bill_number="HR 1",
@@ -157,7 +159,7 @@ def _bill_with_full_leg_history() -> Bill:
             enactment=Enactment(
                 date_signed=dt.date(2024, 3, 15),
                 public_law="P.L. 118-1",
-                statutes_at_large="138 Stat. 1",
+                statutes_at_large=StatutesAtLarge(citation="138 Stat. 1", url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1"),
                 url="https://congress.gov/public-law/118/1",
             ),
             statements=[
@@ -228,7 +230,7 @@ def test_leg_history_narrative_appears_under_legislative_journey() -> None:
 def test_leg_history_hearing_without_url_is_omitted() -> None:
     """should skip a hearing that has no url (not verifiable)"""
     bill = Bill(
-        id="hr-2",
+        id="118-hr-2",
         jurisdiction="US",
         title="No-URL Hearing Bill",
         bill_number="HR 2",
@@ -248,26 +250,22 @@ def test_leg_history_hearing_without_url_is_omitted() -> None:
     assert "Public Hearing" in body
 
 
-def test_leg_history_statement_without_source_url_is_omitted() -> None:
-    """should skip a statement that has no source_url (not verifiable)"""
+def test_leg_history_statement_with_source_url_is_rendered() -> None:
+    """should render a statement that has a valid http(s) source_url (B47 enforcement)"""
+    # Prior to B47, source_url accepted empty strings and the renderer skipped them.
+    # Now the model enforces http(s):// at construction time, so every Statement that
+    # can be created has a verifiable URL and WILL be rendered.
     bill = Bill(
-        id="hr-3",
+        id="118-hr-3",
         jurisdiction="US",
-        title="No-URL Statement Bill",
+        title="Cited Statement Bill",
         bill_number="HR 3",
         leg_history=LegHistory(
             statements=[
                 Statement(
-                    speaker="Rep. Anonymous",
-                    role="member",
-                    quote="Words.",
-                    source_url="",
-                    source_type="other",
-                ),
-                Statement(
                     speaker="Rep. Cited",
                     role="member",
-                    quote="Cited words.",
+                    quote="These cited words are fully verifiable with a source.",
                     source_url="https://congress.gov/cited",
                     source_type="CREC",
                 ),
@@ -275,7 +273,6 @@ def test_leg_history_statement_without_source_url_is_omitted() -> None:
         ),
     )
     body = render_bill_body(bill)
-    assert "Rep. Anonymous" not in body
     assert "Rep. Cited" in body
 
 
@@ -302,7 +299,7 @@ def test_leg_history_subsection_order() -> None:
 def test_leg_history_floor_action_plain_text_when_no_url() -> None:
     """should render floor action as plain text when url is absent"""
     bill = Bill(
-        id="hr-4",
+        id="118-hr-4",
         jurisdiction="US",
         title="Plain Floor Bill",
         bill_number="HR 4",
@@ -327,7 +324,7 @@ def test_leg_history_floor_action_plain_text_when_no_url() -> None:
 def test_leg_history_vote_plain_text_when_no_roll_call_url() -> None:
     """should render vote result as plain text when roll_call_url is absent"""
     bill = Bill(
-        id="hr-5",
+        id="118-hr-5",
         jurisdiction="US",
         title="Plain Vote Bill",
         bill_number="HR 5",
@@ -350,7 +347,7 @@ def test_leg_history_vote_plain_text_when_no_roll_call_url() -> None:
 def test_leg_history_enactment_with_url_and_no_public_law() -> None:
     """should render 'Public law document' as link text when public_law is empty but url present"""
     bill = Bill(
-        id="hr-6",
+        id="118-hr-6",
         jurisdiction="US",
         title="URL-only Enactment Bill",
         bill_number="HR 6",
@@ -375,7 +372,7 @@ def _vote_section_lines(bill: Bill) -> list[str]:
 def test_leg_history_vote_without_chamber_has_no_bare_separator() -> None:
     """should not emit a bare ' :' or double spaces when chamber is missing"""
     bill = Bill(
-        id="hr-7",
+        id="118-hr-7",
         jurisdiction="US",
         title="No-chamber Vote Bill",
         bill_number="HR 7",
@@ -392,7 +389,7 @@ def test_leg_history_vote_without_chamber_has_no_bare_separator() -> None:
 def test_leg_history_vote_without_date_or_chamber_has_no_bare_separator() -> None:
     """should render only the result when both date and chamber are missing"""
     bill = Bill(
-        id="hr-8",
+        id="118-hr-8",
         jurisdiction="US",
         title="Result-only Vote Bill",
         bill_number="HR 8",
@@ -416,7 +413,7 @@ def test_leg_history_vote_without_date_or_chamber_has_no_bare_separator() -> Non
 def test_leg_history_floor_action_without_date_or_chamber_has_no_leading_dash() -> None:
     """should render only the linked CR citation when date and chamber are missing"""
     bill = Bill(
-        id="hr-9",
+        id="118-hr-9",
         jurisdiction="US",
         title="CR-only Floor Bill",
         bill_number="HR 9",
@@ -441,7 +438,7 @@ def test_leg_history_floor_action_without_date_or_chamber_has_no_leading_dash() 
 def test_leg_history_floor_action_without_date_or_chamber_with_cr_text() -> None:
     """should link the CR citation text with no leading separator when date/chamber missing"""
     bill = Bill(
-        id="hr-10",
+        id="118-hr-10",
         jurisdiction="US",
         title="CR-text-only Floor Bill",
         bill_number="HR 10",
@@ -459,3 +456,267 @@ def test_leg_history_floor_action_without_date_or_chamber_with_cr_text() -> None
     body = render_bill_body(bill)
     assert "- [H. Rec. 5](https://congress.gov/crec/h5)" in body
     assert "- — " not in body
+
+
+def test_render_emits_flipped_out_marker_when_set() -> None:
+    """should prepend an HTML comment marker to the body when bill.flipped_out is set"""
+    from zwiadbrain.models import FlipOutAudit
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        summary="A short summary.",
+        flipped_out=FlipOutAudit(date=dt.date(2026, 6, 4), reason="classifier: drift"),
+    )
+    body = render_bill_body(bill)
+    first_line = body.split("\n", 1)[0]
+    assert first_line.startswith("<!-- zwiadbrain:flipped-out ")
+    assert 'date="2026-06-04"' in first_line
+    assert 'reason="classifier: drift"' in first_line
+
+
+def test_render_omits_marker_when_not_flipped() -> None:
+    """should not emit the marker for a normally-tracked bill"""
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        summary="A short summary.",
+    )
+    body = render_bill_body(bill)
+    assert "<!-- zwiadbrain:flipped-out" not in body
+
+
+def test_empty_leg_history_renders_no_header() -> None:
+    """should not emit a bare '## Legislative History' header when LegHistory is empty"""
+    bill = Bill(
+        id="118-hr-11",
+        jurisdiction="US",
+        title="Empty History Bill",
+        bill_number="HR 11",
+        leg_history=LegHistory(),
+    )
+    body = render_bill_body(bill)
+    assert "## Legislative History" not in body
+
+
+def test_render_escapes_quote_in_flip_reason() -> None:
+    """should escape a double-quote inside the reason so the HTML comment stays valid"""
+    from zwiadbrain.models import FlipOutAudit
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        flipped_out=FlipOutAudit(
+            date=dt.date(2026, 6, 4), reason='he said "AI" out of scope'
+        ),
+    )
+    body = render_bill_body(bill)
+    first_line = body.split("\n", 1)[0]
+    # backslash-escape inside double-quoted attribute
+    assert 'reason="he said \\"AI\\" out of scope"' in first_line
+
+
+def test_render_emits_statutes_at_large_link() -> None:
+    """should render the StatutesAtLarge as a markdown link in the Enactment block"""
+    from zwiadbrain.models import Enactment, StatutesAtLarge
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        leg_history=LegHistory(
+            enactment=Enactment(
+                public_law="118-31",
+                url="https://www.govinfo.gov/app/details/PLAW-118publ31",
+                statutes_at_large=StatutesAtLarge(
+                    citation="138 Stat. 1234",
+                    url="https://www.govinfo.gov/app/details/STATUTE-138-Pg1234",
+                ),
+            ),
+        ),
+    )
+    body = render_bill_body(bill)
+    assert (
+        "Statutes at Large: [138 Stat. 1234]"
+        "(https://www.govinfo.gov/app/details/STATUTE-138-Pg1234)"
+    ) in body
+
+
+def test_render_escapes_html_comment_terminator_in_flip_reason() -> None:
+    """should escape --> to --&gt; so the HTML comment isn't terminated mid-reason"""
+    from zwiadbrain.models import FlipOutAudit
+
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="x",
+        bill_number="H.R. 1",
+        flipped_out=FlipOutAudit(
+            date=dt.date(2026, 6, 4),
+            reason="AI clause --> removed in markup",
+        ),
+    )
+    body = render_bill_body(bill)
+    first_line = body.split("\n", 1)[0]
+    # The marker must end with the comment terminator exactly once, at the end.
+    assert first_line.endswith(" -->")
+    assert first_line.count("-->") == 1
+    # The sequence inside the reason must be escaped.
+    assert "AI clause --&gt; removed in markup" in first_line
+
+
+def test_commentary_level6_heading_caps_at_h6() -> None:
+    """should keep a level-6 commentary heading at h6 (markdown has no h7).
+
+    h2 still demotes to h3.
+    """
+    bill = _bill()
+    bill.commentary_sources = [
+        CommentarySource(
+            path="wiki/x.md",
+            slug="x",
+            content_hash="h",
+            matched_by="deterministic",
+            confidence=1.0,
+            body="###### Deep heading\n\n## Shallow heading",
+        )
+    ]
+    body = render_bill_body(bill)
+    assert "\n###### Deep heading" in body  # already at h6, stays h6 (no h7)
+    assert "####### " not in body            # never produces a 7-hash heading
+    assert "\n### Shallow heading" in body   # h2 still demotes to h3
+
+
+# --- D20 round-trip idempotency (B75) -------------------------------------
+#
+# The literal "render the same page bytes after a fresh clone" property cannot be
+# proven from a page alone: body content (summary prose, the leg-history spine,
+# amendments, enforcement narrative, copied commentary bodies) is in
+# `_BODY_ONLY_FIELDS` — rendered into the body but re-derived from sources each run,
+# never serialized to frontmatter — so `from_page` returns those fields empty by
+# design (D20/D37). Two honest guards capture the invariant that actually governs a
+# clean `git status`:
+#   1. the FRONTMATTER persisted surface is byte-stable across render -> parse, and
+#   2. a page whose model carries ONLY persisted fields re-renders byte-identically.
+
+
+def test_frontmatter_round_trips_byte_identical_for_full_bill() -> None:
+    """should keep bill frontmatter byte-identical across a render -> from_page round-trip (D20)
+
+    A fully-populated bill (incl. body-only `summary` and a leg-history spine that
+    `from_page` drops) must still round-trip its persisted surface unchanged:
+    metadata + refresh cursors + flip audit + the persisted leg_history
+    hearings/statements/narrative (D40). Body-only fields are excluded from
+    `to_frontmatter` on both sides, so they cannot perturb the comparison.
+    """
+    bill = Bill(
+        id="118-hr-1",
+        jurisdiction="US",
+        title="Full Persisted Bill",
+        bill_number="H.R. 1",
+        status="enrolled",
+        summary="A body-only CRS summary that from_page intentionally drops.",
+        update_date="2026-05-01T00:00:00Z",
+        update_date_text="2026-05-02T00:00:00Z",
+        summary_hash="deadbeefcafe",
+        amendments_count=2,
+        actions=[Action(text="Introduced", date=dt.date(2024, 1, 3), chamber="House")],
+        flipped_out=FlipOutAudit(date=dt.date(2026, 6, 4), reason="classifier: scope drift"),
+        leg_history=LegHistory(
+            narrative="Introduced narrow, broadened in markup, enacted in December.",
+            # Spine fields are body-only and intentionally NOT persisted:
+            enactment=Enactment(public_law="118-1", url="https://congress.gov/law"),
+            hearings=[
+                Hearing(
+                    title="Hearing on H.R. 1",
+                    committee="House Judiciary",
+                    date=dt.date(2024, 1, 10),
+                    url="https://congress.gov/hearing/hr-1",
+                ),
+            ],
+            statements=[
+                Statement(
+                    speaker="Rep. Smith",
+                    role="sponsor",
+                    date=dt.date(2024, 2, 5),
+                    quote="This bill will protect consumers nationwide.",
+                    source_url="https://congress.gov/crec/smith",
+                    source_type="CREC",
+                    verified=True,
+                ),
+            ],
+        ),
+    )
+    before = to_frontmatter(bill)
+    after = to_frontmatter(from_page(render_page(bill)))
+    assert after == before
+
+
+def test_frontmatter_round_trips_byte_identical_for_enforcement() -> None:
+    """should keep enforcement frontmatter byte-identical across render -> from_page (D20)
+
+    Every prose body field (summary/background/allegations/outcome/significance) is
+    body-only; the persisted surface is metadata only and must round-trip unchanged.
+    """
+    action = EnforcementAction(
+        id="ftc-acme",
+        jurisdiction="US",
+        title="FTC v. Acme",
+        agency="FTC",
+        summary="The FTC alleged unfair data practices.",
+        background="Acme operated a broker network.",
+        allegations="Failure to honor deletion requests.",
+        outcome="Consent order with injunctive relief.",
+        significance="First enforcement under the new rule.",
+        sources={"FTC": "https://ftc.gov/acme"},
+    )
+    before = to_frontmatter(action)
+    after = to_frontmatter(from_page(render_page(action)))
+    assert after == before
+
+
+def test_render_from_page_render_is_byte_identical_for_persisted_only_bill() -> None:
+    """should re-render a persisted-only page byte-identically: render -> from_page -> render (D20)
+
+    A bill whose populated fields are all frontmatter-persisted (metadata, refresh
+    cursors, flip audit, and the persisted leg_history hearings/statements/narrative)
+    carries no body-only content for `from_page` to lose, so the full page round-trips
+    exactly. This is the literal "clean git status on unchanged input" guarantee for a
+    page composed only of persisted-derivable content.
+    """
+    bill = Bill(
+        id="118-hr-2",
+        jurisdiction="US",
+        title="Persisted-Only Bill",
+        bill_number="H.R. 2",
+        update_date="2026-05-01T00:00:00Z",
+        update_date_text="2026-05-02T00:00:00Z",
+        summary_hash="cafef00dbeef",
+        flipped_out=FlipOutAudit(
+            date=dt.date(2026, 6, 4), reason="classifier: drifted out of scope"
+        ),
+        leg_history=LegHistory(
+            narrative="Introduced, heard in committee, and reported favorably.",
+            statements=[
+                Statement(
+                    speaker="Rep. Doe",
+                    role="member",
+                    date=dt.date(2024, 3, 1),
+                    quote="The committee adopted this measure unanimously today.",
+                    source_url="https://congress.gov/crec/doe",
+                    source_type="CREC",
+                    verified=True,
+                ),
+            ],
+        ),
+    )
+    p1 = render_page(bill)
+    p2 = render_page(from_page(p1))
+    assert p1 == p2

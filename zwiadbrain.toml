@@ -12,7 +12,10 @@ classifier_model = "claude-haiku-4-5-20251001"
 enabled = ["congress", "govinfo", "legiscan", "ftc", "state_ag"]
 
 [states]
-# v1 priority states (tracked via LegiScan).
+# Target coverage is all 50 states via LegiScan (D49); rollout is phased — expand
+# by adding state codes to `enabled`. The code is state-count-agnostic; the binding
+# constraint at scale is classifier/summarizer plan usage (D26), not LegiScan quota.
+# `enabled` is the active set; start with the 7 priority states.
 enabled = ["ca", "ny", "tx", "co", "va", "wa", "il"]
 
 [lawbrain]

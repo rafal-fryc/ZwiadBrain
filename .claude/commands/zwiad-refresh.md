@@ -1,11 +1,11 @@
 ---
-description: Refresh tracked federal bills — detect changed cursors, dispatch classifier/summarizer/amendment-explainer subagents only where triggers fired, preserve PHASE-05 leg-history, flip out-of-scope bills (runs on your regular Claude plan usage).
+description: Refresh tracked federal and state bills — detect changed cursors, dispatch classifier/summarizer/amendment-explainer subagents only where triggers fired, preserve PHASE-05 leg-history, flip out-of-scope bills (runs on your regular Claude plan usage).
 allowed-tools: Bash, Read, Write, Task
 ---
 
-# ZwiadBrain watchlist refresh (Pass A)
+# ZwiadBrain watchlist refresh (Pass A — federal + state)
 
-Re-fetch every tracked federal bill, dispatch subagents only on real change,
+Re-fetch every tracked federal and state bill, dispatch subagents only on real change,
 preserve PHASE-05's expensive cross-modal-verified leg-history (hearings +
 statements + narrative), and flip IN→OUT bills to `tracking: false`. Python
 does the deterministic fetch + render; you (this interactive session) do the
@@ -20,7 +20,7 @@ Agent SDK credit.
 
 ## Steps
 
-### 1. Fetch refreshable (Python, deterministic)
+### 1. Fetch refreshable — federal (Python, deterministic)
 Run:
 ```
 uv run zwiadbrain fetch-refreshable
@@ -29,10 +29,29 @@ Scans `wiki/federal/bills/*.md` frontmatter for tracking=true bills,
 re-fetches each via Congress.gov, compares cursors, and writes
 `refreshable.json` to `data/runs/<id>/`. **Note the exact path it prints.**
 
-If the file is `[]`, every tracked bill is up to date — report `no
-refreshable bills` and STOP. Do not run the subagents in this case.
+### 2. Fetch refreshable — state (Python, deterministic)
+Run:
+```
+uv run zwiadbrain fetch-state-refreshable --out data/runs/<id>
+```
+(Use the same `<id>` directory that step 1 printed.) Scans
+`wiki/states/*/bills/*.md` frontmatter for tracking=true state bills that
+carry `legiscan_bill_id`, calls `getMasterListRaw` once per state to get the
+full current-session `change_hash` map, re-fetches only bills whose stored
+hash differs via `getBill`, and **appends** its results to
+`data/runs/<id>/refreshable.json` — the same file step 1 wrote.
 
-### 2. Read the refreshable list
+**Invariant:** the union of federal and state entries is rendered by a single
+`render-refreshed` call in step 6. State bill entries carry their new
+`change_hash` and `legiscan_bill_id` through unchanged, so the next refresh
+can diff correctly. Do not split the file or run two separate `render-refreshed`
+calls.
+
+**Early-exit rule:** after both fetch steps, `Read` the combined
+`refreshable.json`. If it is `[]`, every tracked bill (federal and state) is up
+to date — report `no refreshable bills` and STOP. Do not run the subagents.
+
+### 3. Read the refreshable list
 `Read` the `refreshable.json`. Each entry is:
 ```json
 {
@@ -44,8 +63,11 @@ refreshable bills` and STOP. Do not run the subagents in this case.
   "changed_amendment_numbers": ["H.Amdt. 1", ...]
 }
 ```
+Federal and state entries share this schema. State entries additionally have
+`legiscan_bill_id` and `change_hash` inside `fresh` — leave them untouched
+when merging subagent outputs back.
 
-### 3. Per-bill subagent dispatch
+### 4. Per-bill subagent dispatch
 For each entry, build a `bill` object starting from a copy of `fresh`, then:
 
 a. **Classifier** (only if `needs_classifier`): dispatch the **classifier**
@@ -70,7 +92,7 @@ When classifier returned out-of-scope, do NOT dispatch summarizer or
 amendment-explainer — the bill is being flipped out and re-running the
 expensive subagents is wasted plan usage.
 
-### 4. Stage refreshed
+### 5. Stage refreshed
 `Write` a `refreshed.json` array in the same run directory. Each entry:
 ```json
 {
@@ -84,7 +106,7 @@ expensive subagents is wasted plan usage.
 When `needs_classifier` was false, set `classifier_in_scope: true` and
 `classifier_rationale: ""` so the Python step sees a consistent shape.
 
-### 5. Render + index (Python, deterministic)
+### 6. Render + index (Python, deterministic)
 Run:
 ```
 uv run zwiadbrain render-refreshed --in data/runs/<id>/refreshed.json
@@ -93,7 +115,7 @@ This applies the D38 + D40 leg-history preservation rule, the IN→OUT flip,
 re-renders pages, and reindexes the FTS5 store. It prints
 `refresh complete: refreshed N / K flipped-out`.
 
-### 6. Report
+### 7. Report
 Summarize: number of refreshable bills detected, subagent dispatch counts
 (classifier / summarizer / explainer calls), bills refreshed, bills flipped
 out (with reasons). Do not commit — leave the wiki changes for review.

@@ -108,22 +108,30 @@ class Store:
     def reindex(self, wiki_root: Path) -> int:
         """Rebuild the index from every committed page under ``wiki_root``.
 
+        The DELETE + reinsert loop runs inside a single ``with self.conn`` block so
+        the rebuild is atomic: on success it commits, and on any failure mid-loop it
+        rolls back, leaving the prior index intact rather than half-rebuilt. SQLite
+        write failures are translated to StoreError for the CLI's AppError boundary.
+
         Non-item Markdown (e.g. ``README.md``) is skipped. Returns the number of
         indexed pages.
         """
-        self.conn.execute("DELETE FROM items")
-        self.conn.execute("DELETE FROM items_fts")
-        count = 0
-        for path in sorted(wiki_root.rglob("*.md")):
-            text = path.read_text(encoding="utf-8")
-            try:
-                item = from_page(text)
-            except WikiSchemaError:
-                continue  # not a tracked-item page (README, index, etc.)
-            self._index_item(item, path.relative_to(wiki_root).as_posix())
-            count += 1
-        self.conn.commit()
-        return count
+        try:
+            with self.conn:
+                self.conn.execute("DELETE FROM items")
+                self.conn.execute("DELETE FROM items_fts")
+                count = 0
+                for path in sorted(wiki_root.rglob("*.md")):
+                    text = path.read_text(encoding="utf-8")
+                    try:
+                        item = from_page(text)
+                    except WikiSchemaError:
+                        continue  # not a tracked-item page (README, index, etc.)
+                    self._index_item(item, path.relative_to(wiki_root).as_posix())
+                    count += 1
+            return count
+        except sqlite3.Error as exc:
+            raise StoreError(f"reindex failed for {wiki_root}: {exc}") from exc
 
     def _index_item(self, item: Bill | EnforcementAction, rel_path: str) -> None:
         is_bill = isinstance(item, Bill)

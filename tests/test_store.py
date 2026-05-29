@@ -1,8 +1,12 @@
 """Tests for the derived SQLite index/watchlist (rebuilt from committed frontmatter)."""
 
 import datetime as dt
+import sqlite3
 from pathlib import Path
 
+import pytest
+
+from zwiadbrain.exceptions import StoreError
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.store import Store
@@ -103,3 +107,33 @@ def test_corrupt_index_file_self_heals_on_open(tmp_path: Path) -> None:
     # a real sqlite file now lives at the path
     header = db_path.read_bytes()[:16]
     assert header.startswith(b"SQLite format 3")
+
+
+def test_reindex_rolls_back_on_mid_loop_failure(tmp_path: Path) -> None:
+    """should leave the prior index intact when a write fails partway through a rebuild"""
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    _seed_wiki(wiki)
+    with Store(tmp_path / "index.sqlite") as store:
+        store.reindex(wiki)
+        assert store.count() == 3
+
+        # Force a failure on the third _index_item call of the next rebuild.
+        calls = {"n": 0}
+        original = store._index_item  # pyright: ignore[reportPrivateUsage]
+
+        def exploding(item: object, rel_path: str) -> None:
+            calls["n"] += 1
+            if calls["n"] == 3:
+                raise sqlite3.OperationalError("disk I/O error")
+            original(item, rel_path)  # type: ignore[arg-type]
+
+        store._index_item = exploding  # type: ignore[assignment, method-assign]
+        with pytest.raises(StoreError):
+            store.reindex(wiki)
+        # restore so the context-manager close path is unaffected
+        store._index_item = original  # type: ignore[method-assign]
+
+    # A brand-new connection sees the committed, pre-failure index — not a half-rebuilt one.
+    with Store(tmp_path / "index.sqlite") as store2:
+        assert store2.count() == 3

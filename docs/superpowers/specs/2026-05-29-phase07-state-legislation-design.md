@@ -78,7 +78,9 @@ Construction from a `getBill` payload:
   - `"SB362"` → `sb` + `362` → `ca-2023-sb-362`
   - `"AB1"` → `ab` + `1` → `ca-2023-ab-1`
   - `"SB0181"` → `sb` + `181` (zeros stripped) → `md-2019-sb-181`
-  - `"SBX12"` (1st extraordinary session, bill 2) → `sbx1` + `2` → `ca-2023-sbx1-2`
+  - `"SBX12"` (special session) → `sbx` + `12` (the trailing digit run) → `ca-2023-sbx-12`
+    — the split is the leading non-digit-run prefix vs the trailing digit run; it is
+    deterministic and unique even when not semantically segmenting the X-marker.
 
 **Special sessions are self-disambiguating.** LegiScan reflects the state's special-
 session numbering directly in `bill_number` (California: `SBX1…`, `ABX2…`), and

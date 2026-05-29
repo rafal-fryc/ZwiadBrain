@@ -14,7 +14,10 @@ matched law-brain page is copied verbatim (with two minimal transforms) into a
 `## Commentary & Analysis` section on the tracked bill/enforcement page, with
 provenance markers and a content-hash staleness cursor. Matching is deterministic
 key-extraction first, an LLM fallback second, and every LLM link is gated by a
-deterministic shared-key grounding confirm.
+deterministic shared-key grounding confirm. The same match also harvests the law
+brain's collected **reference links** (law-firm client alerts, IAPP, natlawreview, …)
+— from the matched page and the `sources/zwiad` memos it references — into a dedicated
+`## Further Reading (via law brain)` section.
 
 **This phase is commentary-only.** It does NOT mint new tracked stubs from the law
 brain — that is the gated PHASE-11 discovery path (D14, `discover=false`).
@@ -85,6 +88,26 @@ ZwiadBrain `US`; law-brain `US-XX` ↔ ZwiadBrain `US-XX`.
 5. **Review-resolution folded into the render half.** No separate `review --commit`
    command; the render half writes new proposals AND applies operator-resolved
    (`[accept]`/`[reject]`) queue entries in one pass. (Logged D61.)
+6. **Harvest law-brain reference links into a `## Further Reading (via law brain)`
+   section.** A matched law-brain page's `sources:` frontmatter points at
+   `sources/zwiad/*.md` memo files that are rich with **law-firm / secondary
+   commentary links** (Mayer Brown, Crowell, Troutman, Morgan Lewis, Sidley, Wilson
+   Sonsini, Perkins Coie, Ropes & Gray, Akin Gump, JD Supra, IAPP, natlawreview, …) —
+   links the verbatim body-copy does NOT capture (they live in the memos, not the
+   page body). Deterministically harvest `[text](url)` links from the matched page
+   body + its referenced `.md` memos, **exclude primary-source domains** (`*.gov`,
+   `legiscan.com`, `courtlistener.com`, `wikipedia.org`, `*.europa.eu`,
+   `legislation.gov.uk` — ZwiadBrain already carries authoritative primary sources),
+   dedup, and render the remainder in a dedicated `## Further Reading (via law brain)`
+   section. (Logged D62.)
+7. **Commentary + Further Reading survive non-sync re-renders via text-level marker
+   preservation.** Their `body`/links stay OUT of frontmatter (honors D20); instead,
+   `/zwiad-refresh` and any other re-render of a tracked page carry the committed
+   law-brain region forward **verbatim** (marker-delimited), the body-level analog of
+   `preserve_leg_history`. `/zwiad-sync-lawbrain` is the **sole** creator/updater/
+   remover of that region. Closes a real data-loss gap: `render-refreshed` currently
+   re-renders the freshly-fetched bill (empty `commentary_sources`) and would strip
+   committed commentary. (Logged D63.)
 
 ## 5. Architecture
 
@@ -117,13 +140,18 @@ command a clean no-op when `LAW_BRAIN_PATH` is missing or `lawbrain.enabled=fals
 
 ### 5.1 Reader — `sources/lawbrain.py` (read-only; NOT a `Source`)
 A `LawBrainPage{slug, type, jurisdiction: list[str], tags: list[str], title,
-citation: str|None, updated: date|None, body: str, content_hash: str}`.
+citation: str|None, updated: date|None, body: str, content_hash: str,
+source_files: list[str]}`.
 - Enumerate `effective_law_brain_path/wiki/<type>-*.md`; ignore anything without a
   recognized `<type>-` prefix and the root `index.md`/`log.md`/`CLAUDE.md`/`DECISIONS.md`.
 - Parse with `python-frontmatter`; tolerate scalar-or-list `jurisdiction`,
-  missing/unquoted `citation`, duplicate/missing `updated`.
+  missing/unquoted `citation`, duplicate/missing `updated`. `source_files` = the
+  `sources:` frontmatter list (paths relative to the law-brain root).
 - `content_hash` = sha256 of the **whole file**, EOL-normalized to `\n` (D5). The
   `updated` date is display/attribution only, never trusted for diffing.
+- `read_source_memo(rel_path) -> str | None` resolves a `source_files` entry against
+  the law-brain root and returns the `.md` memo text (None for missing files or
+  non-`.md` sources like PDFs). Used only by the link harvester (§5.9); read-only.
 - `is_available()` → bool; a missing path makes the stage a no-op.
 
 ### 5.2 Keys — `pipeline/lawbrain_keys.py` (pure)
@@ -202,6 +230,42 @@ when unsure, `not_in_scope` — a deterministic confirm re-checks any `link`.
 - `.claude/commands/zwiad-sync-lawbrain.md` orchestrates fetch → read → matcher
   (keyless only) → render → report. Keeps `ANTHROPIC_API_KEY` unset (D26).
 
+### 5.9 Reference links — `pipeline/lawbrain_links.py` (pure) — decision 6
+- `CommentaryLink{text: str, url: str}` (a small model). `CommentarySource` gains
+  `links: list[CommentaryLink] = []`, treated body-only exactly like `body` —
+  excluded from frontmatter (`exclude={"body", "links"}` in `to_frontmatter`),
+  carried in-memory during sync render only.
+- `harvest_links(page, memo_texts, primary_source_domains) -> list[CommentaryLink]`:
+  - Extract markdown links `\[([^\]]+)\]\((https?://[^)]+)\)` from the matched
+    page body AND each referenced `.md` memo (`read_source_memo`); also capture bare
+    `https?://…` URLs not already in a markdown link (anchor text = the URL's host).
+  - **Filter out primary-source domains** (host ends with any configured suffix:
+    `.gov`, `legiscan.com`, `courtlistener.com`, `wikipedia.org`, `europa.eu`,
+    `legislation.gov.uk`) — ZwiadBrain already carries authoritative primary sources.
+  - Dedup by normalized URL (lowercase host, strip trailing `/`); stable sort by
+    `(host, url)` for byte-identical render (D20). No cap (dedup is the noise control).
+- Fully deterministic and offline — no LLM, no network.
+
+### 5.10 Further Reading render + region preservation — decision 7
+- **New render helper `_neutralize_wikilinks`** (`templates.py`, beside
+  `_demote_headings`): `[[regulation-foo]]` → `regulation-foo`. Applied in
+  `_commentary_block` so dead law-brain cross-refs render as plain text (decision 2).
+- **Further Reading section** rendered after `## Commentary & Analysis`, aggregating
+  `commentary_sources[].links` (deduped across sources): `## Further Reading (via law
+  brain)` → `- [anchor text](url)` bullets. Omitted entirely when there are no links.
+- **Region markers for preservation.** The whole law-brain-contributed region (the
+  commentary blocks + Further Reading) is wrapped in an outer marker pair
+  `<!-- lawbrain:region:begin -->` … `<!-- lawbrain:region:end -->`. (The per-slug
+  `lawbrain:begin/end slug=` markers remain inside it.)
+- **`preserve_lawbrain_region(prev_page_text, fresh_body) -> str`** (pure): if
+  `prev_page_text` contains a `lawbrain:region` block, splice it verbatim onto
+  `fresh_body` (which a non-sync render produces WITHOUT the region, since the
+  freshly-fetched model has empty `commentary_sources`). The `render-refreshed` and
+  `render-classified` CLI paths call this so a refresh/backfill re-render never
+  strips committed commentary/Further Reading. Byte-identical because the region is
+  copied exactly (D20 holds; deterministic). `/zwiad-sync-lawbrain` alone rebuilds the
+  region from the law brain (create/update/remove), via compare-then-write.
+
 ## 6. Config / TOML
 
 `LawBrainSettings` exists; populate the `[lawbrain]` block in `zwiadbrain.toml`:
@@ -215,6 +279,12 @@ when unsure, `not_in_scope` — a deterministic confirm re-checks any `link`.
 guidance:"enforcement", incident:"enforcement", enforcement:"enforcement"}`
 (populated for PHASE-11; not used for attachment per decision 3). Add
 `LAW_BRAIN_PATH` to `.env.example`.
+
+Two new `LawBrainSettings` fields for decision 6: `further_reading: bool = True`
+(toggle the `## Further Reading` section) and `primary_source_domains: list[str]`
+(the harvest denylist, default `[".gov", "legiscan.com", "courtlistener.com",
+"wikipedia.org", "europa.eu", "legislation.gov.uk"]`). Both surfaced in the
+`[lawbrain]` TOML block.
 
 ## 7. Testing (fully offline — the strength of this phase)
 
@@ -246,8 +316,20 @@ test-heavy phases 01/02/06.
   pruned; `[reject]` → recorded, skipped next run.
 - **templates** — `_neutralize_wikilinks` (`[[regulation-foo]]`→`regulation-foo`)
   and the unchanged `_demote_headings`.
-- **Semi-integration (high-value):** render the **real** SB 53 commentary from the
-  local law brain and assert a valid, byte-identical re-render.
+- **`test_lawbrain_links.py`** (decision 6) — `[text](url)` + bare-URL extraction from
+  page body and from referenced memos; primary-source denylist drops `*.gov`/leginfo/
+  legiscan/wikipedia while keeping law-firm/IAPP/natlawreview; dedup by normalized URL;
+  stable sort. Fixture: a mini memo with mixed primary + law-firm links.
+- **`test_further_reading_render.py`** (decision 6) — `## Further Reading (via law
+  brain)` lists deduped commentary links; section omitted when no links; links
+  excluded from frontmatter (`to_frontmatter` round-trip drops `links`).
+- **`test_region_preservation.py`** (decision 7) — `preserve_lawbrain_region`: a
+  fresh body with no region + a prior page WITH a `lawbrain:region` block → spliced
+  verbatim; no region in prior → fresh body unchanged; a refresh re-render of a
+  commentary-bearing page keeps the region byte-identical (the data-loss regression
+  guard).
+- **Semi-integration (high-value):** render the **real** SB 53 commentary +
+  Further Reading from the local law brain and assert a valid, byte-identical re-render.
 
 The `lawbrain-matcher` subagent is validated by interactive UAT (D26), not offline
 unit tests.
@@ -265,6 +347,14 @@ unit tests.
   closed — excluded from commentary; refines D7.
 - **D61** — Review-resolution folded into the render half (no separate
   `review --commit` command).
+- **D62** — Harvest secondary/law-firm reference links from a matched page + its
+  referenced `sources/zwiad/*.md` memos into a dedicated `## Further Reading (via law
+  brain)` section; primary-source domains excluded via a configurable denylist;
+  deterministic, deduped, body-only.
+- **D63** — Commentary + Further Reading survive non-sync re-renders via text-level
+  `lawbrain:region` marker preservation (the body-level analog of
+  `preserve_leg_history`); bodies/links stay out of frontmatter (honors D20);
+  `/zwiad-sync-lawbrain` is the sole creator/updater of the region.
 
 ## 9. Scope boundaries (explicitly NOT in this phase)
 
@@ -282,12 +372,17 @@ unit tests.
   `LAW_BRAIN_PATH` prints match results + grounding outcomes + intended writes, no
   edits.
 - `/zwiad-sync-lawbrain` (interactive UAT): `regulation-california-sb53-tfaia`
-  commentary appears on `ca-2025-sb-53`; weak-grounding/low-confidence items land in
-  `review-queue.md`; decisions recorded in `links.yaml`; re-run → byte-identical
+  commentary appears on `ca-2025-sb-53`, with a `## Further Reading (via law brain)`
+  section listing the law-firm/IAPP/natlawreview links harvested from its referenced
+  memos (and no `*.gov`/legiscan duplicates); weak-grounding/low-confidence items land
+  in `review-queue.md`; decisions recorded in `links.yaml`; re-run → byte-identical
   (clean `git status`).
+- **Refresh-preservation:** after commentary is attached, run `/zwiad-refresh` on
+  that bill → the `lawbrain:region` (commentary + Further Reading) is preserved
+  byte-identical, not stripped (D63 regression guard).
 - **`Brains/law` is untouched** (`git -C …/Brains/law status` clean, mtimes
   unchanged) — the read-only invariant (D2).
-- Version bump **v0.9.0**; `DECISIONS.md` D57–D61, `ARCHITECTURE.md`, `docs/PLAN.md`
+- Version bump **v0.9.0**; `DECISIONS.md` D57–D63, `ARCHITECTURE.md`, `docs/PLAN.md`
   PHASE-09 status updated.
 
 **Expected first-run yield (honest):** ~1–2 commentary attachments (SB 53 cleanly;

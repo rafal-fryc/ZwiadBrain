@@ -19,6 +19,10 @@ def test_parse_strong_key_prefers_court_docket_over_file_number() -> None:
     assert parse_strong_key(text) == "2-25-cv-12295"
 
 
+def test_parse_strong_key_prefers_ftc_docket_over_file_number() -> None:
+    assert parse_strong_key("FTC, Docket No. C-4790; File No. 2023155") == "c-4790"
+
+
 def test_build_enforcement_id_with_strong_key() -> None:
     assert (
         build_enforcement_id("ftc", strong_key="c-4790", respondent="Acme", year=2025)

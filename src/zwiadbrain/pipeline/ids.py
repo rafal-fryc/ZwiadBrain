@@ -91,11 +91,17 @@ def format_state_bill_number(bill_number: str) -> str:
 # Enforcement-action identifiers (D53)
 # ---------------------------------------------------------------------------
 
-# Strong matter identifiers, tried highest-confidence first. Court dockets and FTC
-# administrative dockets are unambiguous; the bare 7-digit FTC file number is the
-# weakest (restricted to a "File No." context to avoid matching ZIPs/phone numbers).
+# Strong matter identifiers, tried highest-confidence first. Court dockets are
+# unambiguous; the FTC administrative docket is gated on a Docket/Matter context;
+# the bare 7-digit FTC file number is the weakest (restricted to a "File No."
+# context to avoid matching ZIPs/phone numbers). A wrong strong key is worse than
+# None here because it becomes both the matter id and the consolidation key.
 _COURT_DOCKET_RE = re.compile(r"\b(\d{1,2}):(\d{2})-([a-z]{2,3})-(\d{3,6})\b", re.IGNORECASE)
-_FTC_DOCKET_RE = re.compile(r"\b([CD])-(\d{3,4})\b")
+# Only matches an FTC docket in a Docket/Matter context: a bare "C-4790" in general
+# prose ("Section D-100", "Category C-1234") would otherwise become a wrong matter id.
+_FTC_DOCKET_RE = re.compile(
+    r"(?:docket|dkt\.?|matter)\b.{0,20}?\b([CD])-(\d{3,4})\b", re.IGNORECASE
+)
 _FTC_FILE_RE = re.compile(r"\bFile\s+No\.?\s*(\d{3}\s?\d{4})\b", re.IGNORECASE)
 
 
@@ -148,7 +154,7 @@ def build_enforcement_id(
     {year}-{slug(respondent)}``, with a numeric suffix appended on collision against
     *existing_ids* (two no-docket actions vs the same respondent in one year).
     """
-    if strong_key:
+    if strong_key is not None:
         return f"{_slug(agency_slug)}-{_slug(strong_key)}"
     base = f"{_slug(agency_slug)}-{year}-{_slug(respondent or 'unknown')}"
     if base not in existing_ids:

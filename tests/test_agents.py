@@ -219,17 +219,22 @@ def test_zwiad_refresh_references_existing_subagents() -> None:
     assert "amendment-explainer" in text
 
 
-def test_zwiad_refresh_has_all_six_orchestration_steps() -> None:
-    """should contain all 6 H3 step headings, in order, in the slash command body"""
+def test_zwiad_refresh_has_all_seven_orchestration_steps() -> None:
+    """should contain all 7 H3 step headings, in order, in the slash command body.
+
+    PHASE-07 split the fetch into a federal pass (step 1) and a state pass (step 2),
+    then merges both refreshable lists (step 3), so the command now has seven steps.
+    """
     refresh_cmd = _ROOT / ".claude" / "commands" / "zwiad-refresh.md"
     text = refresh_cmd.read_text(encoding="utf-8")
     required_steps = [
-        "### 1. Fetch refreshable",
-        "### 2. Read the refreshable list",
-        "### 3. Per-bill subagent dispatch",
-        "### 4. Stage refreshed",
-        "### 5. Render + index",
-        "### 6. Report",
+        "### 1. Fetch refreshable — federal",
+        "### 2. Fetch refreshable — state",
+        "### 3. Read the refreshable lists and merge",
+        "### 4. Per-bill subagent dispatch",
+        "### 5. Stage refreshed",
+        "### 6. Render + index",
+        "### 7. Report",
     ]
     last_pos = -1
     for step in required_steps:

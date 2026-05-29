@@ -1,5 +1,7 @@
 import datetime as dt
 
+import pytest
+
 from zwiadbrain.models import EnforcementAction, EnforcementDevelopment, parse_wiki_item
 
 
@@ -22,7 +24,7 @@ def test_enforcement_action_accepts_developments() -> None:
 
 
 def test_parse_wiki_item_routes_enforcement_with_developments() -> None:
-    data = {
+    data: dict[str, object] = {
         "id": "ftc-c-4790", "type": "enforcement", "jurisdiction": "US",
         "title": "FTC v. Acme", "agency": "FTC",
         "developments": [
@@ -36,6 +38,10 @@ def test_parse_wiki_item_routes_enforcement_with_developments() -> None:
 
 
 def test_enforcement_development_rejects_non_http_url() -> None:
-    import pytest
     with pytest.raises(ValueError):
         EnforcementDevelopment(summary="x", source_url="ftp://nope")
+
+
+def test_enforcement_development_rejects_blank_summary() -> None:
+    with pytest.raises(ValueError):
+        EnforcementDevelopment(summary="", source_url="https://x")

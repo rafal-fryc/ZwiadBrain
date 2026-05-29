@@ -250,8 +250,8 @@ class EnforcementDevelopment(BaseModel):
     into the page body — the same treatment leg_history research gets (D40).
     """
 
-    date: dt.date | None = None
-    summary: str
+    date: dt.date | None = None  # None when the source carries no explicit date
+    summary: Annotated[str, Field(min_length=1)]
     source_url: _HttpUrlStr
 
 

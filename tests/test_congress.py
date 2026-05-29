@@ -479,6 +479,36 @@ def test_fetch_maps_bare_update_date_and_update_date_text_separately() -> None:
     assert bill.update_date_text == "2026-05-02T00:00:00Z"
 
 
+def test_request_parses_retry_after_seconds_onto_retryable() -> None:
+    """should read an integer Retry-After header on a 503 and carry it on the retry marker"""
+    from zwiadbrain.sources.congress import (
+        _retry_after_seconds,  # pyright: ignore[reportPrivateUsage]
+        _Retryable,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    resp = httpx.Response(503, headers={"Retry-After": "7"})
+    assert _retry_after_seconds(resp) == 7.0
+    # malformed / absent header → None (fall back to exponential)
+    assert _retry_after_seconds(httpx.Response(503)) is None
+    assert _retry_after_seconds(httpx.Response(503, headers={"Retry-After": "soon"})) is None
+    # the marker carries the parsed value for the wait callable
+    marker = _Retryable(503, "/bill/118", retry_after=7.0)
+    assert marker.retry_after == 7.0
+
+
+def test_discover_honors_retry_after_then_succeeds() -> None:
+    """should retry a 503-with-Retry-After and succeed, using the header-driven wait"""
+    with respx.mock(base_url=CONGRESS_API_BASE) as mock:
+        route = mock.get("/bill/118")
+        route.side_effect = [
+            httpx.Response(503, headers={"Retry-After": "0"}),
+            httpx.Response(200, json=_fixture("list.json")),
+        ]
+        candidates = _source().discover(congress=118, limit=10)
+    assert route.call_count == 2
+    assert len(candidates) == 2
+
+
 def test_fetch_maps_per_amendment_latest_action_date() -> None:
     """should map each amendment's latestAction.actionDate to Amendment.latest_action_date"""
     detail_payload: dict[str, Any] = {

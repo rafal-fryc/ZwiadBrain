@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from zwiadbrain.config import load_settings
+from zwiadbrain.config import Settings, load_settings
 from zwiadbrain.exceptions import ConfigError
 
 _TOML = """
@@ -141,3 +141,15 @@ def test_require_govinfo_api_key_returns_key_when_set(
     toml_path, env_path = _write(tmp_path, env="GOVINFO_API_KEY=govinfo-secret-key-456\n")
     settings = load_settings(toml_path=toml_path, env_file=env_path)
     assert settings.require_govinfo_api_key() == "govinfo-secret-key-456"
+
+
+def test_require_legiscan_api_key_returns_value_when_set() -> None:
+    """should return the LegiScan key when present"""
+    settings = Settings(legiscan_api_key="lk-123")
+    assert settings.require_legiscan_api_key() == "lk-123"
+
+
+def test_require_legiscan_api_key_raises_when_unset() -> None:
+    """should raise ConfigError when the LegiScan key is missing"""
+    with pytest.raises(ConfigError):
+        Settings(legiscan_api_key=None).require_legiscan_api_key()

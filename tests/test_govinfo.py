@@ -19,6 +19,7 @@ from zwiadbrain.sources.govinfo import (
     GovInfoSource,
     _flatten_str,  # pyright: ignore[reportPrivateUsage]
     _parse_public_law,  # pyright: ignore[reportPrivateUsage]
+    _retry_after_seconds,  # pyright: ignore[reportPrivateUsage]
     details_url,
     enrolled_bill_package_id,
 )
@@ -450,3 +451,40 @@ def test_enacted_law_now_populates_statutes_at_large() -> None:
     assert result is not None
     assert result.statutes_at_large is not None
     assert result.statutes_at_large.citation == "Statutes at Large Volume 138, Page 1234"
+
+
+# --- Retry-After and 429 fail-fast ------------------------------------------
+
+
+def test_handle_response_parses_retry_after_onto_retryable() -> None:
+    """should read Retry-After on a 503 and carry it on the GovInfo retry marker"""
+    assert _retry_after_seconds(httpx.Response(503, headers={"Retry-After": "5"})) == 5.0
+    assert _retry_after_seconds(httpx.Response(503)) is None
+    assert _retry_after_seconds(httpx.Response(503, headers={"Retry-After": "later"})) is None
+
+
+def test_get_json_honors_retry_after_then_succeeds() -> None:
+    """should retry a 503-with-Retry-After GET and succeed using the header-driven wait"""
+    pkg_id = enrolled_bill_package_id(118, "HR", 8818)
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        route = mock.get(f"/related/{pkg_id}/PLAW")
+        route.side_effect = [
+            httpx.Response(503, headers={"Retry-After": "0"}),
+            httpx.Response(200, json=_fixture("related_plaw.json")),
+        ]
+        mock.get("/related/PLAW-118publ42/STATUTE").respond(
+            json=_fixture("related_statute_empty.json")
+        )
+        enactment = _source().enacted_law(118, "HR", 8818)
+    assert route.call_count == 2
+    assert enactment is not None
+
+
+def test_429_stays_non_retryable_rate_limit_error() -> None:
+    """should NOT retry a 429 (hourly key quota) — surface RateLimitError on the first hit"""
+    pkg_id = enrolled_bill_package_id(118, "HR", 8818)
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        route = mock.get(f"/related/{pkg_id}/PLAW").respond(429)
+        with pytest.raises(RateLimitError):
+            _source().enacted_law(118, "HR", 8818)
+    assert route.call_count == 1  # fail-fast, no in-process retry of an hourly quota

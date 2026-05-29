@@ -325,3 +325,12 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** A page flipped OUT is never deleted (D39); retaining its topics preserves the audit trail of why it entered the tracker, which matters for understanding scope drift (e.g. an AI clause struck in markup). Logging this makes the behavior an auditable, intentional choice rather than an accident of the refresh code.
 **Trade-offs:** Frontmatter `topics[]` on a `tracking=false` page reflects historical, not current, scope — readers must use `tracking` (not `topics`) as the current-scope signal.
 **Revisit if:** Retained topics on flipped-out pages cause confusion in the index or FTS results — then clear them on flip and record the scope history elsewhere (e.g. a `former_topics` field or the git history).
+
+## 2026-05-28 — 41. Retry-After honored on 5xx; GovInfo 429 stays non-retryable
+**Chosen:** Both source clients parse `Retry-After` (delta-seconds or HTTP-date) on a 503 and prefer it over the blind exponential wait via a tenacity wait callable; an absent/invalid header falls back to exponential. GovInfo 429 remains a non-retryable `RateLimitError` (fail-fast, no in-process retry).
+**Alternatives:** (a) Keep blind exponential backoff everywhere; (b) make GovInfo 429 retryable-with-Retry-After.
+**Why:** A server-supplied `Retry-After` is more accurate than guessing, and respecting it is polite to a shared public API. GovInfo's 429 is an hourly per-key quota (~the 40/sec shared limit), not a short transient — retrying it in-process cannot clear the quota and only burns attempts; the operator should back off the whole run instead.
+**Trade-offs:** A hostile/buggy `Retry-After` could stall a run for the header's duration (bounded only by the server, not `wait_max`); acceptable for these trusted gov APIs. GovInfo 429 still aborts the command rather than degrading gracefully.
+**Revisit if:** A run is observed stalling on an oversized `Retry-After` (then cap it at `wait_max`), or GovInfo's 429 proves to be a short rolling window worth retrying.
+
+---

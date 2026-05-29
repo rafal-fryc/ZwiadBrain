@@ -1,6 +1,6 @@
 ---
 description: Backfill federal bills into the ZwiadBrain wiki, classifying and summarizing each via subagents (runs on your regular Claude plan usage).
-argument-hint: <congress> [limit]
+argument-hint: <congress> [limit] [--force <congress/type/number>]
 allowed-tools: Bash, Read, Write, Task
 ---
 
@@ -10,6 +10,8 @@ Orchestrate a federal backfill end to end. Python does the deterministic fetch a
 render; you (this interactive session) do the LLM steps by dispatching subagents,
 so the work runs on the regular Claude plan — **not** the API or the Agent SDK
 credit. Arguments: `$1` = congress number (required), `$2` = limit (default 5).
+`$3` = optional `--force <congress/type/number>` to re-track a previously flipped-out bill
+(skips discovery: re-fetches that one bill, then classify it — an in-scope verdict keeps it tracked).
 
 ## Steps
 

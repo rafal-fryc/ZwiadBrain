@@ -167,3 +167,15 @@ def apply_classifier_flip(
             "flipped_out": FlipOutAudit(date=date, reason=rationale),
         }
     )
+
+
+def clear_flip(bill: Bill) -> Bill:
+    """Return a copy of *bill* re-tracked: ``tracking=True`` and ``flipped_out`` cleared.
+
+    The inverse of :func:`apply_classifier_flip`'s OUT path, used by the
+    ``--force`` re-track (F7) once the interactive classifier has judged a
+    previously flipped-out bill in-scope again.  Idempotent on an
+    already-tracking bill (returns an equivalent copy).  The existing ``topics``
+    and all other fields are untouched.
+    """
+    return bill.model_copy(update={"tracking": True, "flipped_out": None})

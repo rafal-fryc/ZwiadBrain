@@ -12,6 +12,12 @@ does the deterministic fetch + render; you (this interactive session) do the
 LLM steps so the work runs on the regular Claude plan, **not** the API or the
 Agent SDK credit.
 
+> **Re-tracking a flipped-out bill (F7).** A bill flipped to `tracking: false` is
+> excluded from this refresh (it can never come back on its own). To bring one back,
+> run `uv run zwiadbrain backfill --force <congress/type/number>` (re-fetches and writes
+> it re-tracked), then dispatch the **classifier** subagent on it — an in-scope verdict
+> keeps it tracked; an out-of-scope verdict means it flips out again on the next refresh.
+
 ## Steps
 
 ### 1. Fetch refreshable (Python, deterministic)

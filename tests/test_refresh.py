@@ -231,3 +231,31 @@ def test_amendment_delta_marks_all_as_new_when_prev_empty() -> None:
         Amendment(number="H.Amdt. 2", latest_action_date=dt.date(2026, 5, 2)),
     ]
     assert _amendment_delta([], fresh) == ("H.Amdt. 1", "H.Amdt. 2")
+
+
+# --- clear_flip (F7 re-track) ----------------------------------------------
+
+
+def test_clear_flip_retracks_a_flipped_out_bill() -> None:
+    """should set tracking=True and clear flipped_out for an in-scope re-track"""
+    from zwiadbrain.pipeline.refresh import clear_flip
+
+    bill = _bill(
+        tracking=False,
+        flipped_out=FlipOutAudit(date=dt.date(2026, 6, 4), reason="scope drift"),
+    )
+    out = clear_flip(bill)
+    assert out.tracking is True
+    assert out.flipped_out is None
+    # topics / other fields untouched
+    assert out.id == bill.id
+
+
+def test_clear_flip_is_noop_on_already_tracking_bill() -> None:
+    """should return an equivalent bill when it is already tracking with no flip audit"""
+    from zwiadbrain.pipeline.refresh import clear_flip
+
+    bill = _bill()  # tracking=True, flipped_out=None
+    out = clear_flip(bill)
+    assert out.tracking is True
+    assert out.flipped_out is None

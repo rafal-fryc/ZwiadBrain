@@ -33,6 +33,7 @@ from zwiadbrain.pipeline.ids import parse_bill_id
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
+    clear_flip,
     detect_refreshable,
     preserve_leg_history,
     summary_hash,
@@ -40,6 +41,7 @@ from zwiadbrain.pipeline.refresh import (
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.reference.loader import load_reference
+from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.store import Store
@@ -94,11 +96,34 @@ def backfill(
     seed: Annotated[
         list[str] | None, typer.Option(help="Keyword seed for recall filtering (repeatable).")
     ] = None,
+    force: Annotated[
+        str | None,
+        typer.Option(
+            help="Re-fetch+enrich a single flipped-out bill (congress/type/number) and re-track it."
+        ),
+    ] = None,
 ) -> None:
-    """Enrich and render federal bills from a Congress into the wiki."""
+    """Enrich and render federal bills from a Congress into the wiki.
+
+    With ``--force <congress/type/number>`` the discover path is skipped: the one
+    named bill is re-fetched, re-enriched, and written re-tracked (``tracking=true``,
+    flip audit cleared) so a previously flipped-out bill can come back (F7). The
+    in/out-of-scope verdict is the slash command's classifier step (D26).
+    """
     try:
         api_key = load_settings().require_congress_api_key()
         source = CongressSource(api_key)
+        if force is not None:
+            parse_bill_id(force.replace("/", "-"))  # validate shape early (raises ConfigError)
+            fresh = clear_flip(
+                enrich(
+                    source,
+                    Candidate(source=source.name, native_id=force, jurisdiction="US", title=""),
+                )
+            )
+            written = write_page(fresh, wiki)
+            typer.echo(f"re-tracked {written} bill into {wiki}")
+            return
         candidates = source.discover(congress=congress, limit=limit * 5 if seed else limit)
         candidates = keyword_filter(candidates, seed)[:limit]
         written = sum(write_page(enrich(source, candidate), wiki) for candidate in candidates)

@@ -1459,3 +1459,27 @@ def test_reindex_command_reports_store_error_without_traceback(tmp_path: Path) -
     assert result.exit_code == 1
     assert "error:" in result.output
     assert "Traceback" not in result.output
+
+
+def test_backfill_force_retracks_single_flipped_out_bill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should re-fetch a single bill and write it re-tracked (tracking=true, no flip audit)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    wiki = tmp_path / "wiki"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        base = "/bill/118/hr/8818"
+        mock.get(base).respond(json=_fixture("detail.json"))
+        mock.get(f"{base}/actions").respond(json=_fixture("actions.json"))
+        mock.get(f"{base}/amendments").respond(json=_fixture("amendments.json"))
+        mock.get(f"{base}/text").respond(json=_fixture("text.json"))
+        mock.get(f"{base}/summaries").respond(json=_fixture("summaries.json"))
+        mock.get(f"{base}/relatedbills").respond(json=_fixture("relatedbills.json"))
+        result = runner.invoke(
+            app, ["backfill", "--congress", "118", "--force", "118/hr/8818", "--wiki", str(wiki)]
+        )
+    assert result.exit_code == 0, result.output
+    page = (wiki / "federal" / "bills" / "118-hr-8818.md").read_text(encoding="utf-8")
+    assert "tracking: true" in page or "tracking:" not in page  # default True is omitted
+    assert "flipped-out" not in page

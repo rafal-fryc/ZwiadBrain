@@ -1523,3 +1523,38 @@ def test_fetch_candidates_rejects_nonpositive_congress() -> None:
     """should exit 2 when --congress is below 1"""
     result = runner.invoke(app, ["fetch-candidates", "--congress", "0", "--limit", "1"])
     assert result.exit_code == 2
+
+
+def test_fetch_state_refreshable_detects_changed_bill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should diff masterlist change_hash and stage only the changed tracked bill"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    fix = Path(__file__).parent / "fixtures" / "legiscan"
+    masterlist = json.loads((fix / "getMasterListRaw.json").read_text(encoding="utf-8"))
+    bill = json.loads((fix / "getBill.json").read_text(encoding="utf-8"))
+
+    # Render a tracked CA page whose stored change_hash is STALE vs the masterlist.
+    from zwiadbrain.pipeline.render import write_page
+    from zwiadbrain.sources.legiscan import LegiScanSource
+    src = LegiScanSource("lk-test", "ca")
+    page_bill = src._to_bill(bill["bill"])  # noqa: SLF001 — building a fixture page  # pyright: ignore[reportPrivateUsage]
+    page_bill = page_bill.model_copy(update={"change_hash": "abc123-OLD"})
+    wiki = tmp_path / "wiki"
+    write_page(page_bill, wiki)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        op = request.url.params.get("op", "")
+        return httpx.Response(200, json={"getMasterListRaw": masterlist, "getBill": bill}[op])
+
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(url=LEGISCAN_API_BASE).mock(side_effect=handler)
+        result = runner.invoke(app, [
+            "fetch-state-refreshable", "--wiki", str(wiki), "--out", str(out),
+        ])
+    assert result.exit_code == 0, result.output
+    staged = json.loads((out / "refreshable.json").read_text(encoding="utf-8"))
+    assert len(staged) == 1
+    assert staged[0]["bill_id"] == "ca-2023-sb-362"
+    assert staged[0]["needs_summarizer"] is True

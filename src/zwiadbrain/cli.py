@@ -37,6 +37,7 @@ from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
     clear_flip,
     detect_refreshable,
+    detect_state_refreshable,
     preserve_leg_history,
     summary_hash,
 )
@@ -255,6 +256,68 @@ def fetch_state_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"fetched {len(bills)} {state} candidate(s) to {path}")
+
+
+@app.command(name="fetch-state-refreshable")
+def fetch_state_refreshable(
+    wiki: Annotated[Path, typer.Option(help="Wiki root to scan for tracked state bills.")] = Path(
+        "wiki"
+    ),
+    out: Annotated[Path | None, typer.Option(help="Run directory for refreshable.json.")] = None,
+) -> None:
+    """Detect tracked state bills whose LegiScan change_hash advanced (incremental sync).
+
+    One getMasterListRaw per state returns every current-session bill's change_hash;
+    only bills whose stored hash differs are re-fetched via getBill. The staged entries
+    share the shape `/zwiad-refresh` consumes, so render-refreshed is reused unchanged.
+    """
+    try:
+        api_key = load_settings().require_legiscan_api_key()
+        states_dir = wiki / "states"
+        if not states_dir.exists():
+            typer.echo(f"no states directory under {wiki}", err=True)
+            raise typer.Exit(0)
+        # Group tracked state bills by state code.
+        by_state: dict[str, list[Bill]] = {}
+        skipped = 0
+        for page_path in sorted(states_dir.glob("*/bills/*.md")):
+            try:
+                item = from_page(page_path.read_text(encoding="utf-8"))
+            except (WikiSchemaError, ConfigError) as exc:
+                skipped += 1
+                typer.echo(f"skipped {page_path}: {exc}", err=True)
+                continue
+            if not isinstance(item, Bill) or not item.tracking or item.legiscan_bill_id is None:
+                continue
+            state = item.jurisdiction.split("-", 1)[-1].lower()
+            by_state.setdefault(state, []).append(item)
+        entries: list[dict[str, object]] = []
+        for state, bills in sorted(by_state.items()):
+            source = LegiScanSource(api_key, state)
+            hashes = source.change_hashes()
+            for prev in bills:
+                fresh_hash = hashes.get(prev.legiscan_bill_id or -1)
+                if fresh_hash is None or fresh_hash == prev.change_hash:
+                    continue  # absent from current session, or unchanged → no getBill
+                fresh = source.fetch(str(prev.legiscan_bill_id))
+                fresh.summary_hash = summary_hash(fresh.summary)
+                fresh.amendments_count = len(fresh.amendments)
+                refreshable = detect_state_refreshable(prev, fresh)
+                if refreshable is None:
+                    continue
+                entries.append({
+                    "bill_id": prev.id,
+                    "prev": prev.model_dump(mode="json"),
+                    "fresh": fresh.model_dump(mode="json"),
+                    "needs_classifier": refreshable.needs_classifier,
+                    "needs_summarizer": refreshable.needs_summarizer,
+                    "changed_amendment_numbers": list(refreshable.changed_amendment_numbers),
+                })
+        path = stage_json(entries, name="refreshable.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged {len(entries)} refreshable state bill(s) to {path} ({skipped} skipped)")
 
 
 @app.command(name="fetch-leg-history")

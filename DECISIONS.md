@@ -372,4 +372,39 @@ standing engineering rules (language/tooling, merge strategy).
 **Trade-offs:** The quota-message substring match is heuristic — an ERROR message that happens to contain "limit" in a non-quota context would be misclassified as a rate limit; this is acceptable because any ERROR should be treated as terminal until resolved, and the distinction is only between retry-later (`RateLimitError`) and inspect-now (`SourceFetchError`). The `\b` word-boundary approach to preventing `api_key=`'s inner `key` from re-matching is regex-dependent; if a future source uses a param name like `nokey=`, it would not be caught (add it to the alternation).
 **Revisit if:** LegiScan begins documenting and using HTTP 429 reliably for quota exhaustion — then add `Retry-After` handling mirroring D46; or a new source uses a secret param name not covered by the current alternation — then extend the regex, as D47 already anticipated.
 
+## 2026-05-29 — 52. Enforcement is discovery-driven; re-running the scan is the refresh (no /zwiad-refresh leg)
+**Chosen:** Enforcement currency comes from re-running `/zwiad-scan-enforcement`; there is no enforcement pass in `/zwiad-refresh`.
+**Alternatives:** A bill-style change cursor re-fetching a stored press-release URL; a content-hash refresh of tracked pages.
+**Why:** Enforcement updates arrive as NEW feed items about the same matter (complaint → settlement), not edits to the original press release, so re-fetching a stored URL detects nothing. Discovery + matter consolidation matches how the data actually arrives.
+**Trade-offs:** Currency depends on running the scan; an update published between runs is picked up on the next scan, not immediately.
+**Revisit if:** An agency begins materially editing existing pages in place.
+
+## 2026-05-29 — 53. Two-tier enforcement matter matching with a deterministic confirm
+**Chosen:** Match a new item to an existing matter by a deterministic strong key (court docket / FTC docket or file number) when present; otherwise by an LLM matcher (`enforcement-matcher`, sonnet) over a deterministic shortlist keyed on investigation target + date. An LLM match auto-applies ONLY after a deterministic `confirm_match` (normalized respondent token-overlap + date proximity + confidence ≥ threshold). Failed confirm → new page + a `possible-duplicate-of` run-report note, never a silent wrong-merge.
+**Alternatives:** Strong-key only (misses no-docket AG matters); LLM-only (wrong-merge risk); a committed review queue for every uncertain match (heaviest).
+**Why:** AGs frequently publish neither a docket nor a file number, so deterministic-only can't consolidate their multi-item matters; but an unconfirmed LLM merge can fuse unrelated cases. This is the law-brain D16 discipline (deterministic key → LLM fallback → mechanical grounding → fail-safe) applied to enforcement. The overlap floor (0.34) sits deliberately just above the 1/3 score of two two-token names sharing one token; when a match's date is absent on either side, date proximity can't ground it, so a stronger overlap floor (0.6) is required instead.
+**Trade-offs:** A confirmed-but-actually-distinct match (same respondent + window, different case) could still merge — fixable manually; acronym/DBA mismatches ("GTL" vs "Global Tel Link") score 0 and won't auto-match (conservative; strong-key or manual link is the escape hatch). A persistent review queue is a named follow-up.
+**Revisit if:** Wrong-merge or missed-merge rates prove high in practice (tune thresholds or add the review queue).
+
+## 2026-05-29 — 54. One generic config-driven state-AG adapter with per-source AND per-article failure isolation
+**Chosen:** A single `StateAGSource` (`kind = rss | html`, `item_selector`) serves every AG; adding a state is config-only. Discovery failures are caught per source and yield `[]` (logged); additionally, a per-article `fetch_text` failure is caught and that one item skipped, so neither a broken feed nor a single moved press release aborts the multi-agency run.
+**Alternatives:** A bespoke scraper class per state (more code, same fragility); abort-on-error (one broken AG kills the scan).
+**Why:** AG sites are layout-fragile and numerous; config-driven keeps fragility in data, and isolation keeps the blast radius to one source / one article.
+**Trade-offs:** HTML selectors need per-site tuning (done in UAT); a silently-failing source yields nothing until noticed — mitigated by per-source counts in the run report.
+**Revisit if:** A high-value AG has a structure the generic adapter can't express (then a targeted adapter behind the same protocol).
+
+## 2026-05-29 — 55. Separate enforcement rubric + subagents; shared taxonomy, model, render, CLI
+**Chosen:** Enforcement gets its own rubric block (`positive_criteria_enforcement` / `disqualify_enforcement` in `topics.yaml`) and its own subagents (`enforcement-classifier`, `enforcement-extractor`, `enforcement-matcher`), while reusing the `ai/privacy/cyber` taxonomy keys, the `EnforcementAction` model, and the render/schema/CLI plumbing.
+**Alternatives:** Reuse the bill classifier/summarizer unchanged (rubric mismatch — bill criteria enumerate appropriations/resolutions); a fully separate enforcement taxonomy (duplicates ai/privacy/cyber, invites drift).
+**Why:** The relevance judgment differs from bills, but the taxonomy keys and page machinery are mechanically identical; one prompt judging both kinds would erode the stated-negative-criteria precision D17 protects, and a duplicate taxonomy would drift.
+**Trade-offs:** Two rubric blocks in one file; three new subagent prompts to maintain.
+**Revisit if:** The two rubrics converge enough to merge, or a fourth page kind appears.
+
+## 2026-05-29 — 56. EnforcementAction prose persists to frontmatter (unlike Bill) so consolidation is monotonic
+**Chosen:** `summary/background/allegations/outcome/significance` persist to frontmatter for `EnforcementAction` (a type-aware body-only exclusion in `to_frontmatter`), while `Bill` keeps its prose body-only.
+**Alternatives:** Keep enforcement prose body-only like Bill (consolidation then can't preserve an earlier development's prose — the page shows only the latest item's prose, and idempotency becomes input-dependent); a separate sidecar store.
+**Why:** A bill summary is re-derived by re-running the summarizer on each refresh, but enforcement prose is an LLM extraction from a transient article that is never re-fetched — consolidation loads the page from disk and merges, so the prose must round-trip through `from_page` (i.e. persist to frontmatter) for the merge to be monotonic (a settlement item that omits the complaint's allegations must not blank them). Same D40 principle (persist non-re-derivable LLM output); the body is still re-rendered from the persisted model, so D20 holds.
+**Trade-offs:** Enforcement frontmatter carries multi-line prose (like the leg_history narrative); slight redundancy (prose in both frontmatter and body). Bill behavior is unchanged.
+**Revisit if:** Enforcement prose grows large enough that frontmatter bloat matters, or a re-extract-on-refresh path is added.
+
 ---

@@ -57,7 +57,16 @@ slash command (interactive Claude Code session)
   `tracking: false` without deletion (D39). Federal pass backed by CLI
   `fetch-refreshable`; state pass backed by `fetch-state-refreshable`
   (`getMasterListRaw` change_hash diff → `getBill` on changed bills only). Both
-  passes feed the shared `render-refreshed` step.
+  passes feed the shared `render-refreshed` step. **No enforcement pass** — re-scan
+  is the enforcement refresh (D52).
+- **`/zwiad-scan-enforcement`** — discover FTC + state-AG enforcement items via RSS
+  feeds and config-driven HTML adapters (D54), classify with the enforcement rubric
+  (D55), match to existing matters via strong key (court/FTC docket) then LLM
+  matcher with deterministic confirm (D53), extract, and render under
+  `wiki/federal/enforcement/` + `wiki/states/<st>/enforcement/`. Re-running this
+  command IS the enforcement refresh — there is no enforcement leg in
+  `/zwiad-refresh` (D52). Backed by CLI `fetch-enforcement-candidates` +
+  `render-enforcement`.
 
 **Requires an open interactive session.** Nothing is headless or cron-driven:
 `claude -p` and the Agent SDK would draw separate metered credit, so they are
@@ -67,9 +76,10 @@ deliberately not used (D26). A terminal must be open and the command triggered.
 
 1. **D20 — byte-identical render.** `render_page(model)` is a pure deterministic
    function: unchanged input → identical bytes → clean `git status`. Frontmatter
-   holds metadata only, EXCEPT `commentary_sources` and
-   `leg_history.{hearings,statements,narrative}` (D37/D40). New model validators
-   must not change serialized output.
+   holds metadata only, EXCEPT `commentary_sources`,
+   `leg_history.{hearings,statements,narrative}` (D37/D40), and
+   `EnforcementAction` prose fields (D56). New model validators must not change
+   serialized output.
 2. **D36 — grounding trust boundary (fail-closed).** A researched leg-history
    statement persists ONLY if it passes BOTH a deterministic gate (URL returns
    200, normalized verbatim quote present on the page, ≥20 chars) AND an
@@ -77,6 +87,14 @@ deliberately not used (D26). A terminal must be open and the command triggered.
    Failures are dropped and logged, never silently persisted.
 3. **D26 — interactive-only LLM.** All LLM work is interactive Claude Code
    subagents; Python is deterministic, independently unit-testable tooling.
+
+**Enforcement matter matching (D53):** New enforcement items are matched to
+existing wiki matters by a deterministic strong key (court docket / FTC docket or
+file number) when available; otherwise by the `enforcement-matcher` subagent over
+a deterministic shortlist, auto-applied only after a deterministic `confirm_match`
+check (respondent token-overlap + date proximity + confidence threshold). A failed
+confirm creates a new page with a `possible-duplicate-of` run-report note — a
+wrong-merge is never silently committed.
 
 ## Retrieval
 
@@ -96,7 +114,9 @@ src/zwiadbrain/
   store.py          SQLite FTS5 index + reindex-from-frontmatter
   reference/        topics.yaml taxonomy + DISQUALIFY lexicon + loader
   sources/          congress.py, govinfo.py, legiscan.py (HTTP transport + Bill mapping)
+                    enforcement/ (base, ftc, state_ag — config-driven adapters, D54)
   pipeline/         discover, enrich, render, leg_history, refresh
+                    enforcement.py (matter matching / confirm / merge, D53)
   wiki/             schema (frontmatter models) + templates (jinja2)
 .claude/
   agents/           subagent prompts (classifier, summarizer, …)
@@ -105,9 +125,13 @@ src/zwiadbrain/
 
 ## Status
 
-Shipped: PHASE-01..07 (skeleton, wiki layer, federal source, LLM subagents,
-legislative history, watchlist refresh, state sources via LegiScan). Current: v0.7.0.
+Shipped: PHASE-01..08 (skeleton, wiki layer, federal source, LLM subagents,
+legislative history, watchlist refresh, state sources via LegiScan, enforcement
+actions via FTC + 7 priority state AGs). Current: v0.8.0.
 
-**Not yet implemented:** enforcement actions / FTC + state AGs (PHASE-08),
-law-brain commentary + discovery (PHASE-09/11), scheduling (PHASE-10).
-`src/zwiadbrain/sources/enforcement/` is a PHASE-08 placeholder.
+`src/zwiadbrain/sources/enforcement/` is fully implemented (PHASE-08); re-running
+`/zwiad-scan-enforcement` is the enforcement refresh — no cursor-based incremental
+pass, by design (D52).
+
+**Not yet implemented:** law-brain commentary + discovery (PHASE-09/11),
+scheduling (PHASE-10).

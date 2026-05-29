@@ -14,8 +14,10 @@ State sources, enforcement, and law-brain commands are not yet implemented; see
 ``ARCHITECTURE.md``.
 """
 
+import contextlib
 import datetime as dt
 import json
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -603,7 +605,19 @@ def render_leg_history(
 
 
 def main() -> None:
-    """Console-script entry point."""
+    """Console-script entry point.
+
+    Force UTF-8 on stdout/stderr before dispatching: command help text and echoed
+    messages contain non-ASCII (em dashes, the IN->OUT arrow), which raise
+    ``UnicodeEncodeError`` on a legacy Windows console (cp1252). Reconfiguring to
+    UTF-8 avoids the crash; the guard makes it a no-op where a stream cannot be
+    reconfigured (e.g. a captured test buffer).
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            with contextlib.suppress(Exception):
+                reconfigure(encoding="utf-8")
     app()
 
 

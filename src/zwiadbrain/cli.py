@@ -17,6 +17,7 @@ State sources, enforcement, and law-brain commands are not yet implemented; see
 import contextlib
 import datetime as dt
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -26,12 +27,25 @@ import typer
 from pydantic import ValidationError
 
 from zwiadbrain import __version__
-from zwiadbrain.config import load_settings
+from zwiadbrain.config import Settings, load_settings
 from zwiadbrain.exceptions import AppError, ConfigError, WikiSchemaError
-from zwiadbrain.models import Bill, Hearing, LegHistory, Statement
+from zwiadbrain.models import (
+    Bill,
+    EnforcementAction,
+    EnforcementDevelopment,
+    Hearing,
+    LegHistory,
+    Statement,
+)
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
+from zwiadbrain.pipeline.enforcement import (
+    MatterRef,
+    confirm_match,
+    merge_current_state,
+    merge_developments,
+)
 from zwiadbrain.pipeline.enrich import enrich
-from zwiadbrain.pipeline.ids import parse_bill_id
+from zwiadbrain.pipeline.ids import build_enforcement_id, parse_bill_id, parse_strong_key
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
@@ -46,10 +60,15 @@ from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CongressSource
+from zwiadbrain.sources.enforcement.base import EnforcementSource
+from zwiadbrain.sources.enforcement.ftc import FTCSource
+from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
+
+_LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_TOPICS = Path("reference/topics.yaml")
 _SCAN_LIMIT = 250  # bills to scan per fetch-candidates run (Congress list single-request max)
@@ -496,6 +515,303 @@ def render_refreshed(
     )
     for bill_id, reason in flipped_out:
         typer.echo(f"  flipped-out: {bill_id} — \"{reason}\"")
+
+
+def _enforcement_sources(settings: Settings, agency: str | None) -> list[EnforcementSource]:
+    """Build the enabled enforcement sources, optionally filtered to one --agency."""
+    sources: list[EnforcementSource] = []
+    enf = settings.enforcement
+    if enf.ftc.enabled and agency in (None, "ftc"):
+        sources.append(FTCSource(enf.ftc.rss_url))
+    for ag in enf.enabled_state_ags():
+        if agency in (None, ag.agency_slug):
+            sources.append(
+                StateAGSource(
+                    name=ag.name,
+                    agency_slug=ag.agency_slug,
+                    jurisdiction=ag.jurisdiction,
+                    url=ag.url,
+                    kind=ag.kind,
+                    item_selector=ag.item_selector,
+                )
+            )
+    return sources
+
+
+def _jurisdiction_slug_map(settings: Settings) -> dict[str, str]:
+    """Map a page jurisdiction -> agency_slug from config (one source per jurisdiction)."""
+    mapping = {"US": "ftc"}
+    for ag in settings.enforcement.state_ag:
+        mapping[ag.jurisdiction] = ag.agency_slug
+    return mapping
+
+
+def _existing_matters(wiki: Path, settings: Settings) -> list[MatterRef]:
+    """Read every tracked enforcement page into a MatterRef (for matching/shortlists)."""
+    juris_slug = _jurisdiction_slug_map(settings)
+    matters: list[MatterRef] = []
+    for page in sorted(wiki.glob("**/enforcement/*.md")):
+        try:
+            item = from_page(page.read_text(encoding="utf-8"))
+        except (WikiSchemaError, ConfigError):
+            continue
+        if not isinstance(item, EnforcementAction):
+            continue
+        matters.append(
+            MatterRef(
+                id=item.id,
+                agency_slug=juris_slug.get(item.jurisdiction, ""),
+                jurisdiction=item.jurisdiction,
+                respondent=item.respondent,
+                date_filed=item.date_filed,
+                strong_key=item.docket,
+            )
+        )
+    return matters
+
+
+@app.command(name="fetch-enforcement-candidates")
+def fetch_enforcement_candidates(
+    agency: Annotated[
+        str | None, typer.Option(help="One source: 'ftc' or an AG slug; omit for all.")
+    ] = None,
+    limit: Annotated[int, typer.Option(min=1, help="Max items per source.")] = 5,
+    lookback_days: Annotated[
+        int | None, typer.Option(help="Override config lookback window.")
+    ] = None,
+    wiki: Annotated[Path, typer.Option(help="Wiki root (for existing matters).")] = Path("wiki"),
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for candidates.json.")
+    ] = None,
+) -> None:
+    """Discover enforcement items (forward-from-now), fetch article text, parse strong
+    keys, and stage candidates.json + matters.json for the interactive subagents."""
+    try:
+        settings = load_settings()
+        window = (
+            lookback_days
+            if lookback_days is not None
+            else settings.enforcement.lookback_days
+        )
+        since = dt.datetime.now(dt.UTC) - dt.timedelta(days=window)
+        sources = _enforcement_sources(settings, agency)
+        matters = _existing_matters(wiki, settings) if wiki.exists() else []
+        by_key = {m.strong_key: m.id for m in matters if m.strong_key}
+        candidates: list[dict[str, object]] = []
+        for source in sources:
+            for cand in source.discover(since=since, limit=limit):
+                # Isolate per-article failures: a single moved/4xx press-release URL
+                # must not abort the whole run (D54 isolation, at the article level).
+                # FTC raises SourceFetchError (AppError); StateAG raises
+                # httpx.HTTPStatusError (NOT an AppError) — catch both, skip, continue.
+                try:
+                    text = source.fetch_text(cand)
+                except (AppError, httpx.HTTPError) as exc:
+                    _LOGGER.warning("fetch_text failed for %s: %s", cand.url, exc)
+                    continue
+                strong_key = parse_strong_key(f"{cand.title}\n{text}")
+                matter_id = by_key.get(strong_key) if strong_key else None
+                entry: dict[str, object] = dict(cand.model_dump(mode="json"))
+                entry["text"] = text
+                entry["strong_key"] = strong_key
+                entry["matter_id"] = matter_id
+                entry["match_source"] = "strong_key" if matter_id else None
+                candidates.append(entry)
+        # Stage both files in the SAME run directory: stage_json writes <out>/<name>
+        # and returns that path, so matters.json reuses the candidates file's parent.
+        path = stage_json(candidates, name="candidates.json", out=out)
+        stage_json(
+            [m.model_dump(mode="json") for m in matters],
+            name="matters.json",
+            out=path.parent,
+        )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged {len(candidates)} enforcement candidate(s) to {path.parent}")
+
+
+def _opt_date(value: object) -> dt.date | None:
+    """Parse an optional ISO date string from staging JSON (empty/None -> None)."""
+    if not value:
+        return None
+    return dt.date.fromisoformat(str(value)[:10])
+
+
+def _opt_str_e(value: object) -> str | None:
+    """Coerce an optional staging-JSON scalar to a non-empty str (empty/None -> None)."""
+    return str(value) if value not in (None, "") else None
+
+
+def _str_map(value: object) -> dict[str, str]:
+    """Coerce a staging-JSON object to a str->str map; non-dict input -> empty map.
+
+    ``isinstance(value, dict)`` narrows to ``dict[Unknown, Unknown]`` (the JSON parse
+    yields untyped keys/values), so ``str(k)``/``str(v)`` take Unknown arguments — the
+    same staging-JSON traversal seam ``_as_list`` annotates with a per-line ignore.
+    """
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(k): str(v)  # pyright: ignore[reportUnknownArgumentType]
+        for k, v in value.items()  # pyright: ignore[reportUnknownVariableType]
+    }
+
+
+def _enforcement_page_by_id(wiki: Path, matter_id: str) -> Path | None:
+    """Locate an existing enforcement page by matter id under any jurisdiction."""
+    matches = list(wiki.glob(f"**/enforcement/{matter_id}.md"))
+    return matches[0] if matches else None
+
+
+@app.command(name="render-enforcement")
+def render_enforcement(
+    input_file: Annotated[Path, typer.Option("--in", help="classified.json to render.")],
+    wiki: Annotated[Path, typer.Option(help="Wiki root to write pages under.")] = Path("wiki"),
+    db: Annotated[Path, typer.Option(help="SQLite index path.")] = Path("data/cache/index.sqlite"),
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+) -> None:
+    """Build/consolidate enforcement matters from classified items and render them.
+
+    A strong-key match is trusted; an LLM-proposed match is re-confirmed deterministically
+    (D53) and demoted to a new page (with a possible-duplicate note) when the confirm
+    fails — never a silent wrong-merge. Consolidation is idempotent (D20).
+    """
+    try:
+        topic_keys = set(load_reference(topics).topic_keys)
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read classified file {input_file}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise ConfigError(f"classified file must be a JSON list, got {type(raw).__name__}")
+        entries: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+        settings = load_settings()
+        existing_ids = {m.id for m in (_existing_matters(wiki, settings) if wiki.exists() else [])}
+        new_count = consolidated = flagged = 0
+        notes: list[str] = []
+        # Per-item isolation: a malformed entry (missing key, bad source_url, unknown
+        # topic) is recorded as a drop and skipped, never fatal — one slipped LLM key
+        # must not lose every well-formed item in the batch (mirrors render-leg-history).
+        dropped: list[tuple[str, str]] = []
+        for i, item in enumerate(entries):
+            if not isinstance(item, dict):
+                dropped.append((f"entry[{i}]", "classified entry is not a JSON object"))
+                continue
+            e: dict[str, object] = item  # pyright: ignore[reportUnknownVariableType]
+            identifier = str(e.get("title") or e.get("matter_id") or f"entry[{i}]")
+            try:
+                topics_list = [str(t) for t in _as_list(e.get("topics"), "topics")]
+                unknown = [t for t in topics_list if t not in topic_keys]
+                if unknown:
+                    raise ConfigError(
+                        f"enforcement item has unknown topic(s): {', '.join(unknown)}"
+                    )
+                development = EnforcementDevelopment.model_validate(e["development"])
+                matter_id = e.get("matter_id")
+                match_source = str(e.get("match_source") or "none")
+                existing_page: EnforcementAction | None = None
+                if matter_id:
+                    page = _enforcement_page_by_id(wiki, str(matter_id))
+                    if page is not None:
+                        loaded = from_page(page.read_text(encoding="utf-8"))
+                        if isinstance(loaded, EnforcementAction):
+                            existing_page = loaded
+                # Deterministic confirm of an LLM-proposed match (D53).
+                if existing_page is not None and match_source == "llm":
+                    ok = confirm_match(
+                        item_respondent=_opt_str_e(e.get("respondent")),
+                        item_date=_opt_date(e.get("date_filed")),
+                        candidate_respondent=existing_page.respondent,
+                        candidate_date=existing_page.date_filed,
+                        confidence=float(e.get("match_confidence") or 0.0),  # pyright: ignore[reportArgumentType]
+                        min_confidence=settings.enforcement.min_confidence,
+                        window_days=settings.enforcement.match_window_days,
+                    )
+                    if not ok:
+                        notes.append(
+                            f"possible-duplicate-of: {matter_id} (failed confirm) "
+                            f"-> new page for {e.get('respondent')!r}"
+                        )
+                        flagged += 1
+                        existing_page = None  # fall through to new-matter path
+                if existing_page is not None:
+                    merged = merge_current_state(
+                        existing_page,
+                        status=_opt_str_e(e.get("status")),
+                        date_resolved=_opt_date(e.get("date_resolved")),
+                        penalties=_opt_str_e(e.get("penalties")),
+                        outcome=_opt_str_e(e.get("outcome")),
+                        significance=_opt_str_e(e.get("significance")),
+                    )
+                    # Body-prose fields are body-only (not persisted to frontmatter), so a
+                    # reloaded existing_page has them as None. Re-apply the incoming item's
+                    # prose monotonically (a null new value keeps the existing one), which
+                    # also makes a repeated same-item render byte-identical (D20).
+                    merged = merged.model_copy(update={
+                        "summary": _opt_str_e(e.get("summary")) or existing_page.summary,
+                        "background": _opt_str_e(e.get("background")) or existing_page.background,
+                        "allegations": _opt_str_e(e.get("allegations"))
+                        or existing_page.allegations,
+                        "developments": merge_developments(
+                            existing_page.developments, development
+                        ),
+                        "sources": {**existing_page.sources, **_str_map(e.get("sources"))},
+                    })
+                    write_page(merged, wiki)
+                    consolidated += 1
+                else:
+                    year = (_opt_date(e.get("date_filed")) or dt.date.today()).year
+                    new_id = build_enforcement_id(
+                        str(e.get("agency_slug") or "unknown"),
+                        strong_key=(str(e["strong_key"]) if e.get("strong_key") else None),
+                        respondent=_opt_str_e(e.get("respondent")),
+                        year=year,
+                        existing_ids=existing_ids,
+                    )
+                    action = EnforcementAction(
+                        id=new_id,
+                        jurisdiction=str(e["jurisdiction"]),
+                        title=str(e["title"]),
+                        agency=str(e["agency"]),
+                        topics=topics_list,
+                        respondent=_opt_str_e(e.get("respondent")),
+                        action_type=_opt_str_e(e.get("action_type")),
+                        statutes=[str(s) for s in _as_list(e.get("statutes"), "statutes")],
+                        penalties=_opt_str_e(e.get("penalties")),
+                        status=_opt_str_e(e.get("status")),
+                        docket=(str(e["strong_key"]) if e.get("strong_key") else None),
+                        date_filed=_opt_date(e.get("date_filed")),
+                        date_resolved=_opt_date(e.get("date_resolved")),
+                        summary=_opt_str_e(e.get("summary")),
+                        background=_opt_str_e(e.get("background")),
+                        allegations=_opt_str_e(e.get("allegations")),
+                        outcome=_opt_str_e(e.get("outcome")),
+                        significance=_opt_str_e(e.get("significance")),
+                        developments=[development],
+                        sources=_str_map(e.get("sources")),
+                    )
+                    write_page(action, wiki)
+                    # Reserve the id only after a successful write, so a dropped item
+                    # below does not leave a phantom id reserved against the batch.
+                    existing_ids.add(new_id)
+                    new_count += 1
+            except (KeyError, ValidationError, ConfigError, ValueError) as exc:
+                dropped.append((identifier, str(exc)))
+                continue
+        with Store(db) as store:
+            store.reindex(wiki)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"enforcement: {new_count} new / {consolidated} consolidated"
+        f" / {flagged} flagged / {len(dropped)} dropped"
+    )
+    for note in notes:
+        typer.echo(f"  {note}")
+    for ident, reason in dropped:
+        typer.echo(f"  dropped: {ident} — {reason}")
 
 
 def _as_list(value: object, key: str) -> list[object]:

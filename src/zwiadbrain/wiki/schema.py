@@ -40,6 +40,15 @@ _BODY_ONLY_FIELDS: frozenset[str] = frozenset(
     }
 )
 
+# EnforcementAction prose that, unlike a Bill's re-derivable summary, is
+# non-re-derivable LLM output and so DOES persist to frontmatter (D40, same
+# treatment as leg_history research) while still rendering into the body. These
+# are subtracted from the body-only set for EnforcementAction only; Bill keeps
+# summary (etc.) body-only, so Bill serialization is unchanged.
+_ENFORCEMENT_PERSISTED_PROSE: frozenset[str] = frozenset(
+    {"summary", "background", "allegations", "outcome", "significance"}
+)
+
 
 def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
     """Serialize a page model to its frontmatter dict (metadata only).
@@ -53,11 +62,15 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
     nothing substantive changed (D20), so it is never written to frontmatter.
     """
     raw: dict[str, object] = item.model_dump(mode="json", exclude_none=True)
+    # EnforcementAction prose persists to frontmatter (D40); Bill prose stays body-only.
+    body_only = _BODY_ONLY_FIELDS
+    if isinstance(item, EnforcementAction):
+        body_only = _BODY_ONLY_FIELDS - _ENFORCEMENT_PERSISTED_PROSE
     fm: dict[str, object] = {}
     for key, value in raw.items():
         if (
             key in ("commentary_sources", "last_synced")
-            or key in _BODY_ONLY_FIELDS
+            or key in body_only
             or value in ([], {})
         ):
             continue

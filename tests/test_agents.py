@@ -16,6 +16,7 @@ from pathlib import Path
 
 import frontmatter
 import pytest
+import yaml
 
 _ROOT = Path(__file__).resolve().parents[1]
 _AGENTS = _ROOT / ".claude" / "agents"
@@ -241,3 +242,28 @@ def test_zwiad_refresh_has_all_seven_orchestration_steps() -> None:
         pos = text.find(step)
         assert pos > last_pos, f"Step out of order or missing: {step!r}"
         last_pos = pos
+
+
+# ---------------------------------------------------------------------------
+# Task 11 — enforcement subagents + topics.yaml rubric block
+# ---------------------------------------------------------------------------
+
+
+def test_enforcement_agents_exist_with_expected_frontmatter() -> None:
+    """should define each enforcement subagent with name, sonnet model, and Read tools"""
+    for name, model in [
+        ("enforcement-classifier", "sonnet"),
+        ("enforcement-extractor", "sonnet"),
+        ("enforcement-matcher", "sonnet"),
+    ]:
+        post = frontmatter.loads((_AGENTS / f"{name}.md").read_text(encoding="utf-8"))
+        assert post["name"] == name
+        assert post["model"] == model
+        assert post["tools"] == "Read"
+
+
+def test_topics_yaml_has_enforcement_rubric() -> None:
+    """should contain positive_criteria_enforcement and disqualify_enforcement blocks"""
+    data = yaml.safe_load((_ROOT / "reference" / "topics.yaml").read_text(encoding="utf-8"))
+    assert data["positive_criteria_enforcement"]
+    assert data["disqualify_enforcement"]

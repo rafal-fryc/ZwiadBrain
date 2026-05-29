@@ -393,3 +393,25 @@ def test_federal_bill_omits_legiscan_bill_id() -> None:
     """should drop legiscan_bill_id from frontmatter when it is None (federal)"""
     bill = Bill(id="118-hr-1", jurisdiction="US", title="X", bill_number="H.R. 1")
     assert "legiscan_bill_id" not in to_frontmatter(bill)
+
+
+def test_enforcement_developments_round_trip() -> None:
+    import datetime as dt
+
+    from zwiadbrain.models import EnforcementAction, EnforcementDevelopment
+    from zwiadbrain.pipeline.render import render_page
+    from zwiadbrain.wiki.schema import from_page
+
+    action = EnforcementAction(
+        id="ftc-c-4790", jurisdiction="US", title="FTC v. Acme", agency="FTC",
+        topics=["privacy"],
+        developments=[EnforcementDevelopment(
+            date=dt.date(2025, 1, 2), summary="Complaint filed.",
+            source_url="https://www.ftc.gov/a")],
+    )
+    text = render_page(action)
+    parsed = from_page(text)
+    assert isinstance(parsed, EnforcementAction)
+    assert parsed.developments == action.developments
+    # Byte-identical re-render (D20).
+    assert render_page(parsed) == text

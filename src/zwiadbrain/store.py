@@ -67,6 +67,8 @@ class Store:
         :meth:`reindex`), so a corrupt on-disk file is deleted and recreated rather
         than surfaced. Any other sqlite failure is translated to StoreError so the
         CLI's single `except AppError` boundary catches it instead of a raw traceback.
+        OSError (e.g. PermissionError when db_path is a directory on Windows) is also
+        wrapped into StoreError so it is not a raw traceback.
         """
         conn: sqlite3.Connection | None = None
         try:
@@ -80,14 +82,20 @@ class Store:
             if conn is not None:
                 with contextlib.suppress(Exception):
                     conn.close()
-            db_path.unlink(missing_ok=True)
+            # unlink is suppressed: on Windows, db_path may be a directory (PermissionError)
+            # or already removed; either way, the rebuild attempt below will surface the error.
+            with contextlib.suppress(OSError):
+                db_path.unlink(missing_ok=True)
             try:
                 conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
                 conn.executescript(_SCHEMA)
                 return conn
-            except sqlite3.Error as exc:
+            except (sqlite3.Error, OSError) as exc:
                 raise StoreError(f"could not initialize index at {db_path}: {exc}") from exc
+        except OSError as exc:
+            # e.g. PermissionError on Windows when db_path is an existing directory.
+            raise StoreError(f"could not initialize index at {db_path}: {exc}") from exc
 
     def __enter__(self) -> Store:
         return self

@@ -1445,3 +1445,17 @@ def test_fetch_leg_history_rejects_malformed_bill_arg(
     assert "error:" in result.output
     assert "Traceback" not in result.output
     assert not (tmp_path / "r" / "leghistory.json").exists()
+
+
+def test_reindex_command_reports_store_error_without_traceback(tmp_path: Path) -> None:
+    """should exit 1 with a clean message when the index path is an unwritable directory"""
+    runner = CliRunner()
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    # Point --db at a directory: sqlite cannot open it as a file, surfacing StoreError.
+    bad_db = tmp_path / "adir"
+    bad_db.mkdir()
+    result = runner.invoke(app, ["reindex", "--wiki", str(wiki), "--db", str(bad_db)])
+    assert result.exit_code == 1
+    assert "error:" in result.output
+    assert "Traceback" not in result.output

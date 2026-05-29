@@ -77,8 +77,12 @@ def reindex(
     db: Annotated[Path, typer.Option(help="SQLite index path.")] = Path("data/cache/index.sqlite"),
 ) -> None:
     """Rebuild the SQLite index/watchlist from committed wiki frontmatter."""
-    with Store(db) as store:
-        count = store.reindex(wiki)
+    try:
+        with Store(db) as store:
+            count = store.reindex(wiki)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
     typer.echo(f"reindexed {count} pages from {wiki}")
 
 

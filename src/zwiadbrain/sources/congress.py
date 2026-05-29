@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import datetime as dt
 import email.utils
+import logging
 import re
 from typing import Any
 
@@ -61,6 +62,7 @@ _AMENDMENT_CHAMBER: dict[str, str] = {"HAMDT": "House", "SAMDT": "Senate"}
 _PUBLIC_LAW_RE = re.compile(r"Public Law No:?\s*(\d+-\d+)")
 # Ordered preference for which text-version format URL to keep, most-preferred first.
 _TEXT_FORMAT_PREFERENCE: tuple[str, ...] = ("Formatted Text", "XML", "PDF")
+_LOGGER = logging.getLogger(__name__)
 
 
 class _Retryable(SourceError):
@@ -305,8 +307,8 @@ class CongressSource:
         """List bills (newest-updated first) as candidates.
 
         With ``congress`` set, lists that congress; otherwise lists across
-        congresses. ``limit`` ≤ 250 maps to a single request (pagination-following
-        for larger windows is added with the scheduled scan phase).
+        congresses. Per D33 this is a single request (``limit`` ≤ 250 maps to one
+        page); a larger window is truncated and the discarded total is logged.
         """
         path = f"/bill/{congress}" if congress is not None else "/bill"
         params: dict[str, str | int] = {"sort": "updateDate desc", "limit": min(max(limit, 1), 250)}
@@ -314,7 +316,18 @@ class CongressSource:
             params["fromDateTime"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
         payload = self._get_json(path, **params)
         bills = _items(payload.get("bills"))
-        return [self._to_candidate(bill) for bill in bills][:limit]
+        candidates = [self._to_candidate(bill) for bill in bills][:limit]
+        total = _obj(payload.get("pagination")).get("count")
+        if isinstance(total, int) and total > len(candidates):
+            # D33: discovery is a single request (no pagination-following yet); a larger
+            # window is silently truncated, so surface the server's reported total.
+            _LOGGER.warning(
+                "discovery truncated: returned %d of %d reported bills for %s",
+                len(candidates),
+                total,
+                path,
+            )
+        return candidates
 
     def _to_candidate(self, raw: dict[str, Any]) -> Candidate:
         bill_type = str(raw.get("type") or "")

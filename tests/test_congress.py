@@ -595,3 +595,18 @@ def test_fetch_tolerates_non_integer_related_bill_congress() -> None:
         bill = _source().fetch("118/hr/2670")
     # falls back to the bare label rather than raising on int("one-eighteen")
     assert bill.related_bills == ["S. 2024"]
+
+
+def test_discover_logs_when_payload_count_exceeds_returned_window(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """should warn that discovery is truncated when the payload reports more than the page cap"""
+    import logging
+
+    payload = _fixture("list.json")
+    payload["pagination"] = {"count": 5000}  # server reports far more than this single page
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118").respond(json=payload)
+        with caplog.at_level(logging.WARNING, logger="zwiadbrain.sources.congress"):
+            _source().discover(congress=118, limit=2)
+    assert any("5000" in rec.getMessage() for rec in caplog.records)

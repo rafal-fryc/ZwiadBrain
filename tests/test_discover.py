@@ -18,7 +18,13 @@ class _FakeSource:
         self._candidates = candidates
         self.calls: list[tuple[dt.datetime | None, int]] = []
 
-    def discover(self, *, since: dt.datetime | None = None, limit: int = 20) -> list[Candidate]:
+    def discover(
+        self,
+        *,
+        congress: int | None = None,
+        since: dt.datetime | None = None,
+        limit: int = 20,
+    ) -> list[Candidate]:
         self.calls.append((since, limit))
         return self._candidates[:limit]
 
@@ -80,7 +86,13 @@ class _PolicySource:
         self._policy = policy_by_id
         self.probed: list[str] = []
 
-    def discover(self, *, since: dt.datetime | None = None, limit: int = 20) -> list[Candidate]:
+    def discover(
+        self,
+        *,
+        congress: int | None = None,
+        since: dt.datetime | None = None,
+        limit: int = 20,
+    ) -> list[Candidate]:
         return []
 
     def fetch(self, native_id: str) -> Bill:

@@ -22,7 +22,13 @@ def test_source_protocol_is_satisfied_structurally() -> None:
     class _FakeSource:
         name = "fake"
 
-        def discover(self, *, since: dt.datetime | None = None, limit: int = 20) -> list[Candidate]:
+        def discover(
+            self,
+            *,
+            congress: int | None = None,
+            since: dt.datetime | None = None,
+            limit: int = 20,
+        ) -> list[Candidate]:
             return []
 
         def fetch(self, native_id: str) -> Bill:

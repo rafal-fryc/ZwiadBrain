@@ -14,7 +14,13 @@ class _FakeSource:
         self._bill = bill
         self.fetched: list[str] = []
 
-    def discover(self, *, since: dt.datetime | None = None, limit: int = 20) -> list[Candidate]:
+    def discover(
+        self,
+        *,
+        congress: int | None = None,
+        since: dt.datetime | None = None,
+        limit: int = 20,
+    ) -> list[Candidate]:
         return []
 
     def fetch(self, native_id: str) -> Bill:

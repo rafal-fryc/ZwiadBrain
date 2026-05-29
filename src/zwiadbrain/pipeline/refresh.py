@@ -123,6 +123,30 @@ def detect_refreshable(prev: Bill, fresh: Bill) -> RefreshableBill | None:
     )
 
 
+def detect_state_refreshable(prev: Bill, fresh: Bill) -> RefreshableBill | None:
+    """State analog of :func:`detect_refreshable`, gated on LegiScan ``change_hash``.
+
+    The cheap gate is the ``change_hash`` (the authoritative LegiScan cursor), not
+    ``update_date``. When the hash advanced, ``needs_classifier``/``needs_summarizer``
+    are True if the summary changed, and ``changed_amendment_numbers`` is the amendment
+    delta — reusing the federal trigger logic. An already-untracked ``prev`` is never
+    refreshable.
+    """
+    if not prev.tracking:
+        return None
+    if prev.change_hash == fresh.change_hash:
+        return None
+    text_changed = prev.summary_hash != fresh.summary_hash
+    changed = _amendment_delta(prev.amendments, fresh.amendments)
+    return RefreshableBill(
+        prev=prev,
+        fresh=fresh,
+        needs_classifier=text_changed,
+        needs_summarizer=text_changed,
+        changed_amendment_numbers=changed,
+    )
+
+
 def preserve_leg_history(prev: LegHistory | None, fresh_spine: LegHistory) -> LegHistory:
     """Re-attach *prev*'s hearings/statements/narrative onto a freshly assembled spine.
 

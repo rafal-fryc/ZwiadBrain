@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
 import respx
 from typer.testing import CliRunner
@@ -22,6 +23,7 @@ from zwiadbrain.models import Bill, CommitteeReport, Enactment, Hearing, LegHist
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.sources.congress import CONGRESS_API_BASE, CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
+from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE
 
 runner = CliRunner()
 
@@ -1301,6 +1303,32 @@ def test_fetch_refreshable_rejects_malformed_bill_id(tmp_path: Path) -> None:
         parse_bill_id("us-ca-sb-362")
 
 
+def test_fetch_state_candidates_stages_enriched_bills(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should search a state, enrich the top results, and stage candidates.json"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    fix = Path(__file__).parent / "fixtures" / "legiscan"
+    search = json.loads((fix / "getSearchRaw.json").read_text(encoding="utf-8"))
+    bill = json.loads((fix / "getBill.json").read_text(encoding="utf-8"))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        op = request.url.params.get("op", "")
+        return httpx.Response(200, json={"getSearchRaw": search, "getBill": bill}[op])
+
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(url=LEGISCAN_API_BASE).mock(side_effect=handler)
+        result = runner.invoke(app, [
+            "fetch-state-candidates", "--state", "ca", "--limit", "1",
+            "--query", "privacy", "--out", str(out),
+        ])
+    assert result.exit_code == 0, result.output
+    staged = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert len(staged) == 1
+    assert staged[0]["id"] == "ca-2023-sb-362"
+
+
 def test_reindex_skips_corrupt_page_and_indexes_the_rest(tmp_path: Path) -> None:
     """should index the valid page and skip a page whose frontmatter YAML is malformed"""
     wiki = tmp_path / "wiki"
@@ -1495,3 +1523,38 @@ def test_fetch_candidates_rejects_nonpositive_congress() -> None:
     """should exit 2 when --congress is below 1"""
     result = runner.invoke(app, ["fetch-candidates", "--congress", "0", "--limit", "1"])
     assert result.exit_code == 2
+
+
+def test_fetch_state_refreshable_detects_changed_bill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should diff masterlist change_hash and stage only the changed tracked bill"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    fix = Path(__file__).parent / "fixtures" / "legiscan"
+    masterlist = json.loads((fix / "getMasterListRaw.json").read_text(encoding="utf-8"))
+    bill = json.loads((fix / "getBill.json").read_text(encoding="utf-8"))
+
+    # Render a tracked CA page whose stored change_hash is STALE vs the masterlist.
+    from zwiadbrain.pipeline.render import write_page
+    from zwiadbrain.sources.legiscan import LegiScanSource
+    src = LegiScanSource("lk-test", "ca")
+    page_bill = src._to_bill(bill["bill"])  # noqa: SLF001 — building a fixture page  # pyright: ignore[reportPrivateUsage]
+    page_bill = page_bill.model_copy(update={"change_hash": "abc123-OLD"})
+    wiki = tmp_path / "wiki"
+    write_page(page_bill, wiki)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        op = request.url.params.get("op", "")
+        return httpx.Response(200, json={"getMasterListRaw": masterlist, "getBill": bill}[op])
+
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(url=LEGISCAN_API_BASE).mock(side_effect=handler)
+        result = runner.invoke(app, [
+            "fetch-state-refreshable", "--wiki", str(wiki), "--out", str(out),
+        ])
+    assert result.exit_code == 0, result.output
+    staged = json.loads((out / "refreshable.json").read_text(encoding="utf-8"))
+    assert len(staged) == 1
+    assert staged[0]["bill_id"] == "ca-2023-sb-362"
+    assert staged[0]["needs_summarizer"] is True

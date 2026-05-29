@@ -209,6 +209,10 @@ class Bill(WikiItem):
     leg_history: LegHistory | None = None
     related_bills: list[str] = []
     change_hash: str | None = None
+    # LegiScan internal bill_id (state bills only; None for federal). The stable native
+    # cursor key used by refresh to match a page against a getMasterListRaw entry — the
+    # wiki id does not contain it (D48).
+    legiscan_bill_id: int | None = None
     # str (not dt.date): a full ISO timestamp cursor (Congress.gov updateDate)
     # compared by raw equality in refresh.detect_refreshable, never date math —
     # retyping would drop the time component and reformat the bytes (D20).

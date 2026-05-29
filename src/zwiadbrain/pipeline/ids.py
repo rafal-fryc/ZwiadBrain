@@ -13,6 +13,8 @@ raises :class:`ConfigError` (an :class:`AppError`) rather than a bare
 
 from __future__ import annotations
 
+import re
+
 from zwiadbrain.exceptions import ConfigError
 
 
@@ -46,3 +48,40 @@ def parse_bill_id(bill_id: str) -> tuple[int, str, str]:
             f"bill.id congress segment must be an integer, got: {bill_id!r}"
         ) from exc
     return congress, bill_type, number
+
+
+# A bill number is a non-digit-run prefix followed by a trailing run of digits.
+# Lazy prefix + anchored trailing \d+ partitions losslessly: prefix + digits == input.
+# Special sessions (e.g. CA "SBX12") split to ("SBX", "12") — deterministic and unique
+# within a (state, year) pair even though it does not segment the X-marker (D48).
+_BILL_NUMBER_RE = re.compile(r"^(.*?)(\d+)$")
+
+
+def _split_bill_number(raw: str) -> tuple[str, str]:
+    """Split a LegiScan bill number into (prefix, number) with leading zeros stripped.
+
+    Raises :class:`ConfigError` when *raw* has no trailing digit run (e.g. a letter
+    suffix), so a malformed number is a surfaced data error rather than a bad id.
+    """
+    match = _BILL_NUMBER_RE.match(raw.strip())
+    if match is None or not match.group(1):
+        raise ConfigError(f"state bill number must be <prefix><digits>, got: {raw!r}")
+    prefix = match.group(1)
+    number = match.group(2).lstrip("0") or "0"
+    return prefix, number
+
+
+def build_state_bill_id(state: str, year_start: int, bill_number: str) -> str:
+    """Build a state bill's wiki id: ``{state}-{year_start}-{type}-{number}`` (D48).
+
+    Globally unique (the state prefix and integer-leading federal ids never collide);
+    lowercased; the type/number come from splitting the verbatim *bill_number*.
+    """
+    prefix, number = _split_bill_number(bill_number)
+    return f"{state.lower()}-{year_start}-{prefix.lower()}-{number}"
+
+
+def format_state_bill_number(bill_number: str) -> str:
+    """Render a display bill number: uppercased prefix, a space, stripped-zero number."""
+    prefix, number = _split_bill_number(bill_number)
+    return f"{prefix.upper()} {number}"

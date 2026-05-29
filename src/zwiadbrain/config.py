@@ -102,6 +102,14 @@ class Settings(BaseSettings):
             )
         return self.govinfo_api_key
 
+    def require_legiscan_api_key(self) -> str:
+        """Return the LegiScan API key, raising :class:`ConfigError` if it is unset."""
+        if not self.legiscan_api_key:
+            raise ConfigError(
+                "LEGISCAN_API_KEY is not set — add it to .env (free key: https://legiscan.com/legiscan)"
+            )
+        return self.legiscan_api_key
+
 
 _DEFAULT_TOML = Path("zwiadbrain.toml")
 _DEFAULT_ENV = Path(".env")

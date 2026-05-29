@@ -1,6 +1,6 @@
 # ZwiadBrain Architecture
 
-> Authoritative current-state document. As of v0.6.0 (2026-05-28).
+> Authoritative current-state document. As of v0.7.0 (2026-05-29).
 > Supersedes the architecture sections of `docs/PLAN.md`, which predate the
 > 2026-05-27 subagent pivot. For the reasoning behind every choice, see
 > `DECISIONS.md` (decisions are append-only and authoritative).
@@ -40,16 +40,24 @@ slash command (interactive Claude Code session)
 - **`/zwiad-backfill`** — discover federal bills (two-stage recall, D33), fetch,
   classify (disqualify rubric, D17), summarize + explain amendments for in-scope
   bills, render pages. Backed by CLI `fetch-candidates` + `render-classified`.
+- **`/zwiad-scan-states`** — discover state bills via LegiScan `getSearchRaw`
+  full-text search, enrich via `getBill`, classify, summarize + explain amendments
+  for in-scope bills, render pages under `wiki/states/<st>/bills/`. State analog
+  of `/zwiad-backfill`; loops over `[states].enabled`, each capped by `--limit`
+  (D49). Backed by CLI `fetch-state-candidates` + `render-classified` (reused).
 - **`/zwiad-leg-history <congress/type/number>`** — assemble a source-linked
   legislative history for one enacted bill: deterministic spine + researched,
   grounded, cross-verified hearings/statements + narrative (D34–D37). On-demand,
   not part of routine scan (D38). Backed by CLI `fetch-leg-history` +
   `render-leg-history`.
-- **`/zwiad-refresh`** — re-fetch every tracked federal bill, dispatch
-  classifier/summarizer/amendment-explainer only where a cursor changed,
-  preserve persisted leg-history (hearings/statements/narrative, D40), flip
-  out-of-scope bills to `tracking: false` without deletion (D39). Backed by CLI
-  `fetch-refreshable` + `render-refreshed` + `pipeline/refresh.py`.
+- **`/zwiad-refresh`** — re-fetch every tracked federal and state bill, dispatch
+  classifier/summarizer/amendment-explainer only where a cursor changed (federal:
+  `updateDateIncludingText`; state: `change_hash`, D50), preserve persisted
+  leg-history (hearings/statements/narrative, D40), flip out-of-scope bills to
+  `tracking: false` without deletion (D39). Federal pass backed by CLI
+  `fetch-refreshable`; state pass backed by `fetch-state-refreshable`
+  (`getMasterListRaw` change_hash diff → `getBill` on changed bills only). Both
+  passes feed the shared `render-refreshed` step.
 
 **Requires an open interactive session.** Nothing is headless or cron-driven:
 `claude -p` and the Agent SDK would draw separate metered credit, so they are
@@ -87,7 +95,7 @@ src/zwiadbrain/
   models.py         Bill, Amendment, LegHistory, Hearing, Statement, …
   store.py          SQLite FTS5 index + reindex-from-frontmatter
   reference/        topics.yaml taxonomy + DISQUALIFY lexicon + loader
-  sources/          congress.py, govinfo.py (HTTP transport + Bill mapping)
+  sources/          congress.py, govinfo.py, legiscan.py (HTTP transport + Bill mapping)
   pipeline/         discover, enrich, render, leg_history, refresh
   wiki/             schema (frontmatter models) + templates (jinja2)
 .claude/
@@ -97,10 +105,9 @@ src/zwiadbrain/
 
 ## Status
 
-Shipped: PHASE-01..06 (skeleton, wiki layer, federal source, LLM subagents,
-legislative history, watchlist refresh). Current: v0.6.0.
+Shipped: PHASE-01..07 (skeleton, wiki layer, federal source, LLM subagents,
+legislative history, watchlist refresh, state sources via LegiScan). Current: v0.7.0.
 
-**Not yet implemented:** state sources / LegiScan (PHASE-07), enforcement
-actions / FTC + state AGs (PHASE-08), law-brain commentary + discovery
-(PHASE-09/11), scheduling (PHASE-10). `src/zwiadbrain/sources/enforcement/` is a
-PHASE-08 placeholder.
+**Not yet implemented:** enforcement actions / FTC + state AGs (PHASE-08),
+law-brain commentary + discovery (PHASE-09/11), scheduling (PHASE-10).
+`src/zwiadbrain/sources/enforcement/` is a PHASE-08 placeholder.

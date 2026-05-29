@@ -291,3 +291,42 @@ def test_amendment_delta_stable_under_reorder() -> None:
     assert set(_amendment_delta(prev, fresh_a)) == {"H.Amdt. 1", "H.Amdt. 2"}
     assert _amendment_delta(prev, fresh_a) == ("H.Amdt. 2", "H.Amdt. 1")
     assert _amendment_delta(prev, fresh_b) == ("H.Amdt. 1", "H.Amdt. 2")
+
+
+# --- detect_state_refreshable -----------------------------------------------
+
+from zwiadbrain.pipeline.refresh import detect_state_refreshable  # noqa: E402
+
+
+def _state_bill(**over: object) -> Bill:
+    base: dict[str, object] = dict(
+        id="ca-2023-sb-362", jurisdiction="US-CA", title="T", bill_number="SB 362",
+        session="2023-2024 Regular Session", legiscan_bill_id=1789012,
+        change_hash="hash-A", summary="alpha", tracking=True,
+    )
+    base.update(over)
+    return Bill(**base)  # type: ignore[arg-type]
+
+
+def test_detect_state_refreshable_none_when_hash_unchanged() -> None:
+    """should return None when the change_hash matches (cheap gate)"""
+    prev = _state_bill()
+    fresh = _state_bill(summary="beta")  # other fields differ, but hash is the same
+    assert detect_state_refreshable(prev, fresh) is None
+
+
+def test_detect_state_refreshable_triggers_on_hash_change_and_summary() -> None:
+    """should flag classifier+summarizer when the hash advanced and the summary_hash changed"""
+    prev = _state_bill(change_hash="hash-A", summary_hash="sh-A")
+    fresh = _state_bill(change_hash="hash-B", summary_hash="sh-B")
+    result = detect_state_refreshable(prev, fresh)
+    assert result is not None
+    assert result.needs_classifier is True
+    assert result.needs_summarizer is True
+
+
+def test_detect_state_refreshable_none_for_untracked_prev() -> None:
+    """should never refresh a bill that is already untracked"""
+    prev = _state_bill(tracking=False, change_hash="hash-A")
+    fresh = _state_bill(change_hash="hash-B")
+    assert detect_state_refreshable(prev, fresh) is None

@@ -368,3 +368,28 @@ def test_to_frontmatter_byte_stable_across_fresh_last_synced() -> None:
         last_synced=dt.datetime(2026, 5, 28, 17, 0, tzinfo=dt.UTC),
     )
     assert to_frontmatter(early) == to_frontmatter(later)
+
+
+def test_state_bill_roundtrips_legiscan_bill_id() -> None:
+    """should serialize legiscan_bill_id for a state bill and read it back unchanged"""
+    bill = Bill(
+        id="ca-2023-sb-362",
+        jurisdiction="US-CA",
+        title="Data broker registration.",
+        bill_number="SB 362",
+        session="2023-2024 Regular Session",
+        legiscan_bill_id=1789012,
+        change_hash="abc123",
+    )
+    fm = to_frontmatter(bill)
+    assert fm["legiscan_bill_id"] == 1789012
+    page = render_page(bill)
+    parsed = from_page(page)
+    assert isinstance(parsed, Bill)
+    assert parsed.legiscan_bill_id == 1789012
+
+
+def test_federal_bill_omits_legiscan_bill_id() -> None:
+    """should drop legiscan_bill_id from frontmatter when it is None (federal)"""
+    bill = Bill(id="118-hr-1", jurisdiction="US", title="X", bill_number="H.R. 1")
+    assert "legiscan_bill_id" not in to_frontmatter(bill)

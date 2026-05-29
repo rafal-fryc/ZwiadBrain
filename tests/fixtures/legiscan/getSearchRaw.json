@@ -1,0 +1,11 @@
+{
+  "status": "OK",
+  "searchresult": {
+    "summary": { "page": "1 of 1", "range": "1 - 3", "relevancy": "100% - 80%", "count": 3, "page_current": 1, "page_total": 1 },
+    "results": [
+      { "relevance": 100, "bill_id": 1789012, "change_hash": "abc123" },
+      { "relevance": 92, "bill_id": 1789055, "change_hash": "def456" },
+      { "relevance": 81, "bill_id": 1789099, "change_hash": "ghi789" }
+    ]
+  }
+}

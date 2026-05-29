@@ -15,3 +15,19 @@ def test_redact_api_key_masks_query_param_value() -> None:
 def test_redact_api_key_leaves_strings_without_a_key_untouched() -> None:
     """should pass through a string that carries no api_key param unchanged"""
     assert redact_api_key("/bill/118/hr/8818") == "/bill/118/hr/8818"
+
+
+def test_redact_api_key_masks_bare_key_param() -> None:
+    """should redact a LegiScan-style ?key= value while leaving other params intact"""
+    url = "https://api.legiscan.com/?key=SECRET123&op=getBill&id=42"
+    out = redact_api_key(url)
+    assert "SECRET123" not in out
+    assert "key=REDACTED" in out
+    assert "op=getBill" in out
+
+
+def test_redact_api_key_does_not_double_count_api_key_as_key() -> None:
+    """should redact api_key= as a whole, not leave a stray 'key=' fragment"""
+    out = redact_api_key("?api_key=SECRET")
+    assert out == "?api_key=REDACTED"
+    assert "key=REDACTED" not in out.replace("api_key=REDACTED", "")

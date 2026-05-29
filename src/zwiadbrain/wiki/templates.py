@@ -91,15 +91,13 @@ def _text_versions(versions: list[TextVersion]) -> str:
 
 
 def _developments(developments: list[EnforcementDevelopment]) -> str:
-    """Render the matter timeline; skip any entry without a source_url (not verifiable)."""
+    """Render the matter timeline, oldest first."""
     ordered = sorted(
         developments,
         key=lambda d: (d.date or dt.date.min, str(d.source_url)),
     )
     lines: list[str] = []
     for d in ordered:
-        if not d.source_url:
-            continue
         date = f"{d.date.isoformat()} — " if d.date else ""
         lines.append(f"- {date}{d.summary} — [source]({d.source_url})")
     return "\n".join(lines)

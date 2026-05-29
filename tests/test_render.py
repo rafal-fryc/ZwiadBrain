@@ -545,11 +545,25 @@ def test_enforcement_body_renders_developments_in_stable_order() -> None:
     assert "- 2025-01-02 — Complaint filed. — [source](https://www.ftc.gov/a)" in body
 
 
-def test_enforcement_body_skips_development_without_source_url_noop() -> None:
+def test_enforcement_body_omits_developments_section_when_empty() -> None:
     from zwiadbrain.models import EnforcementAction
     from zwiadbrain.wiki.templates import render_enforcement_body
     action = EnforcementAction(id="ftc-x", jurisdiction="US", title="t", agency="FTC")
     assert "## Developments" not in render_enforcement_body(action)
+
+
+def test_enforcement_body_renders_undated_development_without_date_prefix() -> None:
+    from zwiadbrain.models import EnforcementAction, EnforcementDevelopment
+    from zwiadbrain.wiki.templates import render_enforcement_body
+
+    action = EnforcementAction(
+        id="ftc-c-4791", jurisdiction="US", title="FTC v. Beta", agency="FTC",
+        developments=[
+            EnforcementDevelopment(summary="Status update.", source_url="https://www.ftc.gov/c"),
+        ],
+    )
+    body = render_enforcement_body(action)
+    assert "- Status update. — [source](https://www.ftc.gov/c)" in body
 
 
 def test_render_emits_statutes_at_large_link() -> None:

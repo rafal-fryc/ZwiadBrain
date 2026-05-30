@@ -72,8 +72,8 @@ def merge_commentary(
     for current in existing:
         if current.slug == new.slug:
             if current.content_hash == new.content_hash:
-                # No-op: return the exact same list object so callers can use
-                # ``result is existing`` as a cheap byte-identity check.
+                # No-op: return the existing list unchanged so the renderer
+                # produces byte-identical output (D20).
                 return existing
             replaced = [new if s.slug == new.slug else s for s in existing]
             return sorted(replaced, key=lambda s: s.slug)
@@ -87,9 +87,9 @@ def detect_stale(
 ) -> list[str]:
     """Return the slugs of existing commentary whose source page has vanished.
 
-    A page deleted from the law brain is never silently dropped from the tracked
-    page; instead its slug is reported here so the render half can emit a ``stale``
-    review note (D-staleness) rather than silently losing committed analysis.
-    Result is slug-sorted for deterministic, byte-identical review output.
+    Slugs present in *existing* but absent from *live_slugs* — i.e. law-brain
+    pages whose committed commentary no longer has a live source. The render half
+    emits a ``stale`` review note for these rather than silently dropping the
+    analysis. Result is slug-sorted for deterministic, byte-identical review output.
     """
     return sorted(s.slug for s in existing if s.slug not in live_slugs)

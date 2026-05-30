@@ -21,7 +21,7 @@ Line format (one checklist item per entry)::
 from __future__ import annotations
 
 import re
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import BaseModel
 
@@ -78,8 +78,9 @@ def parse_review_queue(text: str) -> list[ReviewEntry]:
             ReviewEntry(
                 slug=slug,
                 target_id=target_id,
-                reason=reason,  # type: ignore[arg-type]  # regex alternation guarantees a valid ReviewReason
-                status=status,  # type: ignore[arg-type]  # regex alternation guarantees a valid ReviewStatus
+                # regex alternation guarantees a valid ReviewReason / ReviewStatus
+                reason=cast("ReviewReason", reason),
+                status=cast("ReviewStatus", status),
             )
         )
     return entries

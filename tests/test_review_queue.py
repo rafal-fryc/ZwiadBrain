@@ -109,3 +109,17 @@ def test_parse_review_queue_ignores_blank_and_non_entry_lines() -> None:
 def test_render_review_queue_empty_returns_empty_string() -> None:
     # Arrange / Act / Assert
     assert render_review_queue([]) == ""
+
+
+def test_parse_review_queue_skips_typo_status_line() -> None:
+    # Arrange — "[acept]" is not a recognized status token
+    text = "- [acept] regulation-foo -> ftc-2026-bar (collision)"
+    # Act / Assert — fail closed: a malformed status is skipped, not coerced
+    assert parse_review_queue(text) == []
+
+
+def test_parse_review_queue_skips_bad_reason_line() -> None:
+    # Arrange — "(unknown-reason)" is not one of the four fixed reasons
+    text = "- [pending] regulation-foo -> ftc-2026-bar (unknown-reason)"
+    # Act / Assert — fail closed: a malformed reason is skipped, not coerced
+    assert parse_review_queue(text) == []

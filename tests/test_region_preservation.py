@@ -136,3 +136,40 @@ def test_write_page_sync_commentary_re_render_is_noop(tmp_path: Path) -> None:
     assert write_page(bill, wiki) is True
     # re-rendering the identical model writes nothing (D20 byte-identity)
     assert write_page(bill, wiki) is False
+
+
+def test_sync_render_equals_refresh_splice_byte_for_byte() -> None:
+    # The exact invariant the spacing fix delivers: a sync-written commentary page
+    # and the same page reconstructed by the refresh splice must be byte-identical.
+    # This fail-locks the spacing bug — on the pre-fix code the sync render emitted
+    # THREE newlines before BEGIN while the splice emits TWO, so spliced != sync_text.
+    sync_model = _commentary_bill()
+    sync_model.commentary_sources = [
+        CommentarySource(
+            path="wiki/regulation-x.md",
+            slug="x-rule",
+            updated=dt.date(2026, 5, 1),
+            content_hash="hash1",
+            matched_by="deterministic",
+            confidence=1.0,
+            body="## Analysis\n\nCommentary body.",
+            links=[CommentaryLink(text="Ref", url="https://ref.example/a")],
+        )
+    ]
+    sync_text = render_page(sync_model)  # region rendered inline
+    assert LAWBRAIN_REGION_BEGIN in sync_text
+
+    # refresh: same source carried as metadata-only (body/links dropped)
+    refresh_model = sync_model.model_copy(
+        update={
+            "commentary_sources": [
+                s.model_copy(update={"body": None, "links": []})
+                for s in sync_model.commentary_sources
+            ]
+        }
+    )
+    refresh_text = render_page(refresh_model)  # no region emitted
+    assert LAWBRAIN_REGION_BEGIN not in refresh_text
+
+    spliced = preserve_lawbrain_region(sync_text, refresh_text)
+    assert spliced == sync_text  # byte-for-byte

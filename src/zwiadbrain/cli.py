@@ -20,7 +20,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 import typer
@@ -46,6 +46,9 @@ from zwiadbrain.pipeline.enforcement import (
 )
 from zwiadbrain.pipeline.enrich import enrich
 from zwiadbrain.pipeline.ids import build_enforcement_id, parse_bill_id, parse_strong_key
+from zwiadbrain.pipeline.lawbrain_keys import keys_hash, page_keys, tracked_item_keys
+from zwiadbrain.pipeline.lawbrain_match import TargetRef, build_shortlist
+from zwiadbrain.pipeline.lawbrain_registry import LinkRegistry
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
@@ -64,6 +67,7 @@ from zwiadbrain.sources.enforcement.base import EnforcementSource
 from zwiadbrain.sources.enforcement.ftc import FTCSource
 from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
+from zwiadbrain.sources.lawbrain import LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
@@ -629,6 +633,157 @@ def fetch_enforcement_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"staged {len(candidates)} enforcement candidate(s) to {path.parent}")
+
+
+def _lawbrain_targets(wiki: Path) -> list[TargetRef]:
+    """Read every tracked Bill + EnforcementAction page into a TargetRef.
+
+    A TargetRef carries the deterministic key-set (``tracked_item_keys``) the
+    law-brain matcher intersects against page keys. Malformed pages are skipped
+    (per-page isolation; mirrors ``_existing_matters``). Both kinds participate:
+    commentary attaches on a shared jurisdiction-qualified key regardless of
+    ZwiadBrain page kind (D59).
+    """
+    targets: list[TargetRef] = []
+    for page in sorted(wiki.glob("**/*.md")):
+        try:
+            item = from_page(page.read_text(encoding="utf-8"))
+        except (WikiSchemaError, ConfigError):
+            continue
+        # from_page yields exactly Bill | EnforcementAction; the isinstance narrows
+        # the else branch to EnforcementAction (both kinds participate, D59).
+        kind: Literal["bill", "enforcement"] = (
+            "bill" if isinstance(item, Bill) else "enforcement"
+        )
+        targets.append(
+            TargetRef(
+                id=item.id,
+                kind=kind,
+                jurisdiction=item.jurisdiction,
+                title=item.title,
+                keys=sorted(tracked_item_keys(item)),
+            )
+        )
+    return targets
+
+
+def _lawbrain_registry_path(wiki: Path) -> Path:
+    """The committed link-decision registry lives beside the wiki (wiki/links.yaml)."""
+    return wiki / "links.yaml"
+
+
+def _is_marker_slug(slug: str, markers: list[str]) -> bool:
+    """True when any fail-closed marker is a substring of the page slug (D60)."""
+    return any(marker in slug for marker in markers)
+
+
+def _summary_excerpt(body: str, *, limit: int = 280) -> str:
+    """First non-heading paragraph of a law-brain page body, truncated for the matcher.
+
+    Mirrors the ``text``-excerpt convention the enforcement candidates use to give the
+    subagent a compact grounding snippet without shipping the whole body.
+    """
+    for block in body.split("\n\n"):
+        stripped = block.strip()
+        if stripped and not stripped.startswith("#"):
+            return stripped[:limit]
+    return ""
+
+
+@app.command(name="fetch-lawbrain-candidates")
+def fetch_lawbrain_candidates(
+    wiki: Annotated[
+        Path, typer.Option(help="Wiki root (for tracked targets).")
+    ] = Path("wiki"),
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for lawbrain-candidates.json.")
+    ] = None,
+) -> None:
+    """Read the law brain, match pages to tracked items by deterministic key, and
+    stage lawbrain-candidates.json + targets.json for the interactive matcher.
+
+    A clean no-op when the law brain is unavailable or disabled (``is_available``).
+    One shared key -> deterministic ``link`` (conf 1.0); a key collision -> ``collision``
+    (review); zero keys on a single-subject page -> ``keyless`` with a shortlist for the
+    ``lawbrain-matcher`` subagent. Fail-closed slug-marker pages emit no keys and are
+    skipped entirely (D60). Settled registry pages whose key-set is unchanged are
+    skipped (D9). Mirrors fetch-enforcement-candidates.
+    """
+    try:
+        settings = load_settings()
+        law_brain_path = settings.effective_law_brain_path
+        # A missing/disabled law brain (or no configured path) is a clean no-op,
+        # never an error — exit 0 before staging anything.
+        if not settings.lawbrain.enabled or law_brain_path is None:
+            typer.echo("law brain unavailable or disabled; nothing to do")
+            return
+        reader = LawBrainReader(law_brain_path)
+        if not reader.is_available():
+            typer.echo("law brain unavailable or disabled; nothing to do")
+            return
+        targets = _lawbrain_targets(wiki) if wiki.exists() else []
+        # Build a key -> target-ids index once. A page's match is the set of targets
+        # sharing >=1 key with the page (set intersection over this index).
+        index: dict[str, list[str]] = {}
+        for target in targets:
+            for key in target.keys:
+                index.setdefault(key, []).append(target.id)
+        registry = LinkRegistry.load(_lawbrain_registry_path(wiki))
+        markers = settings.lawbrain.commentary_only_slug_markers
+        candidates: list[dict[str, object]] = []
+        for page in reader.pages():
+            keys = page_keys(page, markers)
+            # Fail-closed: a slug-marker (tracker/landscape/...) page emits zero keys.
+            # Without a key it cannot deterministically attach; with no single subject
+            # it must not go to the matcher either, so it is skipped entirely (D60).
+            if not keys and _is_marker_slug(page.slug, markers):
+                continue
+            khash = keys_hash(keys)
+            decided = registry.decision_for(page.slug)
+            # Skip a settled page unless its freshly-extracted key-set differs (D9).
+            if decided is not None and decided.keys_hash == khash:
+                continue
+            matched_ids = sorted({tid for key in keys for tid in index.get(key, [])})
+            match: str
+            target_id: str | None
+            shortlist: list[str] | None
+            if len(matched_ids) == 1:
+                match, target_id, shortlist = "deterministic", matched_ids[0], None
+            elif len(matched_ids) > 1:
+                match, target_id, shortlist = "collision", None, matched_ids
+            else:
+                # Zero keys on a single-subject page -> the LLM matcher decides over a
+                # jurisdiction-scoped shortlist (never the full corpus).
+                match, target_id = "keyless", None
+                shortlist = [t.id for t in build_shortlist(page, targets)]
+            entry: dict[str, object] = {
+                "slug": page.slug,
+                "title": page.title,
+                "type": page.type,
+                "jurisdiction": page.jurisdiction,
+                "tags": page.tags,
+                "citation": page.citation,
+                "summary_excerpt": _summary_excerpt(page.body),
+                "keys": sorted(keys),
+                "keys_hash": khash,
+                "match": match,
+                "target_id": target_id,
+                "shortlist": shortlist,
+            }
+            candidates.append(entry)
+        # Stage both files in the SAME run directory: stage_json returns the
+        # candidates path, so targets.json reuses its parent (mirrors the
+        # candidates.json/matters.json pairing in fetch-enforcement-candidates).
+        path = stage_json(candidates, name="lawbrain-candidates.json", out=out)
+        stage_json(
+            [t.model_dump(mode="json") for t in targets],
+            name="targets.json",
+            out=path.parent,
+        )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged {len(candidates)} law-brain candidate(s) to {path.parent}")
 
 
 def _opt_date(value: object) -> dt.date | None:

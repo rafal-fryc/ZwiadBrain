@@ -110,3 +110,29 @@ def test_write_page_preserves_region_across_body_none_refresh(tmp_path: Path) ->
     assert LAWBRAIN_REGION_BEGIN in after
     assert "An updated summary." in after
     assert "Commentary body." in after
+
+    # 3. a SECOND refresh with the same input is a no-op (clean git): the spliced
+    # spacing before BEGIN must match the sync-render spacing, else write_page
+    # would rewrite the file every refresh (D20 idempotency).
+    assert write_page(refreshed, wiki) is False
+
+
+def test_write_page_sync_commentary_re_render_is_noop(tmp_path: Path) -> None:
+    """A sync-written commentary page re-rendered from the SAME model is a no-op."""
+    wiki = tmp_path / "wiki"
+    bill = _commentary_bill()
+    bill.commentary_sources = [
+        CommentarySource(
+            path="wiki/regulation-x.md",
+            slug="x-rule",
+            updated=dt.date(2026, 5, 1),
+            content_hash="hash1",
+            matched_by="deterministic",
+            confidence=1.0,
+            body="## Analysis\n\nCommentary body.",
+            links=[CommentaryLink(text="Ref", url="https://ref.example/a")],
+        )
+    ]
+    assert write_page(bill, wiki) is True
+    # re-rendering the identical model writes nothing (D20 byte-identity)
+    assert write_page(bill, wiki) is False

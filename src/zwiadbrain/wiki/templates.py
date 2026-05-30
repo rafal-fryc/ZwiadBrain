@@ -277,6 +277,7 @@ def _normalize_url(url: str) -> str:
 
 
 def _link_host(url: str) -> str:
+    """Return the lowercased host of a url, or the url itself when not http(s)."""
     match = re.match(r"^https?://([^/]+)", url)
     return match.group(1).lower() if match else url
 
@@ -352,7 +353,10 @@ def render_bill_body(bill: Bill) -> str:
     body = _BODY.render(sections=sections)
     region = _lawbrain_region([s for s in bill.commentary_sources if s.body])
     if region:
-        body = body + "\n\n" + region
+        # rstrip first: _BODY.render already ends with one "\n"; align the single
+        # blank line before BEGIN with preserve_lawbrain_region's splice spacing
+        # so a sync-written page and a refresh-spliced page are byte-identical (D20).
+        body = body.rstrip("\n") + "\n\n" + region
     if bill.flipped_out:
         reason = bill.flipped_out.reason
         reason = reason.replace("-->", "--&gt;").replace('"', '\\"')
@@ -385,7 +389,10 @@ def render_enforcement_body(action: EnforcementAction) -> str:
     body = _BODY.render(sections=sections)
     region = _lawbrain_region([s for s in action.commentary_sources if s.body])
     if region:
-        body = body + "\n\n" + region
+        # rstrip first: _BODY.render already ends with one "\n"; align the single
+        # blank line before BEGIN with preserve_lawbrain_region's splice spacing
+        # so a sync-written page and a refresh-spliced page are byte-identical (D20).
+        body = body.rstrip("\n") + "\n\n" + region
     return body
 
 

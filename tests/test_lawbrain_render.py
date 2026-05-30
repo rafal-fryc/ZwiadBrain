@@ -79,9 +79,10 @@ def test_further_reading_dedups_and_sorts_by_host() -> None:
             ],
         ),
     ]
-    # Dedup by normalized URL; the slug-first source (a-rule) wins the zeta dup,
-    # keeping its anchor text "Zeta (dup)" but emitting the canonical (slash-free)
-    # URL; rows sorted by (host, normalized url).
+    # _further_reading sorts the sources internally by slug ("a-rule" < "b-rule"),
+    # so a-rule is iterated first and wins the zeta dup despite appearing second in
+    # the list above — keeping a-rule's anchor text "Zeta (dup)" but emitting the
+    # canonical (slash-free) URL; rows then sorted by (host, normalized url).
     assert _further_reading(sources) == (
         "- [Alpha brief](https://alpha.example/x)\n"
         "- [Beta note](https://beta.example/n)\n"

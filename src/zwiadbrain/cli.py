@@ -501,6 +501,14 @@ def render_refreshed(
                 # Defensive: a fresh non-enacted bill has no spine, but prev had research.
                 # Carry prev.leg_history through unchanged so the research is not lost.
                 bill = bill.model_copy(update={"leg_history": prev.leg_history})
+            # Preserve law-brain commentary bookkeeping (D63). The freshly-fetched bill
+            # never touches the law brain, so its commentary_sources is empty; carry
+            # prev's onto it so the frontmatter survives. The verbatim lawbrain:region
+            # body block is preserved separately by write_page.
+            if prev.commentary_sources:
+                bill = bill.model_copy(
+                    update={"commentary_sources": prev.commentary_sources}
+                )
             # Apply classifier verdict (no-op when in_scope=True, flip when False).
             bill = apply_classifier_flip(
                 bill,

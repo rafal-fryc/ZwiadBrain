@@ -1130,21 +1130,29 @@ def render_lawbrain_commentary(
                 # is optional for these (the subagent may resolve a keyless page to
                 # not_in_scope with no target).
                 if matched_by in ("not_in_scope", "reject"):
+                    new_decision: Literal["not_in_scope", "reject"] = (
+                        "not_in_scope" if matched_by == "not_in_scope" else "reject"
+                    )
                     if dry_run:
                         intended.append(f"record {matched_by} {slug}")
                     else:
+                        # Preserve the prior decided date when this exact decision is
+                        # re-recorded unchanged, so links.yaml is byte-identical across
+                        # day boundaries (the "idempotent" contract, D20).
+                        prior = registry.decision_for(slug)
+                        decided_date = (
+                            prior.decided
+                            if (prior is not None and prior.decision == new_decision)
+                            else dt.date.today()
+                        )
                         registry.record(
                             LinkDecision(
                                 lawbrain_slug=slug,
-                                decision=(
-                                    "not_in_scope"
-                                    if matched_by == "not_in_scope"
-                                    else "reject"
-                                ),
+                                decision=new_decision,
                                 target_id=_opt_str_e(e.get("target_id")),
                                 matched_by=None,
                                 keys_hash=keys_hash(page_key_set),
-                                decided=dt.date.today(),
+                                decided=decided_date,
                             )
                         )
                     recorded += 1
@@ -1157,13 +1165,36 @@ def render_lawbrain_commentary(
                     "deterministic" if matched_by == "deterministic" else "llm"
                 )
                 confidence = float(e["confidence"])  # pyright: ignore[reportArgumentType]
-                target_key_set = {
-                    str(k) for k in _as_list(e.get("target_keys"), "target_keys")
-                }
                 decided = registry.decision_for(slug)
                 override = decided is not None and decided.decision == "link"
-                # Re-ground an LLM-proposed link deterministically (D16). A
-                # deterministic link is already key-grounded by the fetch half.
+                # Load the fresh law-brain page + tracked target FIRST so the confirm
+                # grounds against real disk state, never the LLM-echoed keys carried in
+                # classified.json (D16): an untrusted proposal could echo intersecting
+                # fake keys. The keys are RECOMPUTED here from the freshly-read page and
+                # target, and these recomputed sets drive both the confirm gate and the
+                # stored keys_hash (registry stickiness must reflect real keys, D9).
+                page = _lawbrain_page_by_slug(reader, slug)
+                if page is None:
+                    # Source vanished from the law brain: do not attach; flag stale.
+                    review.append(
+                        ReviewEntry(slug=slug, target_id=target_id, reason="stale")
+                    )
+                    reviewed += 1
+                    continue
+                target_path = _lawbrain_page_by_id(wiki, target_id)
+                if target_path is None:
+                    raise ConfigError(f"target page not found in wiki: {target_id}")
+                loaded = from_page(target_path.read_text(encoding="utf-8"))
+                page_key_set = page_keys(
+                    page, settings.lawbrain.commentary_only_slug_markers
+                )
+                target_key_set = tracked_item_keys(loaded)
+                shared_key = len(page_key_set & target_key_set) >= 1
+                # An LLM proposal is re-grounded by the deterministic confirm (D16). A
+                # deterministic link was key-grounded by the fetch half, but classified.json
+                # can go stale (the page or target changed since fetch), so re-verify the
+                # shared-key intersection against the fresh keys and route to review if it
+                # no longer holds rather than attaching on a now-broken match.
                 if matched_by == "llm":
                     ok = lawbrain_confirm_match(
                         page_keys=page_key_set,
@@ -1181,18 +1212,16 @@ def render_lawbrain_commentary(
                         )
                         reviewed += 1
                         continue
-                page = _lawbrain_page_by_slug(reader, slug)
-                if page is None:
-                    # Source vanished from the law brain: do not attach; flag stale.
+                elif (
+                    settings.lawbrain.require_shared_key and not override and not shared_key
+                ):
+                    # Deterministic link whose fresh keys no longer intersect (stale
+                    # classified.json). Do not attach on a broken match — flag for review.
                     review.append(
-                        ReviewEntry(slug=slug, target_id=target_id, reason="stale")
+                        ReviewEntry(slug=slug, target_id=target_id, reason="weak-grounding")
                     )
                     reviewed += 1
                     continue
-                target_path = _lawbrain_page_by_id(wiki, target_id)
-                if target_path is None:
-                    raise ConfigError(f"target page not found in wiki: {target_id}")
-                loaded = from_page(target_path.read_text(encoding="utf-8"))
                 memo_texts = [
                     t
                     for rel in page.source_files
@@ -1227,6 +1256,14 @@ def render_lawbrain_commentary(
                     )
                 else:
                     write_page(updated_item, wiki)
+                    # Preserve the prior decided date on an unchanged link re-record so
+                    # links.yaml stays byte-identical across days (D20). `decided` is the
+                    # registry decision read above for the override check.
+                    decided_date = (
+                        decided.decided
+                        if (decided is not None and decided.decision == "link")
+                        else dt.date.today()
+                    )
                     registry.record(
                         LinkDecision(
                             lawbrain_slug=slug,
@@ -1234,7 +1271,7 @@ def render_lawbrain_commentary(
                             target_id=target_id,
                             matched_by=matched_by,
                             keys_hash=keys_hash(page_key_set),
-                            decided=dt.date.today(),
+                            decided=decided_date,
                         )
                     )
                 linked += 1

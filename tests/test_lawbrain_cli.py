@@ -374,7 +374,8 @@ def _write_render_settings(tmp_path: Path) -> None:
         "require_shared_key = true\n"
         "demote_headings = true\n"
         "commentary = true\n"
-        "further_reading = true\n",
+        "further_reading = true\n"
+        'commentary_only_slug_markers = ["tracker", "landscape", "map", "scholarship"]\n',
         encoding="utf-8",
     )
 
@@ -509,8 +510,9 @@ def test_render_lawbrain_rerun_is_byte_identical(
 def test_render_lawbrain_weak_grounding_routes_to_review_not_links(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Arrange — an LLM-proposed link with NO shared key: confirm_match fails the
-    # require_shared_key gate, so it must land in review-queue.md, NOT links.yaml.
+    # Arrange — an LLM-proposed link whose FRESH keys do not intersect: the source
+    # is a keyless (fail-closed landscape) law-brain page, so the confirm grounds on
+    # an empty page_keys and fails the require_shared_key gate -> review, not links.
     monkeypatch.chdir(tmp_path)
     _write_render_settings(tmp_path)
     wiki = tmp_path / "wiki"
@@ -521,11 +523,13 @@ def test_render_lawbrain_weak_grounding_routes_to_review_not_links(
         json.dumps(
             [
                 {
-                    "slug": "regulation-california-sb53-tfaia",
+                    # A landscape-marker page yields zero real keys (fail-closed, D60).
+                    "slug": "concept-fixture-ai-landscape",
                     "target_id": "ca-2025-sb-53",
                     "matched_by": "llm",
                     "confidence": 0.9,
-                    "page_keys": [],  # no key -> grounding confirm fails
+                    # Carried keys would intersect if trusted — they must be ignored.
+                    "page_keys": ["US-CA::bill::SB-53"],
                     "target_keys": ["US-CA::bill::SB-53"],
                 }
             ]
@@ -546,7 +550,138 @@ def test_render_lawbrain_weak_grounding_routes_to_review_not_links(
     page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
     assert "## Commentary & Analysis" not in page
     review = (wiki / "review-queue.md").read_text(encoding="utf-8")
-    assert "regulation-california-sb53-tfaia" in review
+    assert "concept-fixture-ai-landscape" in review
+    assert "weak-grounding" in review
+    assert not (wiki / "links.yaml").exists()
+
+
+def test_render_lawbrain_llm_confirm_grounds_on_fresh_keys_not_llm_echo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Trust-boundary attack (D16): an llm entry CARRIES intersecting fake keys
+    # ("FAKE::key" on both sides) — if the confirm trusted the echoed keys it would
+    # attach. The real page yields US-CA::bill::SB-53 and the real target yields the
+    # SAME real key, but the confirm must ground on those FRESH disk keys, not the
+    # carried fakes. Here the carried fakes intersect AND the real keys also happen
+    # to intersect, so to prove the gate ignores the echo we point the carried keys
+    # at a value that intersects while the real key match is what actually decides.
+    #
+    # The decisive case: carried keys intersect but are FAKE; the real keys must be
+    # what's used. We assert the link is recorded with the REAL keys_hash, never a
+    # hash of the fake carried keys — proving the recompute happened.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(
+            [
+                {
+                    "slug": "regulation-california-sb53-tfaia",
+                    "target_id": "ca-2025-sb-53",
+                    "matched_by": "llm",
+                    "confidence": 0.9,
+                    # Carried keys that INTERSECT but are fabricated — the gate must
+                    # ignore these and ground on the real recomputed keys.
+                    "page_keys": ["FAKE::echoed::key"],
+                    "target_keys": ["FAKE::echoed::key"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — grounded on the REAL keys (which also intersect: US-CA::bill::SB-53),
+    # so this legitimately links; the stored keys_hash is the REAL hash, never the
+    # fake-echo hash (proving the recompute, not the echo, drove the decision).
+    from zwiadbrain.pipeline.lawbrain_keys import keys_hash  # noqa: PLC0415
+
+    assert result.exit_code == 0, result.output
+    assert "1 linked" in result.output
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    real_hash = keys_hash({"US-CA::bill::SB-53"})
+    fake_hash = keys_hash({"FAKE::echoed::key"})
+    assert real_hash in links_yaml
+    assert fake_hash not in links_yaml
+
+
+def test_render_lawbrain_llm_confirm_rejects_when_fresh_keys_do_not_intersect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The harder attack: carried keys intersect ("FAKE::key" on both sides) but the
+    # REAL page/target keys do NOT (the law-brain page's real key is the SB-53 bill
+    # key, while the target is an UNRELATED enforcement action with no SB-53 key).
+    # If the confirm trusted the echoed keys it would attach a wrong commentary; it
+    # must route to review (weak-grounding), attach nothing, record no link.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    # An unrelated enforcement target whose real keys never include the SB-53 bill key.
+    enf = wiki / "federal" / "enforcement" / "ftc-unrelated.md"
+    enf.parent.mkdir(parents=True, exist_ok=True)
+    enf.write_text(
+        "\n".join(
+            [
+                "---",
+                "id: ftc-unrelated",
+                "type: enforcement",
+                "jurisdiction: US",
+                "title: Unrelated FTC matter",
+                "agency: FTC",
+                "docket: 9-99-cv-00001",
+                "sources: {}",
+                "commentary_sources: []",
+                "---",
+                "",
+                "## Background",
+                "",
+                "Unrelated.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(
+            [
+                {
+                    "slug": "regulation-california-sb53-tfaia",
+                    "target_id": "ftc-unrelated",
+                    "matched_by": "llm",
+                    "confidence": 0.99,
+                    "page_keys": ["FAKE::key"],  # echoed fakes that intersect
+                    "target_keys": ["FAKE::key"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — fresh keys don't intersect -> weak-grounding review, no attach, no link.
+    assert result.exit_code == 0, result.output
+    assert "1 review" in result.output
+    assert "0 linked" in result.output
+    page = enf.read_text(encoding="utf-8")
+    assert "## Commentary & Analysis" not in page
+    review = (wiki / "review-queue.md").read_text(encoding="utf-8")
     assert "weak-grounding" in review
     assert not (wiki / "links.yaml").exists()
 
@@ -620,6 +755,58 @@ def test_render_lawbrain_reject_flip_records_reject_decision(
     assert "reject" in links_yaml
     review = (wiki / "review-queue.md").read_text(encoding="utf-8")
     assert "regulation-fixture-sb53" not in review
+
+
+def test_render_lawbrain_preserves_prior_decided_date_on_unchanged_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A re-record of the SAME unchanged link decision must keep the ORIGINAL decided
+    # date, so links.yaml is byte-identical across day boundaries (D20 idempotency).
+    # Pre-seed links.yaml with an old date; the render must not bump it to today.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    wiki.mkdir(parents=True, exist_ok=True)
+
+    from zwiadbrain.pipeline.lawbrain_keys import keys_hash  # noqa: PLC0415
+    from zwiadbrain.pipeline.lawbrain_registry import (  # noqa: PLC0415
+        LinkDecision,
+        LinkRegistry,
+    )
+
+    old_date = dt.date(2020, 1, 2)
+    reg = LinkRegistry.load(wiki / "links.yaml")
+    reg.record(
+        LinkDecision(
+            lawbrain_slug="regulation-california-sb53-tfaia",
+            decision="link",
+            target_id="ca-2025-sb-53",
+            matched_by="deterministic",
+            keys_hash=keys_hash({"US-CA::bill::SB-53"}),
+            decided=old_date,
+        )
+    )
+    reg.dump(wiki / "links.yaml")
+
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(_classified_deterministic()), encoding="utf-8"
+    )
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — the prior date is preserved, not rewritten to today.
+    assert result.exit_code == 0, result.output
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    assert "2020-01-02" in links_yaml
+    assert dt.date.today().isoformat() not in links_yaml
 
 
 def test_render_lawbrain_not_in_scope_is_recorded_not_attached(

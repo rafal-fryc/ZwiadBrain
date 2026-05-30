@@ -395,6 +395,45 @@ def test_federal_bill_omits_legiscan_bill_id() -> None:
     assert "legiscan_bill_id" not in to_frontmatter(bill)
 
 
+def test_to_frontmatter_drops_commentary_body_and_links() -> None:
+    """should keep commentary bookkeeping but drop both body and links from frontmatter"""
+    from zwiadbrain.models import CommentaryLink
+
+    bill = Bill(
+        id="us-ca-sb-362",
+        jurisdiction="US-CA",
+        title="California Delete Act",
+        bill_number="SB 362",
+        commentary_sources=[
+            CommentarySource(
+                path="wiki/regulation-california-delete-act.md",
+                slug="regulation-california-delete-act",
+                content_hash="abc123",
+                matched_by="deterministic",
+                confidence=1.0,
+                body="Verbatim copied commentary body.",
+                links=[
+                    CommentaryLink(
+                        text="EFF analysis",
+                        url="https://www.eff.org/delete-act",
+                    )
+                ],
+            )
+        ],
+    )
+
+    # The in-memory model carries the link (the field exists and is populated).
+    assert bill.commentary_sources[0].links[0].url == "https://www.eff.org/delete-act"
+
+    fm = to_frontmatter(bill)
+    sources = fm["commentary_sources"]
+    assert isinstance(sources, list)
+    assert sources[0]["slug"] == "regulation-california-delete-act"
+    assert sources[0]["matched_by"] == "deterministic"
+    assert "body" not in sources[0]
+    assert "links" not in sources[0]
+
+
 def test_enforcement_developments_round_trip() -> None:
     import datetime as dt
 

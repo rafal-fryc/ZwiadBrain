@@ -77,11 +77,13 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
         if key == "amendments_count" and value == 0:
             continue
         fm[key] = value
-    # Commentary sources are built from the typed model so the verbatim body can
-    # be excluded cleanly (it is rendered into the page body, not the frontmatter).
+    # Commentary sources are built from the typed model so the verbatim body and
+    # the harvested links can be excluded cleanly (both are rendered into the page
+    # body — the body as commentary, the links as "Further Reading" — not the
+    # frontmatter, which holds only the stale-detection bookkeeping).
     if item.commentary_sources:
         fm["commentary_sources"] = [
-            source.model_dump(mode="json", exclude_none=True, exclude={"body"})
+            source.model_dump(mode="json", exclude_none=True, exclude={"body", "links"})
             for source in item.commentary_sources
         ]
     # Persist the researched leg_history sub-fields plus the narrative (D40).

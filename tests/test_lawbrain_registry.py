@@ -9,6 +9,7 @@ never decides staleness, it only stores and returns decisions verbatim.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from pathlib import Path
 
 import pytest
@@ -204,9 +205,16 @@ def test_should_sort_entries_by_slug_in_dump(tmp_path: Path) -> None:
     registry.dump(path)
     reloaded = LinkRegistry.load(path)
 
-    # Assert — both survive (order in memory does not matter, round-trip does)
+    # Assert — both survive (round-trip)
     assert reloaded.decision_for("regulation-z-page") is not None
     assert reloaded.decision_for("bill-a-page") is not None
+
+    # Assert — entries are physically written in ascending slug order, despite
+    # being inserted z-then-a (a reversed sort would fail this).
+    raw_text = path.read_text(encoding="utf-8")
+    slugs_in_file = re.findall(r"^- lawbrain_slug: (.+)$", raw_text, re.MULTILINE)
+    assert len(slugs_in_file) >= 2
+    assert slugs_in_file == sorted(slugs_in_file)
 
 
 def test_should_round_trip_reject_decision_with_null_target(tmp_path: Path) -> None:

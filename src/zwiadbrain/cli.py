@@ -46,9 +46,21 @@ from zwiadbrain.pipeline.enforcement import (
 )
 from zwiadbrain.pipeline.enrich import enrich
 from zwiadbrain.pipeline.ids import build_enforcement_id, parse_bill_id, parse_strong_key
+from zwiadbrain.pipeline.lawbrain_copy import (
+    build_commentary_source,
+    detect_stale,
+    merge_commentary,
+)
 from zwiadbrain.pipeline.lawbrain_keys import keys_hash, page_keys, tracked_item_keys
+from zwiadbrain.pipeline.lawbrain_links import harvest_links
 from zwiadbrain.pipeline.lawbrain_match import TargetRef, build_shortlist
-from zwiadbrain.pipeline.lawbrain_registry import LinkRegistry
+from zwiadbrain.pipeline.lawbrain_match import confirm_match as lawbrain_confirm_match
+from zwiadbrain.pipeline.lawbrain_registry import LinkDecision, LinkRegistry
+from zwiadbrain.pipeline.lawbrain_review import (
+    ReviewEntry,
+    parse_review_queue,
+    render_review_queue,
+)
 from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
@@ -67,7 +79,7 @@ from zwiadbrain.sources.enforcement.base import EnforcementSource
 from zwiadbrain.sources.enforcement.ftc import FTCSource
 from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
-from zwiadbrain.sources.lawbrain import LawBrainReader
+from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
@@ -962,6 +974,279 @@ def render_enforcement(
     typer.echo(
         f"enforcement: {new_count} new / {consolidated} consolidated"
         f" / {flagged} flagged / {len(dropped)} dropped"
+    )
+    for note in notes:
+        typer.echo(f"  {note}")
+    for ident, reason in dropped:
+        typer.echo(f"  dropped: {ident} — {reason}")
+
+
+def _lawbrain_page_by_id(wiki: Path, target_id: str) -> Path | None:
+    """Locate an existing tracked page (bill OR enforcement) by id under any jurisdiction.
+
+    Commentary attaches regardless of page kind (D59), so both wiki subtrees are
+    searched; the first match wins (ids are unique across the wiki).
+    """
+    matches = list(wiki.glob(f"**/bills/{target_id}.md")) + list(
+        wiki.glob(f"**/enforcement/{target_id}.md")
+    )
+    return matches[0] if matches else None
+
+
+def _lawbrain_page_by_slug(reader: LawBrainReader, slug: str) -> LawBrainPage | None:
+    """Return the parsed law-brain page with this slug, or None if it is gone (stale)."""
+    return next((p for p in reader.pages() if p.slug == slug), None)
+
+
+def _resolve_review_queue(
+    queue_path: Path,
+    new_entries: list[ReviewEntry],
+    registry: LinkRegistry,
+    notes: list[str],
+) -> None:
+    """Apply operator-resolved queue tokens, then write the merged pending queue (D61).
+
+    Reads the existing ``review-queue.md`` (if any): an ``[accept]`` entry is
+    recorded in the registry as a ``link`` override (the actual copy happens on the
+    NEXT sync run, when the page re-enters classified.json with the override in
+    place — the same two-pass shape the fetch half relies on), a ``[reject]`` entry
+    is recorded as a ``reject`` decision. Resolved entries are pruned; unresolved
+    ``[pending]`` entries plus this run's new proposals are written back, deduped by
+    ``(slug, target_id, reason)``.
+    """
+    existing: list[ReviewEntry] = []
+    if queue_path.exists():
+        existing = parse_review_queue(queue_path.read_text(encoding="utf-8"))
+    pending: list[ReviewEntry] = []
+    for entry in existing:
+        if entry.status == "accept":
+            registry.record(
+                LinkDecision(
+                    lawbrain_slug=entry.slug,
+                    decision="link",
+                    target_id=entry.target_id,
+                    matched_by="llm",
+                    keys_hash="",  # operator override; re-evaluated on the next sync (D9)
+                    decided=dt.date.today(),
+                )
+            )
+            notes.append(f"accepted: {entry.slug} -> {entry.target_id}")
+        elif entry.status == "reject":
+            registry.record(
+                LinkDecision(
+                    lawbrain_slug=entry.slug,
+                    decision="reject",
+                    target_id=entry.target_id,
+                    matched_by=None,
+                    keys_hash="",
+                    decided=dt.date.today(),
+                )
+            )
+            notes.append(f"rejected: {entry.slug}")
+        else:
+            pending.append(entry)
+    seen: set[tuple[str, str | None, str]] = set()
+    merged: list[ReviewEntry] = []
+    for entry in [*pending, *new_entries]:
+        key = (entry.slug, entry.target_id, entry.reason)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(entry)
+    if merged:
+        queue_path.parent.mkdir(parents=True, exist_ok=True)
+        queue_path.write_text(render_review_queue(merged), encoding="utf-8", newline="\n")
+    elif queue_path.exists():
+        # All resolved — leave an empty queue file (committed, transient) so the
+        # operator sees the cleared state rather than a stale list.
+        queue_path.write_text(render_review_queue([]), encoding="utf-8", newline="\n")
+
+
+@app.command(name="render-lawbrain-commentary")
+def render_lawbrain_commentary(
+    input_file: Annotated[
+        Path, typer.Option("--in", help="classified.json of decided law-brain links.")
+    ],
+    wiki: Annotated[Path, typer.Option(help="Wiki root to write commentary onto.")] = Path(
+        "wiki"
+    ),
+    db: Annotated[Path, typer.Option(help="SQLite index path.")] = Path(
+        "data/cache/index.sqlite"
+    ),
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Print intended writes; make zero edits.")
+    ] = False,
+) -> None:
+    """Render law-brain commentary onto tracked pages — the render half of /zwiad-sync-lawbrain.
+
+    A ``deterministic`` link is trusted; an ``llm`` link is re-grounded by
+    :func:`lawbrain_confirm_match` (require >=1 shared jurisdiction-qualified key, D16)
+    and demoted to a ``weak-grounding`` review-queue entry when the confirm fails —
+    never a silent topical merge. For each applied link the matched page body is copied
+    verbatim and its secondary reference links harvested (D62) into the target's
+    ``commentary_sources``; the renderer rebuilds the ``lawbrain:region`` authoritatively
+    from those fresh bodies (D63). Operator-resolved queue tokens (``[accept]``/
+    ``[reject]``) are applied in the same pass (D61). Idempotent; ``--dry-run`` is read-only.
+    """
+    try:
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read classified file {input_file}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise ConfigError(f"classified file must be a JSON list, got {type(raw).__name__}")
+        entries: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+        settings = load_settings()
+        reader = LawBrainReader(settings.effective_law_brain_path or Path("."))
+        if not (settings.lawbrain.enabled and reader.is_available()):
+            typer.echo("lawbrain: disabled or unavailable — no-op")
+            raise typer.Exit(0)
+
+        registry_path = wiki / "links.yaml"
+        queue_path = wiki / "review-queue.md"
+        registry = LinkRegistry.load(registry_path)
+        # Cache the live law-brain slug set once; staleness is checked per target.
+        live_slugs = {p.slug for p in reader.pages()}
+        review: list[ReviewEntry] = []
+        linked = reviewed = 0
+        notes: list[str] = []
+        intended: list[str] = []  # dry-run preview lines
+        # Per-item isolation: a malformed entry is recorded as a drop and skipped,
+        # never fatal — mirrors render-enforcement.
+        dropped: list[tuple[str, str]] = []
+        for i, item in enumerate(entries):
+            if not isinstance(item, dict):
+                dropped.append((f"entry[{i}]", "classified entry is not a JSON object"))
+                continue
+            e: dict[str, object] = item  # pyright: ignore[reportUnknownVariableType]
+            slug = str(e.get("slug") or f"entry[{i}]")
+            try:
+                slug = str(e["slug"])
+                target_id = str(e["target_id"])
+                matched_by = str(e["matched_by"])
+                if matched_by not in ("deterministic", "llm"):
+                    raise ConfigError(f"unknown matched_by {matched_by!r}")
+                # mypy/pyright: narrow to the build_commentary_source Literal.
+                matched_by_lit: Literal["deterministic", "llm"] = (
+                    "deterministic" if matched_by == "deterministic" else "llm"
+                )
+                confidence = float(e["confidence"])  # pyright: ignore[reportArgumentType]
+                page_key_set = {str(k) for k in _as_list(e.get("page_keys"), "page_keys")}
+                target_key_set = {
+                    str(k) for k in _as_list(e.get("target_keys"), "target_keys")
+                }
+                decided = registry.decision_for(slug)
+                override = decided is not None and decided.decision == "link"
+                # Re-ground an LLM-proposed link deterministically (D16). A
+                # deterministic link is already key-grounded by the fetch half.
+                if matched_by == "llm":
+                    ok = lawbrain_confirm_match(
+                        page_keys=page_key_set,
+                        target_keys=target_key_set,
+                        confidence=confidence,
+                        min_confidence=settings.lawbrain.min_confidence,
+                        require_shared_key=settings.lawbrain.require_shared_key,
+                        override=override,
+                    )
+                    if not ok:
+                        review.append(
+                            ReviewEntry(
+                                slug=slug, target_id=target_id, reason="weak-grounding"
+                            )
+                        )
+                        reviewed += 1
+                        continue
+                page = _lawbrain_page_by_slug(reader, slug)
+                if page is None:
+                    # Source vanished from the law brain: do not attach; flag stale.
+                    review.append(
+                        ReviewEntry(slug=slug, target_id=target_id, reason="stale")
+                    )
+                    reviewed += 1
+                    continue
+                target_path = _lawbrain_page_by_id(wiki, target_id)
+                if target_path is None:
+                    raise ConfigError(f"target page not found in wiki: {target_id}")
+                loaded = from_page(target_path.read_text(encoding="utf-8"))
+                memo_texts = [
+                    t
+                    for rel in page.source_files
+                    if (t := reader.read_source_memo(rel)) is not None
+                ]
+                links = harvest_links(
+                    page_body=page.body,
+                    memo_texts=memo_texts,
+                    primary_source_domains=settings.lawbrain.primary_source_domains,
+                )
+                source = build_commentary_source(
+                    page=page,
+                    matched_by=matched_by_lit,
+                    confidence=confidence,
+                    links=(links if settings.lawbrain.further_reading else []),
+                )
+                merged_sources = merge_commentary(loaded.commentary_sources, source)
+                updated_item = loaded.model_copy(
+                    update={"commentary_sources": merged_sources}
+                )
+                # Staleness: any prior commentary slug no longer live in the law brain.
+                for stale_slug in detect_stale(merged_sources, live_slugs):
+                    review.append(
+                        ReviewEntry(
+                            slug=stale_slug, target_id=target_id, reason="stale"
+                        )
+                    )
+                    notes.append(f"stale: {stale_slug} on {target_id} (kept, flagged)")
+                if dry_run:
+                    intended.append(
+                        f"link {slug} -> {target_id} ({matched_by}, {len(links)} links)"
+                    )
+                else:
+                    write_page(updated_item, wiki)
+                    registry.record(
+                        LinkDecision(
+                            lawbrain_slug=slug,
+                            decision="link",
+                            target_id=target_id,
+                            matched_by=matched_by,
+                            keys_hash=keys_hash(page_key_set),
+                            decided=dt.date.today(),
+                        )
+                    )
+                linked += 1
+            except (KeyError, ValidationError, ConfigError, ValueError, WikiSchemaError) as exc:
+                dropped.append((slug, str(exc)))
+                continue
+
+        if dry_run:
+            typer.echo(
+                f"lawbrain (dry-run): {linked} would link / {reviewed} review"
+                f" / {len(dropped)} dropped"
+            )
+            for line in intended:
+                typer.echo(f"  would: {line}")
+            for ident, reason in dropped:
+                typer.echo(f"  dropped: {ident} — {reason}")
+            raise typer.Exit(0)
+
+        # Apply operator-resolved queue tokens AND merge the new proposals (D61),
+        # then persist the registry and reindex. _resolve_review_queue may record
+        # accept/reject decisions, so it runs before the dump decision.
+        registry_changed = linked > 0
+        notes_before = len(notes)
+        _resolve_review_queue(queue_path, review, registry, notes)
+        # A queue resolution that recorded an accept/reject appends a note.
+        registry_changed = registry_changed or len(notes) > notes_before
+        # Persist the registry when this run recorded a decision, or to refresh an
+        # already-committed registry (idempotent: dump is a stable slug-sorted write).
+        if registry_changed or registry_path.exists():
+            registry.dump(registry_path)
+        with Store(db) as store:
+            store.reindex(wiki)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"lawbrain: {linked} linked / {reviewed} review / {len(dropped)} dropped"
     )
     for note in notes:
         typer.echo(f"  {note}")

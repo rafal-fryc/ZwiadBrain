@@ -1,4 +1,11 @@
-"""CLI tests for the law-brain fetch half (``fetch-lawbrain-candidates``)."""
+"""CLI tests for both halves of /zwiad-sync-lawbrain.
+
+The fetch half (``fetch-lawbrain-candidates``) is exercised first; the render
+half (``render-lawbrain-commentary``) follows. Both are fully offline: the law
+brain is the committed mini-wiki under tests/fixtures/lawbrain/, targets are
+rendered to a tmp wiki, and classified.json is hand-built to stand in for the
+(subagent/operator) fetch+match output. No network, no LLM.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +19,9 @@ from typer.testing import CliRunner
 
 from zwiadbrain.cli import _summary_excerpt, app  # pyright: ignore[reportPrivateUsage]
 from zwiadbrain.config import LawBrainSettings, Settings
+from zwiadbrain.models import Bill
+from zwiadbrain.pipeline.render import write_page
+from zwiadbrain.wiki.schema import from_page
 
 _RUNNER = CliRunner()
 _FIXTURE_LAWBRAIN = Path(__file__).parent / "fixtures" / "lawbrain"
@@ -339,3 +349,376 @@ def test_summary_excerpt_skips_headings_and_handles_empty() -> None:
     # Truncation at the 280-char limit.
     long_para = "## Summary\n\n" + "x" * 400
     assert _summary_excerpt(long_para) == "x" * 280
+
+
+# ---------------------------------------------------------------------------
+# Render half: render-lawbrain-commentary
+# ---------------------------------------------------------------------------
+#
+# These tests drive load_settings() via a real zwiadbrain.toml in a chdir'd
+# tmp_path (the render command reads settings itself, not a monkeypatched one).
+# The asserted Further Reading hosts match the committed SB-53 fixture: the page
+# body carries a Mayer Brown link, and the referenced sb53-memo.md carries Morgan
+# Lewis / IAPP / a bare Sidley URL plus two primary sources (leginfo, Wikipedia)
+# that must be filtered out by the primary-source denylist.
+
+
+def _write_render_settings(tmp_path: Path) -> None:
+    """Enable the law brain (pointed at the offline fixture) via a real TOML."""
+    toml = tmp_path / "zwiadbrain.toml"
+    toml.write_text(
+        "[lawbrain]\n"
+        "enabled = true\n"
+        f'path = "{_FIXTURE_LAWBRAIN.as_posix()}"\n'
+        "min_confidence = 0.75\n"
+        "require_shared_key = true\n"
+        "demote_headings = true\n"
+        "commentary = true\n"
+        "further_reading = true\n",
+        encoding="utf-8",
+    )
+
+
+def _seed_sb53_target(wiki: Path) -> None:
+    """Render the tracked CA SB 53 bill page (the deterministic-match target)."""
+    bill = Bill(
+        id="ca-2025-sb-53",
+        jurisdiction="US-CA",
+        title="California SB 53 — Transparency in Frontier AI Act",
+        bill_number="SB 53",
+        topics=["ai"],
+        summary="A California frontier-model transparency bill.",
+        sources={"LegiScan": "https://legiscan.com/CA/bill/SB53/2025"},
+    )
+    write_page(bill, wiki)
+
+
+def _classified_deterministic() -> list[dict[str, object]]:
+    """One deterministic SB-53 link (the showcase) the fetch half would emit."""
+    return [
+        {
+            "slug": "regulation-california-sb53-tfaia",
+            "target_id": "ca-2025-sb-53",
+            "matched_by": "deterministic",
+            "confidence": 1.0,
+            "page_keys": ["US-CA::bill::SB-53"],
+            "target_keys": ["US-CA::bill::SB-53"],
+        }
+    ]
+
+
+_SB53_PAGE = ("states", "ca", "bills", "ca-2025-sb-53.md")
+
+
+def test_render_lawbrain_attaches_commentary_and_further_reading(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(_classified_deterministic()), encoding="utf-8"
+    )
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        [
+            "render-lawbrain-commentary",
+            "--in",
+            str(run / "classified.json"),
+            "--wiki",
+            str(wiki),
+            "--db",
+            str(tmp_path / "index.sqlite"),
+        ],
+    )
+
+    # Assert — command succeeded and reported one link.
+    assert result.exit_code == 0, result.output
+    assert "1 linked" in result.output
+
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    # Commentary region with the slug marker, demoted headings, neutralized wikilink.
+    assert "## Commentary & Analysis" in page
+    assert "<!-- lawbrain:region:begin -->" in page
+    assert "<!-- lawbrain:begin slug=regulation-california-sb53-tfaia -->" in page
+    assert "### Summary" in page  # source "## Summary" demoted to "###"
+    assert "concept-california-ai-regulatory-landscape" in page  # [[...]] neutralized
+    assert "[[concept-california-ai-regulatory-landscape]]" not in page
+    # Further Reading harvested from page body + referenced memo, primary sources dropped.
+    assert "## Further Reading (via law brain)" in page
+    assert "morganlewis.com" in page  # from the memo (markdown link)
+    assert "iapp.org" in page  # from the memo (markdown link)
+    assert "sidley.com" in page  # from the memo (bare URL captured)
+    assert "mayerbrown.com" in page  # from the page body itself
+    assert "leginfo.legislature.ca.gov" not in page  # *.gov primary source filtered
+    assert "en.wikipedia.org" not in page  # wikipedia primary source filtered
+    # A decided link is recorded in the committed registry, not the review queue.
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    assert "regulation-california-sb53-tfaia" in links_yaml
+    assert "ca-2025-sb-53" in links_yaml
+    # commentary body/links stay OUT of frontmatter (D20): reload via from_page.
+    reloaded = from_page(page)
+    assert len(reloaded.commentary_sources) == 1
+    assert reloaded.commentary_sources[0].slug == "regulation-california-sb53-tfaia"
+    assert reloaded.commentary_sources[0].body is None  # bookkeeping only
+    assert reloaded.commentary_sources[0].links == []
+
+
+def test_render_lawbrain_rerun_is_byte_identical(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — first render.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(_classified_deterministic()), encoding="utf-8"
+    )
+    page_path = wiki / Path(*_SB53_PAGE)
+    first = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+    assert first.exit_code == 0, first.output
+    after_first = page_path.read_text(encoding="utf-8")
+    links_after_first = (wiki / "links.yaml").read_text(encoding="utf-8")
+
+    # Act — identical second render.
+    second = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — byte-identical page AND registry (D20: idempotent, clean git status).
+    assert second.exit_code == 0, second.output
+    assert page_path.read_text(encoding="utf-8") == after_first
+    assert (wiki / "links.yaml").read_text(encoding="utf-8") == links_after_first
+
+
+def test_render_lawbrain_weak_grounding_routes_to_review_not_links(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — an LLM-proposed link with NO shared key: confirm_match fails the
+    # require_shared_key gate, so it must land in review-queue.md, NOT links.yaml.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(
+            [
+                {
+                    "slug": "regulation-california-sb53-tfaia",
+                    "target_id": "ca-2025-sb-53",
+                    "matched_by": "llm",
+                    "confidence": 0.9,
+                    "page_keys": [],  # no key -> grounding confirm fails
+                    "target_keys": ["US-CA::bill::SB-53"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — no commentary attached, a review entry written, no links.yaml decision.
+    assert result.exit_code == 0, result.output
+    assert "1 review" in result.output
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "## Commentary & Analysis" not in page
+    review = (wiki / "review-queue.md").read_text(encoding="utf-8")
+    assert "regulation-california-sb53-tfaia" in review
+    assert "weak-grounding" in review
+    assert not (wiki / "links.yaml").exists()
+
+
+def test_render_lawbrain_accept_flip_is_recorded_and_pruned(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — a review-queue.md with one operator-flipped [accept] entry. The
+    # render pass must record it as a link decision in links.yaml and prune the
+    # resolved entry from the queue (D61: resolution folded into the render half).
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    wiki.mkdir(parents=True, exist_ok=True)
+    (wiki / "review-queue.md").write_text(
+        "- [accept] regulation-california-sb53-tfaia -> ca-2025-sb-53 (collision)\n",
+        encoding="utf-8",
+    )
+    run = tmp_path / "run"
+    run.mkdir()
+    # No new proposals this pass — only the resolved queue token to apply.
+    (run / "classified.json").write_text("[]", encoding="utf-8")
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — decision recorded in links.yaml, queue pruned to empty.
+    assert result.exit_code == 0, result.output
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    assert "regulation-california-sb53-tfaia" in links_yaml
+    assert "ca-2025-sb-53" in links_yaml
+    # The resolved [accept] line is gone (queue cleared to empty).
+    review = (wiki / "review-queue.md").read_text(encoding="utf-8")
+    assert "regulation-california-sb53-tfaia" not in review
+
+
+def test_render_lawbrain_reject_flip_records_reject_decision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — a [reject] queue token must be recorded as a not-a-link decision
+    # and pruned, so the page is never re-proposed (sticky reject).
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    wiki.mkdir(parents=True, exist_ok=True)
+    (wiki / "review-queue.md").write_text(
+        "- [reject] regulation-fixture-sb53 -> ca-2025-sb-53 (weak-grounding)\n",
+        encoding="utf-8",
+    )
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text("[]", encoding="utf-8")
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — reject recorded; the SB-53 target keeps no commentary.
+    assert result.exit_code == 0, result.output
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    assert "regulation-fixture-sb53" in links_yaml
+    assert "reject" in links_yaml
+    review = (wiki / "review-queue.md").read_text(encoding="utf-8")
+    assert "regulation-fixture-sb53" not in review
+
+
+def test_render_lawbrain_not_in_scope_is_not_attached(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — a not_in_scope decision must record nothing as a link and attach
+    # no commentary. The fetch half emits matched_by "deterministic"/"llm" for
+    # links only; a not_in_scope entry has no link to apply, so it is dropped from
+    # the link path (recorded as a pre-existing registry decision instead).
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(
+            [
+                {
+                    "slug": "regulation-california-sb53-tfaia",
+                    "target_id": "ca-2025-sb-53",
+                    "matched_by": "not_in_scope",
+                    "confidence": 0.0,
+                    "page_keys": [],
+                    "target_keys": [],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — the unknown matched_by is isolated as a drop; no commentary, no link.
+    assert result.exit_code == 0, result.output
+    assert "0 linked" in result.output
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "## Commentary & Analysis" not in page
+
+
+def test_render_lawbrain_dry_run_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(_classified_deterministic()), encoding="utf-8"
+    )
+    page_path = wiki / Path(*_SB53_PAGE)
+    before = page_path.read_text(encoding="utf-8")
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite"), "--dry-run"],
+    )
+
+    # Assert — intended write reported, page untouched, no registry/queue written.
+    assert result.exit_code == 0, result.output
+    assert "dry-run" in result.output.lower()
+    assert page_path.read_text(encoding="utf-8") == before  # zero edits
+    assert "## Commentary & Analysis" not in before
+    assert not (wiki / "links.yaml").exists()
+    assert not (wiki / "review-queue.md").exists()
+
+
+def test_render_lawbrain_drops_malformed_entry_without_failing_batch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — one good deterministic link + one entry missing required keys.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    entries = _classified_deterministic() + [{"matched_by": "deterministic"}]
+    (run / "classified.json").write_text(json.dumps(entries), encoding="utf-8")
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert — the good link applied, the malformed one isolated as a drop.
+    assert result.exit_code == 0, result.output
+    assert "1 linked" in result.output
+    assert "1 dropped" in result.output
+    assert "dropped:" in result.output

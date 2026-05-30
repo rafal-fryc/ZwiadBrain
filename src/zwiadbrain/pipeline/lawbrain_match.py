@@ -47,8 +47,14 @@ class TargetRef(BaseModel):
 
 
 def _tokens(text: str) -> frozenset[str]:
-    """Lowercase, split on non-word runs, drop stopwords."""
-    raw = text.lower().replace("-", " ").replace(":", " ").replace(".", " ")
+    """Lowercase, strip punctuation Unicode-safely, split on whitespace, drop stopwords.
+
+    ``[^\\w\\s]`` removes ASCII and non-ASCII punctuation alike (em/en dashes,
+    parens, apostrophes), which matters because law-brain titles use ``—``
+    pervasively and it must not survive as a shared noise token. ``\\w`` keeps
+    non-ASCII letters, so accented terms tokenize correctly.
+    """
+    raw = re.sub(r"[^\w\s]", " ", text.lower())
     return frozenset(t for t in re.split(r"\s+", raw) if t and t not in _STOPWORDS)
 
 

@@ -168,6 +168,20 @@ def test_confirm_match_links_when_confidence_and_shared_key() -> None:
     )
 
 
+def test_confirm_match_links_at_exact_confidence_floor() -> None:
+    # The floor is `>=`, so confidence == min_confidence must pass (boundary).
+    assert (
+        confirm_match(
+            page_keys={"US-CA::bill::SB-53"},
+            target_keys={"US-CA::bill::SB-53"},
+            confidence=0.75,
+            min_confidence=0.75,
+            require_shared_key=True,
+        )
+        is True
+    )
+
+
 def test_confirm_match_rejects_no_shared_key_when_required() -> None:
     # Topical LLM proposal, no identifier overlap -> falls to review (weak-grounding).
     assert (

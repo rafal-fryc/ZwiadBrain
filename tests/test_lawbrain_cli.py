@@ -622,13 +622,12 @@ def test_render_lawbrain_reject_flip_records_reject_decision(
     assert "regulation-fixture-sb53" not in review
 
 
-def test_render_lawbrain_not_in_scope_is_not_attached(
+def test_render_lawbrain_not_in_scope_is_recorded_not_attached(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Arrange — a not_in_scope decision must record nothing as a link and attach
-    # no commentary. The fetch half emits matched_by "deterministic"/"llm" for
-    # links only; a not_in_scope entry has no link to apply, so it is dropped from
-    # the link path (recorded as a pre-existing registry decision instead).
+    # Arrange — a not_in_scope decision attaches no commentary but IS recorded in
+    # links.yaml (Shared Contract: not_in_scope/reject -> record, no attach) so the
+    # page is never re-proposed (sticky, D9).
     monkeypatch.chdir(tmp_path)
     _write_render_settings(tmp_path)
     wiki = tmp_path / "wiki"
@@ -639,11 +638,11 @@ def test_render_lawbrain_not_in_scope_is_not_attached(
         json.dumps(
             [
                 {
-                    "slug": "regulation-california-sb53-tfaia",
-                    "target_id": "ca-2025-sb-53",
+                    "slug": "regulation-fixture-sb53",
+                    "target_id": None,
                     "matched_by": "not_in_scope",
                     "confidence": 0.0,
-                    "page_keys": [],
+                    "page_keys": ["US-CA::bill::SB-53"],
                     "target_keys": [],
                 }
             ]
@@ -658,11 +657,15 @@ def test_render_lawbrain_not_in_scope_is_not_attached(
          "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
     )
 
-    # Assert — the unknown matched_by is isolated as a drop; no commentary, no link.
+    # Assert — recorded as a not_in_scope decision; no commentary attached anywhere.
     assert result.exit_code == 0, result.output
     assert "0 linked" in result.output
+    assert "1 recorded" in result.output
     page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
     assert "## Commentary & Analysis" not in page
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    assert "regulation-fixture-sb53" in links_yaml
+    assert "not_in_scope" in links_yaml
 
 
 def test_render_lawbrain_dry_run_writes_nothing(

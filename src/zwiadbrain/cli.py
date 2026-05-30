@@ -1114,6 +1114,7 @@ def render_lawbrain_commentary(
         # Per-item isolation: a malformed entry is recorded as a drop and skipped,
         # never fatal — mirrors render-enforcement.
         dropped: list[tuple[str, str]] = []
+        recorded = 0  # not_in_scope/reject decisions recorded (no attach)
         for i, item in enumerate(entries):
             if not isinstance(item, dict):
                 dropped.append((f"entry[{i}]", "classified entry is not a JSON object"))
@@ -1122,16 +1123,40 @@ def render_lawbrain_commentary(
             slug = str(e.get("slug") or f"entry[{i}]")
             try:
                 slug = str(e["slug"])
-                target_id = str(e["target_id"])
                 matched_by = str(e["matched_by"])
+                page_key_set = {str(k) for k in _as_list(e.get("page_keys"), "page_keys")}
+                # A not_in_scope/reject decision attaches nothing — it is recorded in
+                # links.yaml so the page is never re-proposed (sticky, D9). target_id
+                # is optional for these (the subagent may resolve a keyless page to
+                # not_in_scope with no target).
+                if matched_by in ("not_in_scope", "reject"):
+                    if dry_run:
+                        intended.append(f"record {matched_by} {slug}")
+                    else:
+                        registry.record(
+                            LinkDecision(
+                                lawbrain_slug=slug,
+                                decision=(
+                                    "not_in_scope"
+                                    if matched_by == "not_in_scope"
+                                    else "reject"
+                                ),
+                                target_id=_opt_str_e(e.get("target_id")),
+                                matched_by=None,
+                                keys_hash=keys_hash(page_key_set),
+                                decided=dt.date.today(),
+                            )
+                        )
+                    recorded += 1
+                    continue
                 if matched_by not in ("deterministic", "llm"):
                     raise ConfigError(f"unknown matched_by {matched_by!r}")
+                target_id = str(e["target_id"])
                 # mypy/pyright: narrow to the build_commentary_source Literal.
                 matched_by_lit: Literal["deterministic", "llm"] = (
                     "deterministic" if matched_by == "deterministic" else "llm"
                 )
                 confidence = float(e["confidence"])  # pyright: ignore[reportArgumentType]
-                page_key_set = {str(k) for k in _as_list(e.get("page_keys"), "page_keys")}
                 target_key_set = {
                     str(k) for k in _as_list(e.get("target_keys"), "target_keys")
                 }
@@ -1219,8 +1244,8 @@ def render_lawbrain_commentary(
 
         if dry_run:
             typer.echo(
-                f"lawbrain (dry-run): {linked} would link / {reviewed} review"
-                f" / {len(dropped)} dropped"
+                f"lawbrain (dry-run): {linked} would link / {recorded} recorded"
+                f" / {reviewed} review / {len(dropped)} dropped"
             )
             for line in intended:
                 typer.echo(f"  would: {line}")
@@ -1231,7 +1256,7 @@ def render_lawbrain_commentary(
         # Apply operator-resolved queue tokens AND merge the new proposals (D61),
         # then persist the registry and reindex. _resolve_review_queue may record
         # accept/reject decisions, so it runs before the dump decision.
-        registry_changed = linked > 0
+        registry_changed = linked > 0 or recorded > 0
         notes_before = len(notes)
         _resolve_review_queue(queue_path, review, registry, notes)
         # A queue resolution that recorded an accept/reject appends a note.
@@ -1246,7 +1271,8 @@ def render_lawbrain_commentary(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(
-        f"lawbrain: {linked} linked / {reviewed} review / {len(dropped)} dropped"
+        f"lawbrain: {linked} linked / {recorded} recorded / {reviewed} review"
+        f" / {len(dropped)} dropped"
     )
     for note in notes:
         typer.echo(f"  {note}")

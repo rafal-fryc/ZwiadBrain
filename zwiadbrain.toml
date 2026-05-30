@@ -29,6 +29,9 @@ commentary = true
 discover = false                 # decision 14 / PHASE-11 gate — do NOT enable until approved
 commentary_only_types = ["concept", "framework", "vendor", "person", "matter"]
 commentary_only_slug_markers = ["tracker", "landscape", "map", "scholarship"]
+further_reading = true            # decision 62: harvest a "Further Reading (via law brain)" link list
+# decision 62: drop harvested links whose host ends with any of these suffixes (primary sources, not commentary).
+primary_source_domains = [".gov", "legiscan.com", "courtlistener.com", "wikipedia.org", "europa.eu", "legislation.gov.uk"]
 
 [lawbrain.type_map]
 # decision 8: which law-brain page types map to which ZwiadBrain page kind.

@@ -95,6 +95,17 @@ class LawBrainSettings(BaseModel):
     commentary_only_types: list[str] = []
     commentary_only_slug_markers: list[str] = []
     type_map: dict[str, str] = {}
+    further_reading: bool = True
+    primary_source_domains: list[str] = Field(
+        default_factory=lambda: [
+            ".gov",
+            "legiscan.com",
+            "courtlistener.com",
+            "wikipedia.org",
+            "europa.eu",
+            "legislation.gov.uk",
+        ]
+    )
 
 
 class Settings(BaseSettings):

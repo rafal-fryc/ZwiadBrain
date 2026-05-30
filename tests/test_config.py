@@ -155,6 +155,51 @@ def test_require_legiscan_api_key_raises_when_unset() -> None:
         Settings(legiscan_api_key=None).require_legiscan_api_key()
 
 
+def test_lawbrain_further_reading_defaults_true(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should default [lawbrain].further_reading to True when the TOML omits it"""
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path)
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.lawbrain.further_reading is True
+
+
+def test_lawbrain_primary_source_domains_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should default [lawbrain].primary_source_domains to the built-in denylist"""
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    toml_path, env_path = _write(tmp_path)
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.lawbrain.primary_source_domains == [
+        ".gov",
+        "legiscan.com",
+        "courtlistener.com",
+        "wikipedia.org",
+        "europa.eu",
+        "legislation.gov.uk",
+    ]
+
+
+def test_lawbrain_reads_link_harvest_config_from_toml(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should parse [lawbrain].further_reading and primary_source_domains from the TOML"""
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    toml = (
+        "[lawbrain]\n"
+        "enabled = true\n"
+        'path = "C:/law"\n'
+        "further_reading = false\n"
+        'primary_source_domains = [".gov", "courtlistener.com"]\n'
+    )
+    toml_path, env_path = _write(tmp_path, toml=toml)
+    settings = load_settings(toml_path=toml_path, env_file=env_path)
+    assert settings.lawbrain.further_reading is False
+    assert settings.lawbrain.primary_source_domains == [".gov", "courtlistener.com"]
+
+
 def test_enforcement_settings_loaded_from_toml(tmp_path: Path) -> None:
     from zwiadbrain.config import load_settings
     toml = tmp_path / "zwiadbrain.toml"

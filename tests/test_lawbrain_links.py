@@ -136,3 +136,19 @@ def test_harvest_links_markdown_link_not_double_counted_as_bare_url() -> None:
     assert links == [
         CommentaryLink(text="IAPP", url="https://iapp.org/news/a/x/"),
     ]
+
+
+def test_harvest_links_bare_url_with_query_string() -> None:
+    links = harvest_links(
+        page_body="details at https://example.com/search?q=foo&bar=1",
+        memo_texts=[], primary_source_domains=[],
+    )
+    assert links[0].url == "https://example.com/search?q=foo&bar=1"
+
+
+def test_harvest_links_strips_trailing_period_from_bare_url() -> None:
+    links = harvest_links(
+        page_body="See https://example.com/article. More text.",
+        memo_texts=[], primary_source_domains=[],
+    )
+    assert links[0].url == "https://example.com/article"

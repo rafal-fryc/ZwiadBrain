@@ -17,8 +17,11 @@ from urllib.parse import urlsplit
 from zwiadbrain.models import CommentaryLink
 
 # [text](https://host/path) — non-greedy text, http(s) URL up to the closing paren.
+# Known limitation: a URL with ) in its path (e.g. Wikipedia _(disambiguation)) is
+# truncated at the paren. Acceptable: such hosts are denylisted, and law-firm/IAPP/NLR
+# URLs don't use paren paths.
 _MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
-# A bare http(s) URL: run of non-whitespace after the scheme.
+# A bare http(s) URL: run of non-whitespace after the scheme. Same paren limitation.
 _BARE_URL = re.compile(r"https?://[^\s)\]]+")
 # Sentence punctuation that commonly trails a bare URL and is not part of it.
 _TRAILING_PUNCT = ".,;:)”\"'"
@@ -51,6 +54,7 @@ def _is_primary_source(url: str, primary_source_domains: list[str]) -> bool:
 
 
 def _strip_trailing_punct(url: str) -> str:
+    """Remove trailing sentence punctuation that is not part of the URL."""
     return url.rstrip(_TRAILING_PUNCT)
 
 

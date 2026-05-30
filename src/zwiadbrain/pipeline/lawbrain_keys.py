@@ -79,7 +79,7 @@ _BILL_RE: re.Pattern[str] = _build_bill_re()
 
 # A public-law citation: "Pub. L. 119-12", "Public Law 119-12", "P.L. 119-12".
 _PUBLIC_LAW_RE: re.Pattern[str] = re.compile(
-    r"\b(?:pub(?:lic)?\.?\s*l(?:aw)?\.?)\s*(\d+-\d+)\b",
+    r"\b(?:pub(?:lic)?\.?\s*l(?:aw)?\.?|p\.l\.)\s*(\d+-\d+)\b",
     re.IGNORECASE,
 )
 

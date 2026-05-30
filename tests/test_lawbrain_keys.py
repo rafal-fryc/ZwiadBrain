@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.pipeline.lawbrain_keys import (
     _bill_keys_from_text,  # pyright: ignore[reportPrivateUsage]
@@ -145,27 +147,36 @@ def test_page_keys_empty_jurisdiction_yields_no_bill_keys() -> None:
     assert not any("::bill::" in k for k in keys)
 
 
-def test_page_keys_from_citation_field() -> None:
+def test_page_keys_extracts_public_law_pl_form() -> None:
     page = _page(
         slug="regulation-take-it-down-act",
-        jurisdiction=["US-Federal"],
+        jurisdiction=["US"],
         title="TAKE IT DOWN Act",
-        citation="H.R. 8818",
+        citation="P.L. 119-12",
     )
-    assert "US::bill::HR-8818" in page_keys(page, _MARKERS)
+    assert "public_law::119-12" in page_keys(page, _MARKERS)
+
+
+def test_page_keys_from_docket_only_citation() -> None:
+    # Citation carries a docket but no bill number; the key must come from the
+    # citation field via parse_strong_key, not from slug/title (which have none).
+    page = _page(
+        slug="case-acme-data-breach",
+        jurisdiction=["US"],
+        title="United States v. Acme",
+        citation="Docket 2:25-cv-12295",
+    )
+    assert "docket::2-25-cv-12295" in page_keys(page, _MARKERS)
 
 
 def test_page_keys_from_tags_field() -> None:
     page = _page(
-        slug="regulation-california-sb53-tfaia",
-        jurisdiction=["US-CA"],
-        title="California AI Transparency",
-        tags=["sb-53"],
+        slug="regulation-federal-ai-transparency-act",  # no bill number in slug
+        jurisdiction=["US-Federal"],
+        title="Federal AI Transparency Act",  # no bill number in title
+        tags=["H.R. 1234"],  # matches _BILL_RE directly (canonical form)
     )
-    # Tags can contribute keys via the bill regex scanning
-    # "sb-53" matches prefix "SB" number "53"
-    keys = page_keys(page, _MARKERS)
-    assert "US-CA::bill::SB-53" in keys
+    assert "US::bill::HR-1234" in page_keys(page, _MARKERS)
 
 
 def test_tracked_item_keys_for_state_bill() -> None:
@@ -186,6 +197,18 @@ def test_tracked_item_keys_for_federal_bill() -> None:
         bill_number="H.R. 8818",
     )
     assert tracked_item_keys(bill) == {"US::bill::HR-8818"}
+
+
+def test_tracked_item_keys_unparseable_bill_number_yields_no_keys() -> None:
+    # A bill_number with no recognizable <prefix><digits> pattern -> no key
+    # (the regex finds no recognized bill-type token in "Unknown 2025").
+    bill = Bill(
+        id="ca-2025-unknown",
+        jurisdiction="US-CA",
+        title="Unknown",
+        bill_number="Unknown 2025",
+    )
+    assert tracked_item_keys(bill) == set()
 
 
 def test_tracked_item_keys_for_enforcement_docket_and_public_law() -> None:
@@ -257,7 +280,9 @@ def test_keys_hash_is_order_independent_and_stable() -> None:
     b = keys_hash({"public_law::119-12", "US::bill::HR-8818"})
     assert a == b
     assert len(a) == 64
-    assert keys_hash(set()) == keys_hash(set())
+    # Empty set joins to "" -> sha256(b""); pin the concrete digest, not a
+    # self-comparison (which would pass for any implementation).
+    assert keys_hash(set()) == hashlib.sha256(b"").hexdigest()
     assert keys_hash({"x"}) != keys_hash({"y"})
 
 

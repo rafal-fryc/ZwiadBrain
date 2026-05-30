@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from zwiadbrain.cli import app
+from zwiadbrain.cli import _summary_excerpt, app  # pyright: ignore[reportPrivateUsage]
 from zwiadbrain.config import LawBrainSettings, Settings
 
 _RUNNER = CliRunner()
@@ -48,6 +48,62 @@ def _write_sb53_bill(wiki: Path) -> None:
                 "## Summary",
                 "",
                 "State frontier-AI transparency bill.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_enforcement(wiki: Path, *, id_: str, public_law: str = "Pub. L. 119-12") -> None:
+    """Render a tracked enforcement page citing a public law (the cross-type key)."""
+    page = wiki / "enforcement" / f"{id_}.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "\n".join(
+            [
+                "---",
+                f"id: {id_}",
+                "type: enforcement",
+                "jurisdiction: US",
+                f"title: United States v. {id_}",
+                "agency: FTC",
+                "statutes:",
+                f"  - {public_law}",
+                "sources: {}",
+                "commentary_sources: []",
+                "---",
+                "",
+                "## Background",
+                "",
+                "Fixture enforcement action.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_take_it_down_lawbrain_page(law_brain: Path) -> None:
+    """A single-subject law-brain page whose citation yields the public-law key."""
+    page = law_brain / "wiki" / "regulation-take-it-down-act.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "\n".join(
+            [
+                "---",
+                'title: "TAKE IT DOWN Act"',
+                "type: regulation",
+                "jurisdiction: US",
+                "tags:",
+                "  - ncii",
+                "citation: \"Pub. L. 119-12\"",
+                "status: active",
+                "---",
+                "",
+                "## Summary",
+                "",
+                "Federal NCII statute enacted as Pub. L. 119-12.",
                 "",
             ]
         ),
@@ -218,3 +274,68 @@ def test_fetch_lawbrain_candidates_skips_settled_registry_page(
     )
     slugs = {c["slug"] for c in candidates}
     assert "regulation-california-sb53-tfaia" not in slugs
+
+
+def test_fetch_lawbrain_candidates_collision_when_two_targets_share_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — two tracked enforcement actions citing the same public law, and a
+    # law-brain page whose citation yields that shared key -> a key collision.
+    law_brain = tmp_path / "law"
+    (law_brain / "wiki").mkdir(parents=True)
+    _write_take_it_down_lawbrain_page(law_brain)
+    wiki = tmp_path / "wiki"
+    _write_enforcement(wiki, id_="ftc-acme")
+    _write_enforcement(wiki, id_="ftc-beta")
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    out = tmp_path / "run"
+
+    # Act
+    result = _RUNNER.invoke(
+        app, ["fetch-lawbrain-candidates", "--wiki", str(wiki), "--out", str(out)]
+    )
+
+    # Assert — the page collides on the shared key; both targets listed, no auto-link.
+    assert result.exit_code == 0, result.output
+    candidates = json.loads(
+        (out / "lawbrain-candidates.json").read_text(encoding="utf-8")
+    )
+    by_slug = {c["slug"]: c for c in candidates}
+    entry = by_slug["regulation-take-it-down-act"]
+    assert entry["match"] == "collision"
+    assert entry["target_id"] is None
+    assert entry["shortlist"] == ["ftc-acme", "ftc-beta"]
+    assert "public_law::119-12" in entry["keys"]
+
+
+def test_fetch_lawbrain_candidates_no_op_when_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — an available law brain on disk, but lawbrain.enabled is False.
+    law_brain = tmp_path / "law"
+    shutil.copytree(_FIXTURE_LAWBRAIN, law_brain)
+    monkeypatch.setattr(
+        "zwiadbrain.cli.load_settings", lambda: _settings(law_brain, enabled=False)
+    )
+    out = tmp_path / "run"
+
+    # Act
+    result = _RUNNER.invoke(app, ["fetch-lawbrain-candidates", "--out", str(out)])
+
+    # Assert — exit 0, no-op message, no candidates file (disabled guard, not error).
+    assert result.exit_code == 0, result.output
+    assert "law brain unavailable" in result.output
+    assert not (out / "lawbrain-candidates.json").exists()
+
+
+def test_summary_excerpt_skips_headings_and_handles_empty() -> None:
+    # All-headings body -> no paragraph -> "".
+    assert _summary_excerpt("# Title\n\n## Summary\n\n### Detail") == ""
+    # Empty body -> "".
+    assert _summary_excerpt("") == ""
+    # Normal body -> first non-heading paragraph, truncated to the limit.
+    body = "## Summary\n\nThe first real paragraph of prose.\n\nA second one."
+    assert _summary_excerpt(body) == "The first real paragraph of prose."
+    # Truncation at the 280-char limit.
+    long_para = "## Summary\n\n" + "x" * 400
+    assert _summary_excerpt(long_para) == "x" * 280

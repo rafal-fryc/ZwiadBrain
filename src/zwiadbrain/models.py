@@ -33,6 +33,17 @@ def _require_http(value: str) -> str:
 _HttpUrlStr = Annotated[str, AfterValidator(_require_http)]
 
 
+class CommentaryLink(BaseModel):
+    """An external reference harvested from a law-brain page or its source memos.
+
+    Rendered into the page body's "Further Reading (via law brain)" section; never
+    stored in frontmatter (it is re-derived from the copied body on each render).
+    """
+
+    text: str
+    url: str
+
+
 class CommentarySource(BaseModel):
     """A law-brain page whose content has been copied onto a tracked page.
 
@@ -47,6 +58,7 @@ class CommentarySource(BaseModel):
     matched_by: Literal["deterministic", "llm"]
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     body: str | None = None  # verbatim copied page body; rendered, not stored in frontmatter
+    links: list[CommentaryLink] = []  # harvested external refs; rendered, not stored in frontmatter
 
 
 class Action(BaseModel):

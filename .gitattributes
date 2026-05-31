@@ -1,2 +1,5 @@
 # Normalize line endings: store text as LF in the repo, check out native.
 * text=auto eol=lf
+
+# CRLF test fixture must preserve its literal \r\n bytes on all platforms.
+tests/fixtures/lawbrain/wiki/regulation-fixture-crlf-eol.md -text

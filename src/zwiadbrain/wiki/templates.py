@@ -44,6 +44,9 @@ _COMMENTARY_NOTE = (
     "authoritative for bill text and legislative history."
 )
 
+LAWBRAIN_REGION_BEGIN = "<!-- lawbrain:region:begin -->"
+LAWBRAIN_REGION_END = "<!-- lawbrain:region:end -->"
+
 
 def _demote_headings(text: str) -> str:
     """Demote ATX headings by one level (## -> ###) in copied commentary.
@@ -53,6 +56,15 @@ def _demote_headings(text: str) -> str:
     a 6-hash run, so it cannot produce a 7-hash heading).
     """
     return re.sub(r"(?m)^(#{1,5})(?= )", r"#\1", text)
+
+
+def _neutralize_wikilinks(text: str) -> str:
+    """Strip dead ``[[wiki-slug]]`` cross-reference links to plain text.
+
+    The law brain is a separate wiki: its ``[[...]]`` links resolve nowhere in
+    this corpus, so copied commentary renders them as their inner text only.
+    """
+    return re.sub(r"\[\[([^\]]+)\]\]", r"\1", text)
 
 
 def _bullets(items: list[str]) -> str:
@@ -238,7 +250,7 @@ def _leg_history(history: LegHistory) -> str:
 
 def _commentary_block(source: CommentarySource) -> str:
     updated = f" (updated {source.updated.isoformat()})" if source.updated else ""
-    body = _demote_headings(source.body.strip()) if source.body else ""
+    body = _neutralize_wikilinks(_demote_headings(source.body.strip())) if source.body else ""
     return "\n".join(
         [
             f"<!-- lawbrain:begin slug={source.slug} -->",
@@ -253,6 +265,62 @@ def _commentary_block(source: CommentarySource) -> str:
 
 def _commentary(sources: list[CommentarySource]) -> str:
     return "\n\n".join(_commentary_block(s) for s in sorted(sources, key=lambda s: s.slug))
+
+
+def _normalize_url(url: str) -> str:
+    """Normalize a url for dedup: lowercase host, strip a single trailing slash."""
+    match = re.match(r"^(https?://)([^/]+)(.*)$", url)
+    if not match:
+        return url.rstrip("/")
+    scheme, host, rest = match.groups()
+    return f"{scheme}{host.lower()}{rest}".rstrip("/")
+
+
+def _link_host(url: str) -> str:
+    """Return the lowercased host of a url, or the url itself when not http(s)."""
+    match = re.match(r"^https?://([^/]+)", url)
+    return match.group(1).lower() if match else url
+
+
+def _further_reading(sources: list[CommentarySource]) -> str:
+    """Aggregate and dedup ``Further Reading`` links across commentary sources.
+
+    Dedup by normalized URL; first occurrence in slug order wins; emit the
+    canonical (normalized) URL. The surviving link keeps the slug-first
+    occurrence's anchor text but is rendered with the normalized URL (lower host,
+    single trailing slash stripped), so output is canonical and D20-stable
+    regardless of which raw URL variant appeared. Rows are sorted by
+    ``(host, normalized_url)``.
+    """
+    seen: set[str] = set()
+    unique: list[tuple[str, str]] = []  # (anchor text, normalized url)
+    for source in sorted(sources, key=lambda s: s.slug):
+        for link in source.links:
+            key = _normalize_url(link.url)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append((link.text, key))
+    unique.sort(key=lambda item: (_link_host(item[1]), item[1]))
+    return "\n".join(f"- [{text}]({url})" for text, url in unique)
+
+
+def _lawbrain_region(sources: list[CommentarySource]) -> str | None:
+    """Render the marker-delimited law-brain region, or ``None`` if no sources.
+
+    The region is the commentary blocks under ``## Commentary & Analysis`` plus,
+    when any source carries links, a ``## Further Reading (via law brain)``
+    section, wrapped between :data:`LAWBRAIN_REGION_BEGIN` and
+    :data:`LAWBRAIN_REGION_END`. Callers append it last, after ``Sources``.
+    """
+    if not sources:
+        return None
+    parts = ["## Commentary & Analysis\n\n" + _commentary(sources)]
+    further = _further_reading(sources)
+    if further:
+        parts.append("## Further Reading (via law brain)\n\n" + further)
+    inner = "\n\n".join(parts)
+    return f"{LAWBRAIN_REGION_BEGIN}\n{inner}\n{LAWBRAIN_REGION_END}"
 
 
 def render_bill_body(bill: Bill) -> str:
@@ -280,13 +348,15 @@ def render_bill_body(bill: Bill) -> str:
         sections.append({"heading": "Full Text", "body": _text_versions(bill.text_versions)})
     if bill.related_bills:
         sections.append({"heading": "Related Bills", "body": _bullets(bill.related_bills)})
-    if bill.commentary_sources:
-        sections.append(
-            {"heading": "Commentary & Analysis", "body": _commentary(bill.commentary_sources)}
-        )
     if bill.sources:
         sections.append({"heading": "Sources", "body": _sources(bill.sources)})
     body = _BODY.render(sections=sections)
+    region = _lawbrain_region([s for s in bill.commentary_sources if s.body])
+    if region:
+        # rstrip first: _BODY.render already ends with one "\n"; align the single
+        # blank line before BEGIN with preserve_lawbrain_region's splice spacing
+        # so a sync-written page and a refresh-spliced page are byte-identical (D20).
+        body = body.rstrip("\n") + "\n\n" + region
     if bill.flipped_out:
         reason = bill.flipped_out.reason
         reason = reason.replace("-->", "--&gt;").replace('"', '\\"')
@@ -314,10 +384,39 @@ def render_enforcement_body(action: EnforcementAction) -> str:
     for heading, value in rest:
         if value:
             sections.append({"heading": heading, "body": value.strip()})
-    if action.commentary_sources:
-        sections.append(
-            {"heading": "Commentary & Analysis", "body": _commentary(action.commentary_sources)}
-        )
     if action.sources:
         sections.append({"heading": "Sources", "body": _sources(action.sources)})
-    return _BODY.render(sections=sections)
+    body = _BODY.render(sections=sections)
+    region = _lawbrain_region([s for s in action.commentary_sources if s.body])
+    if region:
+        # rstrip first: _BODY.render already ends with one "\n"; align the single
+        # blank line before BEGIN with preserve_lawbrain_region's splice spacing
+        # so a sync-written page and a refresh-spliced page are byte-identical (D20).
+        body = body.rstrip("\n") + "\n\n" + region
+    return body
+
+
+def preserve_lawbrain_region(prev_text: str, fresh_text: str) -> str:
+    """Splice a prior page's ``lawbrain:region`` block forward onto a fresh body.
+
+    This is the body-level analog of ``preserve_leg_history`` (D63). A non-sync
+    render (e.g. ``render-refreshed``) produces ``fresh_text`` WITHOUT a region,
+    since the item carries commentary metadata with ``body=None``; this re-attaches
+    the committed region verbatim so the data is not lost.
+
+    - If ``fresh_text`` already contains a region, it is authoritative — returned
+      unchanged (the sync path owns create/update/remove of the region).
+    - Else, the begin..end block is extracted from ``prev_text`` (inclusive) and
+      appended to ``fresh_text``, preserving a single trailing newline.
+    - If ``prev_text`` has no region, ``fresh_text`` is returned unchanged.
+    """
+    if LAWBRAIN_REGION_BEGIN in fresh_text:
+        return fresh_text
+    begin = prev_text.find(LAWBRAIN_REGION_BEGIN)
+    if begin == -1:
+        return fresh_text
+    end = prev_text.find(LAWBRAIN_REGION_END, begin)
+    if end == -1:
+        return fresh_text
+    region = prev_text[begin : end + len(LAWBRAIN_REGION_END)]
+    return fresh_text.rstrip("\n") + "\n\n" + region + "\n"

@@ -7,7 +7,11 @@ import frontmatter
 from zwiadbrain.exceptions import WikiSchemaError
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.wiki.schema import to_frontmatter
-from zwiadbrain.wiki.templates import render_bill_body, render_enforcement_body
+from zwiadbrain.wiki.templates import (
+    preserve_lawbrain_region,
+    render_bill_body,
+    render_enforcement_body,
+)
 
 
 def render_body(item: Bill | EnforcementAction) -> str:
@@ -44,11 +48,20 @@ def write_page(item: Bill | EnforcementAction, wiki_root: Path) -> bool:
 
     Returns True if the file was created or changed, False if already up to date,
     so an unchanged scan leaves a clean ``git status``.
+
+    Central D63 preservation: when the page already exists, a committed
+    ``lawbrain:region`` is spliced forward onto the freshly rendered body unless
+    the item supplies its own region (i.e. carries commentary bodies). Every
+    render path therefore keeps committed commentary/Further Reading intact;
+    only ``/zwiad-sync-lawbrain`` creates, updates, or removes the region.
     """
     path = page_path(item, wiki_root)
     content = render_page(item)
-    if path.exists() and path.read_text(encoding="utf-8") == content:
-        return False
+    if path.exists():
+        prev_text = path.read_text(encoding="utf-8")
+        content = preserve_lawbrain_region(prev_text, content)
+        if prev_text == content:
+            return False
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8", newline="\n")
     return True

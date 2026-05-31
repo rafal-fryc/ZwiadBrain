@@ -56,13 +56,12 @@ rss_url = "https://www.ftc.gov/feeds/press-release.xml"   # validated in UAT (T1
 name = "California OAG"
 agency_slug = "ca-oag"
 jurisdiction = "US-CA"
-# UAT (2026-05-29): no public RSS (the /feed path 404s) and the listing page returns a
-# 404 status with body; the working URL + html item_selector need per-site tuning before
-# enabling (D54 — AG selectors are tuned during the rollout, not on spec).
-url = "https://oag.ca.gov/news/press-releases"
+# UAT (2026-05-31, B2): the old /news/press-releases listing now 404s; the working
+# listing is /media/news, which links to individual /news/press-releases/<slug> articles.
+url = "https://oag.ca.gov/media/news"
 kind = "html"
-item_selector = ""
-enabled = false
+item_selector = 'a[href*="/news/press-releases/"]'
+enabled = true
 
 [[enforcement.state_ag]]
 name = "New York OAG"
@@ -70,8 +69,8 @@ agency_slug = "ny-oag"
 jurisdiction = "US-NY"
 url = "https://ag.ny.gov/press-releases"
 kind = "html"
-item_selector = ""
-enabled = false
+item_selector = ".field-content a[href]"   # B2 (2026-05-31): Drupal press-release list anchors
+enabled = true
 
 [[enforcement.state_ag]]
 name = "Texas OAG"
@@ -79,13 +78,16 @@ agency_slug = "tx-oag"
 jurisdiction = "US-TX"
 url = "https://www.texasattorneygeneral.gov/news/releases"
 kind = "html"
-item_selector = ""
-enabled = false
+item_selector = ".m-b-1.h4-sans a[href]"   # B2 (2026-05-31): release-title anchors
+enabled = true
 
 [[enforcement.state_ag]]
 name = "Colorado OAG"
 agency_slug = "co-oag"
 jurisdiction = "US-CO"
+# B2 (2026-05-31): the press-release list at coag.gov is rendered client-side (JS) — the
+# static HTML carries only nav links, so the httpx+bs4 adapter can't see the releases.
+# Left disabled until a JS-capable fetch or a JSON/RSS endpoint is found (D54).
 url = "https://coag.gov/press-releases/"
 kind = "html"
 item_selector = ""
@@ -97,8 +99,8 @@ agency_slug = "va-oag"
 jurisdiction = "US-VA"
 url = "https://www.oag.state.va.us/media-center/news-releases"
 kind = "html"
-item_selector = ""
-enabled = false
+item_selector = ".list-title a[href]"   # B2 (2026-05-31): news-release list-title anchors
+enabled = true
 
 [[enforcement.state_ag]]
 name = "Washington OAG"
@@ -106,17 +108,21 @@ agency_slug = "wa-oag"
 jurisdiction = "US-WA"
 url = "https://www.atg.wa.gov/news/news-releases"
 kind = "html"
-item_selector = ""
-enabled = false
+# B2 (2026-05-31): title-only anchors; .field-content also matches the duplicate
+# "Click here to read..." links, so target the views title field instead.
+item_selector = ".views-field-title a[href]"
+enabled = true
 
 [[enforcement.state_ag]]
 name = "Illinois OAG"
 agency_slug = "il-oag"
 jurisdiction = "US-IL"
-url = "https://illinoisattorneygeneral.gov/news/"
+# B2 (2026-05-31): the old /news/ path 404s; the newsroom is /News-Room/, whose entries
+# link to individual /news/story/<slug> articles (date-ordered, newest first).
+url = "https://illinoisattorneygeneral.gov/News-Room/"
 kind = "html"
-item_selector = ""
-enabled = false
+item_selector = 'a[href*="/news/story/"]'
+enabled = true
 
 # Topic taxonomy, keyword seed lexicon, and the DISQUALIFY lexicon (decision 17)
 # live in reference/topics.yaml (added in PHASE-04).

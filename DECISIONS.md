@@ -406,3 +406,51 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** A bill summary is re-derived by re-running the summarizer on each refresh, but enforcement prose is an LLM extraction from a transient article that is never re-fetched — consolidation loads the page from disk and merges, so the prose must round-trip through `from_page` (i.e. persist to frontmatter) for the merge to be monotonic (a settlement item that omits the complaint's allegations must not blank them). Same D40 principle (persist non-re-derivable LLM output); the body is still re-rendered from the persisted model, so D20 holds.
 **Trade-offs:** Enforcement frontmatter carries multi-line prose (like the leg_history narrative); slight redundancy (prose in both frontmatter and body). Bill behavior is unchanged.
 **Revisit if:** Enforcement prose grows large enough that frontmatter bloat matters, or a re-extract-on-refresh path is added.
+
+## 2026-05-30 — 57. PHASE-09 law-brain commentary re-architected to the post-pivot slash-command/subagent model
+**Chosen:** PHASE-09 ships as a `/zwiad-sync-lawbrain` slash command driving a deterministic Python `fetch-lawbrain-candidates` half, a single `lawbrain-matcher` subagent (keyless pages only), and a deterministic `render-lawbrain-commentary` half — mirroring `/zwiad-scan-enforcement`. Most of the persistence/render/config/store layer (`CommentarySource`, `_commentary_block`, `LawBrainSettings`, `lawbrain_pages`) already existed from PHASE-02.
+**Alternatives:** PLAN.md's pre-pivot design — a `pipeline/run.py` two-pass loop calling the Anthropic SDK.
+**Why:** D26/D27/D30 route all LLM work through interactive Claude Code subagents; Python makes zero LLM calls. The PLAN's `run.py`/SDK design is dead. Splitting at the LLM boundary (fetch → matcher → render) keeps each Python half independently unit-testable.
+**Trade-offs:** Departs from PLAN.md's module/orchestration names; the matcher is validated by interactive UAT, not offline tests.
+**Revisit if:** A headless/API path is adopted (see D26).
+
+## 2026-05-30 — 58. Commentary copy = full body, syntax-neutralized
+**Chosen:** A matched law-brain page's whole body is copied verbatim into the `## Commentary & Analysis` block, with two render-time transforms: ATX headings demoted `##`→`###` (D6) and dead `[[wiki-slug]]` cross-reference links flattened to plain text. All sections retained. The stored `CommentarySource.body` is the raw law-brain body; transforms happen in `templates._commentary_block` so `content_hash` stays tied to the source bytes.
+**Alternatives:** Copy only selected sections (Summary/Key points); true byte-verbatim including dead `[[links]]` and original heading levels.
+**Why:** Faithful to D2's "verbatim full page" intent while fixing the one real defect — `[[wiki-slug]]` links resolve only inside the law brain and would be dead in ZwiadBrain. Transforms at render keep one source of truth.
+**Trade-offs:** Not a literal byte copy (two minimal transforms); a long regulation page produces a long commentary block.
+**Revisit if:** The operator wants byte-pure copies or section selection.
+
+## 2026-05-30 — 59. Commentary attaches on a shared jurisdiction-qualified key regardless of ZwiadBrain page kind
+**Chosen:** A law-brain page attaches to whichever tracked item shares ≥1 jurisdiction-qualified key (bill number / docket / public law), regardless of ZwiadBrain page kind — a `regulation` page about a statute can attach to the `enforcement` page that enforces it. `type_map` (D8) governs only PHASE-11 stub-minting, not PHASE-09 attachment. The LLM matcher's link is auto-applied only after a deterministic `confirm_match` that recomputes both key-sets FROM DISK (the freshly-read law-brain page + the freshly-loaded target) — never from keys echoed through the subagent's JSON (D16 grounding; mirrors the enforcement matcher grounding the candidate against the on-disk page).
+**Alternatives:** Restrict attachment to the `type_map` kind (regulation→bill only) — loses cross-type matches like TAKE IT DOWN Act statute↔FTC enforcement.
+**Why:** Cross-type commentary is genuinely useful and the shared-key set-intersection is kind-agnostic. Recomputing keys from disk is the whole point of D16: a deterministic confirm must ground the untrusted LLM proposal, so it cannot trust LLM-passed-through keys.
+**Trade-offs:** A correct match with no extractable shared key never auto-applies — it routes to the review queue (operator override in `links.yaml`).
+**Revisit if:** Override volume becomes burdensome, or a kind-specific attachment rule is wanted.
+
+## 2026-05-30 — 60. Multi-subject law-brain pages (tracker/landscape/map/scholarship) fail closed
+**Chosen:** A page whose slug matches a `commentary_only_slug_markers` entry emits ZERO deterministic keys and is excluded from commentary entirely — it neither mints nor attaches. Key extraction is also hardened so an academic/law-review citation is never misread as a bill/docket. Single-subject `concept`/`regulation`/`case`/… pages attach normally.
+**Alternatives:** Let a landscape attach to one "best" target (smears a multi-subject body onto one bill) or to all mentioned items (duplicates a long page across many pages).
+**Why:** A landscape/tracker has no single subject; copying its verbatim body onto any one tracked bill is off-topic and onto all is noise. Refines D7.
+**Trade-offs:** A bill mentioned only in a tracker gets no law-brain commentary (official discovery still tracks the bill itself).
+**Revisit if:** Trackers prove to be the only commentary signal for important items.
+
+## 2026-05-30 — 61. Review-queue resolution is folded into the render half (no separate `review --commit`)
+**Chosen:** `render-lawbrain-commentary` both writes new `[pending]` proposals (low-confidence / collision / weak-grounding / stale) to `wiki/review-queue.md` AND, in the same pass, reads operator-resolved `[accept]`/`[reject]` tokens, applies/records them in `links.yaml`, and prunes the resolved entries. An `[accept]` is the operator override D16 allows.
+**Alternatives:** A standalone `zwiadbrain review --commit` command (the PLAN's design).
+**Why:** One code path handles new and resolved proposals; at the current corpus the queue is near-empty, so a second stateful command is unwarranted.
+**Revisit if:** Review volume grows enough to want a dedicated review workflow.
+
+## 2026-05-30 — 62. Harvest secondary/law-firm reference links into a `## Further Reading (via law brain)` section
+**Chosen:** When a law-brain page is attached, harvest `[text](url)` + bare URLs from the page body AND the `sources/zwiad/*.md` memos its `sources:` frontmatter references, EXCLUDE primary-source domains (`*.gov`, `legiscan.com`, `courtlistener.com`, `wikipedia.org`, `europa.eu`, `legislation.gov.uk` — a configurable `primary_source_domains` denylist), dedup by normalized URL, and render the remainder in a dedicated `## Further Reading (via law brain)` section. Deterministic, offline, no LLM.
+**Alternatives:** Surface all links (re-lists primary sources ZwiadBrain already carries); only page-body links (misses the law-firm links, which live in the memos, not the page body).
+**Why:** The unique value the law brain adds is the lawyer's collected secondary commentary (law-firm client alerts, IAPP, natlawreview) — links ZwiadBrain has no other way to get; primary sources are already in each page's `## Sources`.
+**Trade-offs:** A URL with `)` in its path (e.g. Wikipedia disambiguation) truncates at the paren — acceptable, since such hosts are denylisted and secondary-commentary hosts don't use paren paths.
+**Revisit if:** The denylist needs per-jurisdiction tuning, or the operator wants primary links surfaced too.
+
+## 2026-05-30 — 63. Commentary + Further Reading survive non-sync re-renders via `lawbrain:region` text preservation
+**Chosen:** The whole law-brain-contributed region (commentary blocks + Further Reading) is wrapped in `<!-- lawbrain:region:begin -->`…`<!-- lawbrain:region:end -->` markers and rendered LAST (after Sources). `write_page` centrally preserves a committed region: a re-render whose model carries no commentary bodies (a `/zwiad-refresh`/`/zwiad-backfill` of the freshly-fetched item) splices the prior committed region back verbatim instead of dropping it. `/zwiad-refresh` additionally carries `prev.commentary_sources` forward so the frontmatter bookkeeping survives too. `/zwiad-sync-lawbrain` is the SOLE creator/updater/remover of the region (the body-level analog of `preserve_leg_history`). Bodies/links stay out of frontmatter (honors D20).
+**Alternatives:** Persist the verbatim body + links to frontmatter (D40/D56 pattern) — but embedding multi-KB markdown documents in YAML is bloaty and byte-fragile; re-sync-after-refresh (leaves a visible data-loss window).
+**Why:** Closes a real data-loss gap: a `/zwiad-refresh` re-renders the freshly-fetched bill (empty `commentary_sources`) and would otherwise strip committed commentary. Text-preservation keeps verbatim bodies out of YAML and is byte-identical (the region is copied exactly), so D20 holds.
+**Trade-offs:** Render gains a "preserve existing region" step (a function of the model + the prior page text during a non-sync render), a small deviation from pure-function-of-model.
+**Revisit if:** A use case needs the commentary reconstructable from frontmatter alone (no prior page / no law brain).

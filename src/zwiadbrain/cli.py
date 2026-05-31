@@ -9,9 +9,11 @@ makes no LLM calls — DECISIONS.md D26/D27). Commands:
 - ``fetch-candidates`` / ``render-classified`` — the ``/zwiad-backfill`` halves.
 - ``fetch-leg-history`` / ``render-leg-history`` — the ``/zwiad-leg-history`` halves.
 - ``fetch-refreshable`` / ``render-refreshed`` — the ``/zwiad-refresh`` halves.
+- ``fetch-state-candidates`` / ``fetch-state-refreshable`` — ``/zwiad-scan-states``.
+- ``fetch-enforcement-candidates`` / ``render-enforcement`` — ``/zwiad-scan-enforcement``.
+- ``fetch-lawbrain-candidates`` / ``render-lawbrain-commentary`` — ``/zwiad-sync-lawbrain``.
 
-State sources, enforcement, and law-brain commands are not yet implemented; see
-``ARCHITECTURE.md``.
+See ``ARCHITECTURE.md`` for the full command list and the slash commands they back.
 """
 
 import contextlib

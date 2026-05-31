@@ -67,6 +67,13 @@ slash command (interactive Claude Code session)
   command IS the enforcement refresh — there is no enforcement leg in
   `/zwiad-refresh` (D52). Backed by CLI `fetch-enforcement-candidates` +
   `render-enforcement`.
+- **`/zwiad-sync-lawbrain`** — attach read-only law-brain commentary (+ a
+  `## Further Reading` link section, D62) onto already-tracked bill/enforcement pages
+  via deterministic key-matching with a `lawbrain-matcher` LLM fallback gated by a
+  fresh-key deterministic confirm (D16/D59). Commentary-only — no stub-minting (D14,
+  `discover=false`); sole creator/updater of the `lawbrain:region` block, which other
+  re-renders preserve verbatim (D63). Backed by CLI `fetch-lawbrain-candidates` +
+  `render-lawbrain-commentary`.
 
 **Requires an open interactive session.** Nothing is headless or cron-driven:
 `claude -p` and the Agent SDK would draw separate metered credit, so they are
@@ -115,23 +122,27 @@ src/zwiadbrain/
   reference/        topics.yaml taxonomy + DISQUALIFY lexicon + loader
   sources/          congress.py, govinfo.py, legiscan.py (HTTP transport + Bill mapping)
                     enforcement/ (base, ftc, state_ag — config-driven adapters, D54)
+                    lawbrain.py (read-only law-brain reader, PHASE-09/D2)
   pipeline/         discover, enrich, render, leg_history, refresh
                     enforcement.py (matter matching / confirm / merge, D53)
-  wiki/             schema (frontmatter models) + templates (jinja2)
+                    lawbrain_{keys,match,links,copy,registry,review}.py (PHASE-09)
+  wiki/             schema (frontmatter models) + templates (jinja2; lawbrain:region, D63)
 .claude/
-  agents/           subagent prompts (classifier, summarizer, …)
-  commands/         slash commands (zwiad-backfill, -leg-history, -refresh)
+  agents/           subagent prompts (classifier, summarizer, …, lawbrain-matcher)
+  commands/         slash commands (zwiad-backfill, -leg-history, -refresh, -sync-lawbrain)
 ```
 
 ## Status
 
-Shipped: PHASE-01..08 (skeleton, wiki layer, federal source, LLM subagents,
+Shipped: PHASE-01..09 (skeleton, wiki layer, federal source, LLM subagents,
 legislative history, watchlist refresh, state sources via LegiScan, enforcement
-actions via FTC + 7 priority state AGs). Current: v0.8.0.
+actions via FTC + 7 priority state AGs, law-brain commentary overlay). Current: v0.9.0.
 
 `src/zwiadbrain/sources/enforcement/` is fully implemented (PHASE-08); re-running
 `/zwiad-scan-enforcement` is the enforcement refresh — no cursor-based incremental
-pass, by design (D52).
+pass, by design (D52). Law-brain commentary (PHASE-09) attaches verbatim commentary +
+`## Further Reading` links onto tracked pages via `/zwiad-sync-lawbrain`; re-running it
+is the law-brain refresh (D57–D63).
 
-**Not yet implemented:** law-brain commentary + discovery (PHASE-09/11),
+**Not yet implemented:** law-brain discovery / stub-minting (PHASE-11, gated, D14),
 scheduling (PHASE-10).

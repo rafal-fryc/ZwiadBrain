@@ -20,8 +20,9 @@ enabled = ["ca", "ny", "tx", "co", "va", "wa", "il"]
 
 [lawbrain]
 enabled = true
-# Overridable via LAW_BRAIN_PATH in .env. Read-only; ZwiadBrain never edits the law brain.
-path = "C:/Users/rafst/Documents/projectas/Brains/law"
+# Set the law-brain location via LAW_BRAIN_PATH in .env (gitignored; read-only — ZwiadBrain
+# never edits the law brain). Optionally hardcode a machine-local fallback here, e.g.:
+# path = "/path/to/Brains/law"
 min_confidence = 0.75
 require_shared_key = true        # decision 16: deterministic shared-key confirm gates auto-apply
 demote_headings = true           # decision 6: copied ## headings demoted to ###

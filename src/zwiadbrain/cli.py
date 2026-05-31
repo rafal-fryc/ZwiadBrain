@@ -72,7 +72,7 @@ from zwiadbrain.pipeline.refresh import (
     preserve_leg_history,
     summary_hash,
 )
-from zwiadbrain.pipeline.render import write_page
+from zwiadbrain.pipeline.render import write_lawbrain_region, write_page
 from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
@@ -1265,7 +1265,9 @@ def render_lawbrain_commentary(
                         f"link {slug} -> {target_id} ({matched_by}, {len(links)} links)"
                     )
                 else:
-                    write_page(updated_item, wiki)
+                    # Attach the region in place — never re-render the body, which would
+                    # drop a bill's body-only Summary/Status & Timeline/Full Text (D63).
+                    write_lawbrain_region(updated_item, wiki)
                     # Preserve the prior decided date on an unchanged link re-record so
                     # links.yaml stays byte-identical across days (D20). `decided` is the
                     # registry decision read above for the override check.

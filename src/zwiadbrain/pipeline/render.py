@@ -11,6 +11,8 @@ from zwiadbrain.wiki.templates import (
     preserve_lawbrain_region,
     render_bill_body,
     render_enforcement_body,
+    render_lawbrain_region,
+    splice_lawbrain_region,
 )
 
 
@@ -63,5 +65,47 @@ def write_page(item: Bill | EnforcementAction, wiki_root: Path) -> bool:
         if prev_text == content:
             return False
     path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8", newline="\n")
+    return True
+
+
+def write_lawbrain_region(item: Bill | EnforcementAction, wiki_root: Path) -> bool:
+    """Attach/update a page's ``lawbrain:region`` without rebuilding its body.
+
+    The sync path (``/zwiad-sync-lawbrain``) owns create/update/remove of the region
+    (D63) but must NOT re-render the body: a Bill's ``summary`` / ``actions`` /
+    ``text_versions`` are body-only (``schema._BODY_ONLY_FIELDS``) and cannot be
+    reconstructed from frontmatter, so :func:`write_page`'s full re-render drops
+    ``## Summary`` / ``## Status & Timeline`` / ``## Full Text``. This reads the
+    committed page, keeps its body verbatim, splices the freshly-built region in, and
+    rewrites only the frontmatter bookkeeping (``commentary_sources``). The page must
+    already exist (sync only attaches to tracked targets). Idempotent: returns ``True``
+    only when the bytes change.
+
+    Output is byte-identical to a :func:`write_page` render of the same fully-populated
+    item, since the preserved body equals what :func:`render_body` would emit and the
+    frontmatter is serialized via the same :func:`to_frontmatter` path.
+    """
+    path = page_path(item, wiki_root)
+    prev_text = path.read_text(encoding="utf-8")
+    prev_body: str = frontmatter.loads(prev_text).content
+    fresh_region = render_lawbrain_region(item)
+    # A fresh region is authoritative — splice it in (replacing any existing one).
+    # When it is None (e.g. an idempotent re-run where merge_commentary no-op'd the
+    # bodies to None, or refresh-only bookkeeping), keep the committed region
+    # verbatim rather than deleting it — same contract as preserve_lawbrain_region,
+    # so re-runs are byte-identical and analysis is never silently dropped (D63).
+    new_body = (
+        prev_body
+        if fresh_region is None
+        else splice_lawbrain_region(prev_body, fresh_region)
+    )
+    post = frontmatter.Post(new_body)
+    post.metadata = to_frontmatter(item)
+    content: str = frontmatter.dumps(post)
+    if not content.endswith("\n"):
+        content += "\n"
+    if content == prev_text:
+        return False
     path.write_text(content, encoding="utf-8", newline="\n")
     return True

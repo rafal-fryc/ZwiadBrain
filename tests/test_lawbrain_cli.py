@@ -19,7 +19,7 @@ from typer.testing import CliRunner
 
 from zwiadbrain.cli import _summary_excerpt, app  # pyright: ignore[reportPrivateUsage]
 from zwiadbrain.config import LawBrainSettings, Settings
-from zwiadbrain.models import Bill
+from zwiadbrain.models import Action, Bill, TextVersion
 from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.wiki.schema import from_page
 
@@ -469,6 +469,84 @@ def test_render_lawbrain_attaches_commentary_and_further_reading(
     assert reloaded.commentary_sources[0].slug == "regulation-california-sb53-tfaia"
     assert reloaded.commentary_sources[0].body is None  # bookkeeping only
     assert reloaded.commentary_sources[0].links == []
+
+
+def test_render_lawbrain_preserves_existing_bill_body(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Attaching commentary must NOT destroy the bill's own body sections.
+
+    Regression for the PHASE-09 bug: ``render-lawbrain-commentary`` rebuilt the
+    page from frontmatter-only data (``from_page``), so a real bill's body-only
+    ``## Summary`` / ``## Status & Timeline`` / ``## Full Text`` sections — none of
+    which is serialized to frontmatter (``_BODY_ONLY_FIELDS``) — vanished, leaving
+    just ``## Sources`` and the commentary region. ``_seed_sb53_target`` hid this by
+    seeding a body-less target; a fully-populated bill (like a backfilled LegiScan
+    page) reproduces it.
+    """
+    # Arrange — seed a richly-populated bill page: summary + timeline + full text.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    bill = Bill(
+        id="ca-2025-sb-53",
+        jurisdiction="US-CA",
+        title="California SB 53 — Transparency in Frontier AI Act",
+        bill_number="SB 53",
+        topics=["ai"],
+        summary="A California frontier-model transparency bill.",
+        actions=[
+            Action(date=dt.date(2025, 1, 7), text="Introduced. Read first time.", chamber="S"),
+            Action(date=dt.date(2025, 9, 29), text="Chaptered. Chapter 138, Statutes of 2025."),
+        ],
+        text_versions=[
+            TextVersion(
+                code="Introduced",
+                date=dt.date(2025, 1, 7),
+                url="https://leginfo.example/SB53#INT",
+            ),
+        ],
+        sources={"LegiScan": "https://legiscan.com/CA/bill/SB53/2025"},
+    )
+    write_page(bill, wiki)
+    seeded = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "## Status & Timeline" in seeded  # precondition: the seeded body is rich
+    assert "## Full Text" in seeded
+
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "classified.json").write_text(
+        json.dumps(_classified_deterministic()), encoding="utf-8"
+    )
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        [
+            "render-lawbrain-commentary",
+            "--in",
+            str(run / "classified.json"),
+            "--wiki",
+            str(wiki),
+            "--db",
+            str(tmp_path / "index.sqlite"),
+        ],
+    )
+
+    # Assert — commentary attached AND the bill's own body survives verbatim.
+    assert result.exit_code == 0, result.output
+    assert "1 linked" in result.output
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "<!-- lawbrain:region:begin -->" in page  # commentary region added
+    # The regression guards: body-only sections must NOT be dropped.
+    assert "A California frontier-model transparency bill." in page  # bill's own Summary
+    assert "## Status & Timeline" in page
+    assert "Chaptered. Chapter 138, Statutes of 2025." in page
+    assert "## Full Text" in page
+    assert "[Introduced](https://leginfo.example/SB53#INT)" in page
+    # The region is still appended last, after the preserved body.
+    assert page.index("## Status & Timeline") < page.index("<!-- lawbrain:region:begin -->")
+    assert page.index("## Full Text") < page.index("<!-- lawbrain:region:begin -->")
 
 
 def test_render_lawbrain_rerun_is_byte_identical(

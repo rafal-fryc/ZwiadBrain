@@ -1,0 +1,7 @@
+links:
+- lawbrain_slug: regulation-california-sb53-tfaia
+  decision: link
+  target_id: ca-2025-sb-53
+  matched_by: deterministic
+  keys_hash: 02ceebaebe5e3d1fd1ea15656c3e774388400e0f698815ee41f27b66d3972ac4
+  decided: '2026-05-31'

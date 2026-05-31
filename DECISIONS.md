@@ -454,3 +454,19 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** Closes a real data-loss gap: a `/zwiad-refresh` re-renders the freshly-fetched bill (empty `commentary_sources`) and would otherwise strip committed commentary. Text-preservation keeps verbatim bodies out of YAML and is byte-identical (the region is copied exactly), so D20 holds.
 **Trade-offs:** Render gains a "preserve existing region" step (a function of the model + the prior page text during a non-sync render), a small deviation from pure-function-of-model.
 **Revisit if:** A use case needs the commentary reconstructable from frontmatter alone (no prior page / no law brain).
+
+<!-- D64 is the law-brain body-preservation bugfix; it lands via the fix/lawbrain-render-preserves-bill-body PR. -->
+
+## 2026-05-31 — 65. PHASE-10 scheduling = one interactive `/zwiad-run`, externally triggered
+**Chosen:** A single interactive orchestration command (`/zwiad-run`) sequences all enabled source flows and auto-commits per source; an external runner that opens an interactive Claude Code session triggers it on a schedule. ZwiadBrain ships no OS-scheduler wiring.
+**Alternatives:** D41's split hybrid (OS cron for headless detection + separate interactive dispatch); pure `/loop`; headless `claude -p` (D26-forbidden).
+**Why:** The user will drive scheduling via an external interactive-session runner, which can do BOTH detection and dispatch in one session — collapsing D41's hybrid to a single entrypoint and keeping every LLM call on the regular plan (D26). Scheduler-agnostic so the trigger can be anything.
+**Trade-offs:** Nothing runs unless the runner opens a session; a long single-session run dispatches many subagents.
+**Revisit if:** A headless path is ever adopted (see D26), or single-session runs grow too large to complete reliably (then split per-source).
+
+## 2026-05-31 — 66. `/zwiad-run` auto-commits per source; run-log is the audit trail
+**Chosen:** Each source's changes are auto-committed as the run proceeds (conventional messages); a committed append-only `scan-log.md` records one grep-parseable block per run via the deterministic `zwiadbrain run-log` verb. Leg-history is flagged, never auto-run. Law brain stays read-only.
+**Alternatives:** Stage-only (review-before-commit, the other 6 commands' convention); auto-commit to a per-run branch + PR.
+**Why:** Unattended/runner-driven operation needs the changes committed without a human in the loop each run; git history + `scan-log.md` are the after-the-fact review surface. Leg-history is the heaviest, rarest flow, so it is surfaced for a deliberate manual run.
+**Trade-offs:** Commits land without per-run human review (mitigated by diffs + the run-log); a bad scrape could commit noise (mitigated by the existing classifiers + idempotent renders).
+**Revisit if:** Auto-committed noise becomes a problem — switch to the dated-branch-+-PR variant.

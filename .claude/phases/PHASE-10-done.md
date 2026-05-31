@@ -1,5 +1,5 @@
 # Phase 10 — Scheduling (`/zwiad-run` orchestration + run-log)
-Status: ACTIVE
+Status: DONE (build); operator acceptance (first live `/zwiad-run`) pending
 
 Design: `docs/superpowers/specs/2026-05-31-phase10-scheduling-design.md`
 
@@ -9,12 +9,15 @@ runs the whole pipeline across all enabled sources in one session, auto-commits 
 and records a grep-parseable run-log — so an external runner (openclaw-like) can trigger
 ZwiadBrain on a schedule later (D26: LLM work stays interactive).
 
-## Tasks
-- [ ] `zwiadbrain run-log` CLI verb + committed `scan-log.md` (TDD: helper unit-tested)
-- [ ] `.claude/commands/zwiad-run.md` orchestration runbook (sequence + per-source auto-commit + isolation + leg-history flag + summary)
-- [ ] `docs/scheduling.md` (scheduler-agnostic; external interactive-session runner; D26 rationale)
-- [ ] DECISIONS.md entries for the 4 decisions captured in the design
-- [ ] Interactive dry-run validation of `/zwiad-run` (D26 — runbook validated interactively, not by unit tests)
+## Tasks (build)
+- [x] `zwiadbrain run-log` CLI verb + committed `scan-log.md` (TDD: 6 unit tests)
+- [x] `.claude/commands/zwiad-run.md` orchestration runbook (sequence + per-source auto-commit + isolation + leg-history flag + summary)
+- [x] `docs/scheduling.md` (scheduler-agnostic; external interactive-session runner; D26 rationale)
+- [x] DECISIONS.md entries (D65, D66) — D64 reserved for the lawbrain bugfix PR
+- [x] Full suite + pyright + ruff green (615 tests)
+
+## Operator acceptance (PENDING — not a build task)
+- [ ] First live `/zwiad-run` (`--dry-run`, then live): exercises all source flows + subagents against live APIs and the law brain (plan usage). Like the PHASE-09 UAT, this is an operator step, not yet exercised. Confirm: per-source auto-commit messages, `scan-log.md` block appended + committed, law brain untouched (D2), leg-history bills flagged, a re-run is a clean no-op except the new log block.
 
 ## Acceptance Criteria
 - `/zwiad-run` runs the 6-step sequence (refresh → discover federal/state → enforcement → law-brain → reindex) end-to-end in one session.

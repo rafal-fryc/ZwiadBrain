@@ -73,6 +73,7 @@ from zwiadbrain.pipeline.refresh import (
     summary_hash,
 )
 from zwiadbrain.pipeline.render import write_lawbrain_region, write_page
+from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
 from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
@@ -1534,6 +1535,31 @@ def render_leg_history(
     except AppError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
+
+
+@app.command(name="run-log")
+def run_log(
+    input_file: Annotated[
+        Path, typer.Option("--in", help="run-summary JSON assembled by /zwiad-run.")
+    ],
+    log_file: Annotated[
+        Path, typer.Option(help="Committed append-only scan log.")
+    ] = Path("scan-log.md"),
+    at: Annotated[
+        str | None,
+        typer.Option(help="ISO timestamp override (tests); defaults to now (UTC)."),
+    ] = None,
+) -> None:
+    """Append one grep-parseable block to scan-log.md — the audit half of /zwiad-run."""
+    try:
+        raw = json.loads(input_file.read_text(encoding="utf-8"))
+        summary = RunSummary.model_validate(raw)
+    except (OSError, json.JSONDecodeError, ValidationError) as exc:
+        typer.echo(f"error: invalid run-summary {input_file}: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    when = dt.datetime.fromisoformat(at) if at else dt.datetime.now(dt.UTC)
+    append_run_log(log_file, format_run_log_entry(summary, when))
+    typer.echo(f"run-log: appended {summary.run_id} ({len(summary.sources)} sources)")
 
 
 def main() -> None:

@@ -1,5 +1,5 @@
 # Phase 12 — Document Text Extraction (Docling)
-Status: ACTIVE
+Status: DONE
 
 ## Goal
 Add a dedicated, deterministic `extract-text` step that downloads each tracked item's operative
@@ -14,8 +14,8 @@ from the page, and discards the downloaded PDF — without altering the existing
 - [x] `sidecar_path` + `write_extracted_text_region` (mirror lawbrain region in `pipeline/render.py`) + test
 - [x] `extract-text` CLI verb consuming staged `classified.json` + test (+ fail-fast when docling absent)
 - [x] Quality gate: 645 pytest pass, pyright strict 0 errors, ruff clean
-- [ ] Real Docling smoke (operator-install docling, run on one bill); then open PR
-- [x] Log decisions in DECISIONS.md (D67, D68)
+- [x] Real Docling smoke passed — real Docling converted HTML→Markdown via the boundary
+- [x] Log decisions in DECISIONS.md (D67, D68); PR #9 opened
 
 ## Acceptance Criteria
 - Existing text-version link section on pages is unchanged.

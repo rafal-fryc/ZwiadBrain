@@ -34,6 +34,10 @@ class RenderError(AppError):
     """A wiki page could not be rendered."""
 
 
+class ExtractionError(AppError):
+    """Document text extraction failed (e.g. Docling is not installed)."""
+
+
 class WikiSchemaError(AppError):
     """Page frontmatter failed schema validation."""
 

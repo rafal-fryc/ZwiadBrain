@@ -40,6 +40,7 @@ from zwiadbrain.models import (
     Statement,
 )
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
+from zwiadbrain.pipeline.docling_text import docling_available
 from zwiadbrain.pipeline.enforcement import (
     MatterRef,
     confirm_match,
@@ -47,6 +48,7 @@ from zwiadbrain.pipeline.enforcement import (
     merge_developments,
 )
 from zwiadbrain.pipeline.enrich import enrich
+from zwiadbrain.pipeline.extract import extract_item, plan_extraction
 from zwiadbrain.pipeline.ids import build_enforcement_id, parse_bill_id, parse_strong_key
 from zwiadbrain.pipeline.lawbrain_copy import (
     build_commentary_source,
@@ -1560,6 +1562,92 @@ def run_log(
     when = dt.datetime.fromisoformat(at) if at else dt.datetime.now(dt.UTC)
     append_run_log(log_file, format_run_log_entry(summary, when))
     typer.echo(f"run-log: appended {summary.run_id} ({len(summary.sources)} sources)")
+
+
+@app.command(name="extract-text")
+def extract_text(
+    input_file: Annotated[
+        Path, typer.Option("--in", help="classified.json (Bill/EnforcementAction dumps).")
+    ],
+    wiki: Annotated[Path, typer.Option(help="Wiki root holding the pages + sidecars.")] = Path(
+        "wiki"
+    ),
+    limit: Annotated[
+        int | None, typer.Option(min=1, help="Max items to extract this run.")
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="List planned extractions; write nothing.")
+    ] = False,
+) -> None:
+    """Extract operative source documents to ``<id>.text.md`` sidecars via Docling.
+
+    For each tracked page it picks the operative document — a bill's
+    enrolled/latest text version, or an enforcement action's press release plus
+    linked filing PDFs — extracts Markdown through the Docling boundary, writes the
+    sidecar, and links it from the page. The existing "Full Text" source links are
+    left untouched. Per-item isolation: a malformed or unfetchable item is recorded
+    as a skip, never fatal (mirrors render-enforcement).
+    """
+    try:
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read classified file {input_file}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise ConfigError(f"classified file must be a JSON list, got {type(raw).__name__}")
+        entries: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    # Fail fast (real runs only): Docling is an optional, unlocked extra. Dry-run
+    # never invokes it, so it stays useful for previewing without Docling installed.
+    if not dry_run and not docling_available():
+        typer.echo(
+            "error: Docling is not installed. Install it to run extract-text:\n"
+            "  uv pip install docling\n"
+            "then re-run with `uv run --no-sync zwiadbrain extract-text ...`.\n"
+            "(Use --dry-run to preview planned extractions without Docling.)",
+            err=True,
+        )
+        raise typer.Exit(1)
+    if limit is not None:
+        entries = entries[:limit]
+
+    done = 0
+    dropped: list[tuple[str, str]] = []
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            dropped.append((f"entry[{i}]", "entry is not a JSON object"))
+            continue
+        record: dict[str, object] = entry  # pyright: ignore[reportUnknownVariableType]
+        identifier = str(record.get("id") or f"entry[{i}]")
+        try:
+            item: Bill | EnforcementAction
+            if record.get("type") == "enforcement":
+                item = validate_model(EnforcementAction, record, label="enforcement item")
+            else:
+                item = validate_model(Bill, record, label="bill item")
+            if dry_run:
+                plan = plan_extraction(item, wiki)
+                if plan is None:
+                    dropped.append((identifier, "no committed page or no fetchable document"))
+                    continue
+                sidecar, urls = plan
+                typer.echo(f"would extract {identifier}: {len(urls)} doc(s) -> {sidecar}")
+                done += 1
+                continue
+            sidecar_written = extract_item(item, wiki)
+            if sidecar_written is None:
+                dropped.append((identifier, "no committed page or no fetchable document"))
+                continue
+            done += 1
+        except Exception as exc:  # noqa: BLE001 - per-item isolation: one bad item never aborts the batch
+            dropped.append((identifier, str(exc)))
+
+    verb = "would extract" if dry_run else "extracted"
+    typer.echo(f"extract-text: {verb} {done} item(s), {len(dropped)} skipped")
+    for ident, reason in dropped:
+        typer.echo(f"  - skipped {ident}: {reason}", err=True)
 
 
 def main() -> None:

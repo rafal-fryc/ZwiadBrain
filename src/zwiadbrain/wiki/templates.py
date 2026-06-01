@@ -47,6 +47,9 @@ _COMMENTARY_NOTE = (
 LAWBRAIN_REGION_BEGIN = "<!-- lawbrain:region:begin -->"
 LAWBRAIN_REGION_END = "<!-- lawbrain:region:end -->"
 
+EXTRACTED_TEXT_REGION_BEGIN = "<!-- extracted-text:region:begin -->"
+EXTRACTED_TEXT_REGION_END = "<!-- extracted-text:region:end -->"
+
 
 def _demote_headings(text: str) -> str:
     """Demote ATX headings by one level (## -> ###) in copied commentary.
@@ -451,3 +454,46 @@ def splice_lawbrain_region(body: str, region: str | None) -> str:
     if region:
         return base + "\n\n" + region
     return base
+
+
+def render_extracted_text_region(sidecar_name: str) -> str:
+    """Build the marker-delimited "Extracted Text" region linking the sidecar file.
+
+    ``sidecar_name`` is the bare ``<id>.text.md`` filename, which lives in the same
+    directory as the page, so the Markdown link is relative.
+    """
+    inner = f"## Extracted Text\n\n- [Full text extracted via Docling]({sidecar_name})"
+    return f"{EXTRACTED_TEXT_REGION_BEGIN}\n{inner}\n{EXTRACTED_TEXT_REGION_END}"
+
+
+def splice_extracted_text_region(page_text: str, region: str) -> str:
+    """Append/replace the extracted-text region as the strictly-last page element.
+
+    Operates on the full page text (frontmatter included) rather than a parsed
+    body, so output is byte-stable and a committed law-brain region (which sits
+    before it) is preserved verbatim. Any existing extracted-text region is
+    replaced in place.
+    """
+    begin = page_text.find(EXTRACTED_TEXT_REGION_BEGIN)
+    base = (page_text[:begin] if begin != -1 else page_text).rstrip("\n")
+    return base + "\n\n" + region + "\n"
+
+
+def preserve_extracted_text_region(prev_text: str, fresh_text: str) -> str:
+    """Splice a prior page's extracted-text region forward onto a fresh page.
+
+    The extracted-text analog of :func:`preserve_lawbrain_region`. A non-extract
+    render (e.g. ``render-refreshed``) emits ``fresh_text`` without the region;
+    this re-appends the committed one verbatim (strictly last) so the link is not
+    lost. If ``fresh_text`` already has a region it is authoritative.
+    """
+    if EXTRACTED_TEXT_REGION_BEGIN in fresh_text:
+        return fresh_text
+    begin = prev_text.find(EXTRACTED_TEXT_REGION_BEGIN)
+    if begin == -1:
+        return fresh_text
+    end = prev_text.find(EXTRACTED_TEXT_REGION_END, begin)
+    if end == -1:
+        return fresh_text
+    region = prev_text[begin : end + len(EXTRACTED_TEXT_REGION_END)]
+    return fresh_text.rstrip("\n") + "\n\n" + region + "\n"

@@ -1,6 +1,14 @@
 version = 1
 revision = 3
 requires-python = ">=3.12"
+resolution-markers = [
+    "python_full_version >= '3.14' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and sys_platform == 'emscripten'",
+    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.14' and sys_platform == 'win32'",
+    "python_full_version < '3.14' and sys_platform == 'emscripten'",
+    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+]
 
 [[package]]
 name = "annotated-doc"
@@ -548,7 +556,7 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.26.1"
+version = "0.26.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -556,9 +564,9 @@ dependencies = [
     { name = "rich" },
     { name = "shellingham" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/08/26/8e9a4f2c98caefcf4ac25788d48939516a9dd4265fcf9bdd578a2a1b55dd/typer-0.26.1.tar.gz", hash = "sha256:537d27ae686d82967f6383382a952cb32ba4768898541effccb69ca75bbd5d23", size = 198884, upload-time = "2026-05-26T17:49:07.912Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/d3/90c1ee19209cb59f6ad185883fd4ccfcf72f8f0bfd549d5a8b70474611d0/typer-0.26.4.tar.gz", hash = "sha256:25b128964de66c5ea36d5ac82adc579e5e113509b17469edf9f5a4a1864ff2a9", size = 201191, upload-time = "2026-05-30T17:05:04.213Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/27/8a22d4833fe8aa0836ce7fa59096ad50d7e93b83be6d5383f11f9a140d54/typer-0.26.1-py3-none-any.whl", hash = "sha256:933e4f0083521f3c57d6a5aedf3b073271b2f95a19761b171b494dd6fdb21ff6", size = 123097, upload-time = "2026-05-26T17:49:09.065Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/6d/5a525c69df4a90892135e5d490b00e9e46402491f3416d4395fcb0d0201e/typer-0.26.4-py3-none-any.whl", hash = "sha256:11bfd7b43557137e373c2b10f6967a555f9678a61ed72c808968b011d95534d6", size = 122436, upload-time = "2026-05-30T17:05:05.812Z" },
 ]
 
 [[package]]

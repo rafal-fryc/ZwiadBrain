@@ -420,3 +420,34 @@ def preserve_lawbrain_region(prev_text: str, fresh_text: str) -> str:
         return fresh_text
     region = prev_text[begin : end + len(LAWBRAIN_REGION_END)]
     return fresh_text.rstrip("\n") + "\n\n" + region + "\n"
+
+
+def render_lawbrain_region(item: Bill | EnforcementAction) -> str | None:
+    """The marker-delimited law-brain region for an item's commentary, or ``None``.
+
+    Mirrors the region appended by :func:`render_bill_body` /
+    :func:`render_enforcement_body`: built only from commentary sources carrying a
+    verbatim ``body`` (refresh-only bookkeeping with ``body=None`` renders nothing).
+    """
+    return _lawbrain_region([s for s in item.commentary_sources if s.body])
+
+
+def splice_lawbrain_region(body: str, region: str | None) -> str:
+    """Replace, append, or remove the ``lawbrain:region`` in a page body verbatim.
+
+    The region is always the last body element (rendered after ``Sources``), so the
+    text up to :data:`LAWBRAIN_REGION_BEGIN` is the authoritative non-commentary body
+    and is preserved byte-for-byte. This lets ``/zwiad-sync-lawbrain`` own the region
+    without rebuilding a bill's body-only sections (Summary / Status & Timeline /
+    Full Text) from frontmatter — which would silently drop them, since they are not
+    serialized (``_BODY_ONLY_FIELDS``).
+
+    - ``region`` given       -> spliced in after the preserved body (replacing any
+      existing region in place, since it sits last).
+    - ``region`` is ``None`` -> the existing region (if any) is removed.
+    """
+    begin = body.find(LAWBRAIN_REGION_BEGIN)
+    base = (body[:begin] if begin != -1 else body).rstrip("\n")
+    if region:
+        return base + "\n\n" + region
+    return base

@@ -6,9 +6,10 @@ rendered Markdown body. :func:`to_frontmatter` emits metadata only: body content
 is rendered into the body and re-derived each run, so it is excluded here.
 
 **leg_history partial persistence:** ``leg_history.hearings``,
-``leg_history.statements``, and ``leg_history.narrative`` are expensive,
-non-deterministic outputs and persist to frontmatter (D40 extends D37 to add
-narrative).  The deterministic spine fields (``versions``,
+``leg_history.statements``, ``leg_history.related_media`` (Tier-2 media, D69
+Phase B), and ``leg_history.narrative`` are expensive, non-deterministic outputs
+and persist to frontmatter (D40 extends D37 to add narrative).  The deterministic
+spine fields (``versions``,
 ``committee_reports``, ``floor_consideration``, ``votes``, ``conference``,
 ``enactment``) remain body-only and are re-derived from the API on each
 render.
@@ -100,6 +101,11 @@ def to_frontmatter(item: Bill | EnforcementAction) -> dict[str, object]:
             lh_fm["statements"] = [
                 s.model_dump(mode="json", exclude_none=True)
                 for s in item.leg_history.statements
+            ]
+        if item.leg_history.related_media:
+            lh_fm["related_media"] = [
+                m.model_dump(mode="json", exclude_none=True)
+                for m in item.leg_history.related_media
             ]
         if item.leg_history.narrative:
             lh_fm["narrative"] = item.leg_history.narrative

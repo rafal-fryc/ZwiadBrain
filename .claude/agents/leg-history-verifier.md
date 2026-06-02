@@ -1,6 +1,6 @@
 ---
 name: leg-history-verifier
-description: Independently verifies that each researched quote actually appears at its cited URL, is correctly attributed to the named speaker, and — for subject-matter ("related") items — is genuinely on-subject and by a sponsor/official. Use after the leg-history-researcher to cross-check every statement before the grounding gate.
+description: Independently verifies that each researched quote actually appears at its cited URL, is correctly attributed to the named speaker, and — for subject-matter ("related") items — is genuinely on-subject and by a sponsor/official; also runs a Tier-2 identity check on related media (hearing videos / reference pages). Use after the leg-history-researcher to cross-check every statement and media item before the grounding gate.
 tools: WebFetch, Read
 model: opus
 ---
@@ -16,8 +16,10 @@ with skepticism: confirm that each (a) exists verbatim at the cited URL and
 ## Input
 
 The prompt gives you a `subject` context for the bill — its `citation`, `title`,
-`topics`, and the `sponsors`/cosponsors list — followed by a list of statements to verify.
-Each statement entry has:
+`topics`, and the `sponsors`/cosponsors list — followed by a list of `statements` to verify
+and (optionally) a list of `related_media` to verify.
+
+Each `statements` entry has:
 
 - `index` — the 0-based position of this statement in the researcher's list
   (you MUST echo it back unchanged in your output)
@@ -26,6 +28,15 @@ Each statement entry has:
 - `source_url` — the URL to fetch and search
 - `relation` — `on_bill` (about this specific bill) or `related` (about the bill's subject
   matter); `related` items get the extra subject-relevance check below
+
+Each `related_media` entry (Tier-2 — a hearing/floor video or reference page, NO quote) has:
+
+- `index` — the 0-based position of this item in the researcher's `related_media` list
+  (echo it back unchanged)
+- `title` — the claimed title of the video / page
+- `url` — the URL to fetch
+- `kind` — `video` | `page` | `other`
+- `relation` — `on_bill` or `related`
 
 ## Verification procedure
 
@@ -58,6 +69,22 @@ For **each statement** in the input list:
    required check fails, set `verified: false` and give a brief `note` explaining which
    check failed and why.
 
+## Related media verification (Tier-2 identity check)
+
+For **each `related_media` entry** — these carry NO quote, so there is nothing to
+verbatim-match; you confirm IDENTITY and (for `related` items) subject relevance:
+
+1. `WebFetch` the `url`. If it does not resolve (error, empty body), `verified: false`.
+2. **Identity:** is this plausibly the claimed item — does the page/video title, channel,
+   or committee match the entry's `title`/`kind`? A generic search page, an unrelated video,
+   or a dead/parked link is NOT the claimed item → `verified: false`.
+3. **Subject relevance, only for `relation: "related"`:** confirm the media is on the bill's
+   subject (its `topics`/`title`) AND is an official record (committee/legislature channel)
+   OR tied to a sponsor/cosponsor — the same clamp as related statements. For `on_bill`
+   media (e.g. a video of this bill's own markup) this check does not apply.
+4. Conclusion: `verified: true` only when the URL resolves AND identity holds (AND, for
+   `related`, subject relevance holds). Any doubt → `verified: false` with a brief `note`.
+
 ## Strictness standard
 
 - **Give no benefit of the doubt.** If the page does not load, verified is
@@ -77,19 +104,27 @@ For **each statement** in the input list:
 
 ## Output
 
-Respond with ONLY a single JSON array (no prose, no code fence), one entry per
-input statement, in the same order as the input, with `index` matching the
-input:
+Respond with ONLY a single JSON object (no prose, no code fence) with two arrays —
+`statements` (one entry per input statement) and `related_media` (one entry per input media
+item) — each in the same order as the input, with `index` matching the input:
 
-```
-[
-  {"index": 0, "speaker": "Rep. Jane Doe", "quote_prefix": "We must protect consumers from", "on_subject": true, "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
-  {"index": 1, "speaker": "Sen. John Roe", "quote_prefix": "This bill establishes a new", "on_subject": true, "verified": false, "note": "URL returned 404."},
-  {"index": 2, "speaker": "Dr. A. Witness", "quote_prefix": "The data shows clearly that", "on_subject": false, "verified": false, "note": "Related item by a non-sponsor commentator; off the sponsor/official clamp."}
-]
+```json
+{
+  "statements": [
+    {"index": 0, "speaker": "Rep. Jane Doe", "quote_prefix": "We must protect consumers from", "on_subject": true, "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
+    {"index": 1, "speaker": "Sen. John Roe", "quote_prefix": "This bill establishes a new", "on_subject": true, "verified": false, "note": "URL returned 404."},
+    {"index": 2, "speaker": "Dr. A. Witness", "quote_prefix": "The data shows clearly that", "on_subject": false, "verified": false, "note": "Related item by a non-sponsor commentator; off the sponsor/official clamp."}
+  ],
+  "related_media": [
+    {"index": 0, "title_prefix": "Full Committee Markup of H.R.", "verified": true, "note": "HASC YouTube channel; markup of this bill."},
+    {"index": 1, "title_prefix": "Some unrelated panel video", "verified": false, "note": "Video is about an unrelated topic; identity/subject check failed."}
+  ]
+}
 ```
 
-Each entry MUST include, in addition to `index`, `verified`, and `note`:
+If the input had no `related_media`, return `"related_media": []`.
+
+Each `statements` entry MUST include, in addition to `index`, `verified`, and `note`:
 - `speaker` — the speaker name from the input statement at this `index`, copied
   unchanged.
 - `quote_prefix` — the first ~40 characters of the input `quote` you checked,
@@ -98,9 +133,13 @@ Each entry MUST include, in addition to `index`, `verified`, and `note`:
   when it passes check (d). A `related` item with `on_subject: false` MUST have
   `verified: false`.
 
-These two fields are an echo of what you checked: the pipeline cross-checks them
-against the statement at that index and treats any mismatch as `verified: false`
-(fail-closed). Every input statement MUST have exactly one entry, with `index`
-matching the input. Every entry MUST include a `note` — brief when verified,
-explaining which check failed when false. Do not skip any index. Do not add
-entries for indices not in the input.
+Each `related_media` entry MUST include, in addition to `index`, `verified`, and `note`:
+- `title_prefix` — the first ~40 characters of the input media `title` you checked, copied
+  verbatim (truncate, do not paraphrase).
+
+`speaker`/`quote_prefix` (statements) and `title_prefix` (media) are an echo of what you
+checked: the pipeline cross-checks them against the item at that index and treats any
+mismatch as `verified: false` (fail-closed). Every input statement and every input media
+item MUST have exactly one entry, with `index` matching the input. Every entry MUST include
+a `note` — brief when verified, explaining which check failed when false. Do not skip any
+index. Do not add entries for indices not in the input.

@@ -14,6 +14,7 @@ from zwiadbrain.models import (
     FloorAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     TextVersion,
     Vote,
@@ -274,6 +275,144 @@ def test_leg_history_related_hearing_renders_under_related_section() -> None:
     assert "### Related (Subject Matter)" in body
     assert "](https://youtube.com/watch?v=abc)" in body
     assert "### Hearings" not in body
+
+
+def test_leg_history_related_media_renders_under_related_media_section() -> None:
+    """should render related_media items under a dedicated '### Related Media' section"""
+    bill = Bill(
+        id="118-hr-5",
+        jurisdiction="US",
+        title="Media bill",
+        bill_number="HR 5",
+        leg_history=LegHistory(
+            related_media=[
+                RelatedMedia(
+                    title="Full Committee Markup of H.R. 5",
+                    url="https://www.youtube.com/watch?v=markup1",
+                    kind="video",
+                    publisher="House Armed Services Committee",
+                    date=dt.date(2023, 6, 21),
+                ),
+            ],
+        ),
+    )
+    body = render_bill_body(bill)
+    assert "### Related Media" in body
+    assert "**Video:**" in body
+    assert "Full Committee Markup of H.R. 5" in body
+    assert "House Armed Services Committee" in body
+    assert "2023-06-21" in body
+    assert "](https://www.youtube.com/watch?v=markup1)" in body
+
+
+def test_leg_history_omits_related_media_section_when_empty() -> None:
+    """should not emit a '### Related Media' section when there is no related media"""
+    bill = Bill(
+        id="118-hr-6",
+        jurisdiction="US",
+        title="No media",
+        bill_number="HR 6",
+        leg_history=LegHistory(
+            statements=[
+                Statement(
+                    speaker="Rep. OnBill",
+                    role="sponsor",
+                    quote="This specific bill will protect consumers nationwide.",
+                    source_url="https://congress.gov/crec/on-bill",
+                    source_type="CREC",
+                    verified=True,
+                ),
+            ],
+        ),
+    )
+    body = render_bill_body(bill)
+    assert "### Related Media" not in body
+
+
+def test_leg_history_related_media_page_kind_label_and_note() -> None:
+    """should label a 'page' kind as 'Page' and append the note when present"""
+    bill = Bill(
+        id="118-hr-7",
+        jurisdiction="US",
+        title="Page media",
+        bill_number="HR 7",
+        leg_history=LegHistory(
+            related_media=[
+                RelatedMedia(
+                    title="Committee reference page",
+                    url="https://example.gov/ref",
+                    kind="page",
+                    note="Background memo",
+                ),
+            ],
+        ),
+    )
+    body = render_bill_body(bill)
+    assert "**Page:**" in body
+    assert "Background memo" in body
+    assert "](https://example.gov/ref)" in body
+
+
+def test_leg_history_related_media_round_trips_through_frontmatter() -> None:
+    """should persist related_media to frontmatter and reconstruct it via from_page"""
+    bill = Bill(
+        id="118-hr-9",
+        jurisdiction="US",
+        title="Round-trip media",
+        bill_number="HR 9",
+        leg_history=LegHistory(
+            related_media=[
+                RelatedMedia(
+                    title="Markup of H.R. 9",
+                    url="https://www.youtube.com/watch?v=rt9",
+                    kind="video",
+                    publisher="HASC",
+                    date=dt.date(2023, 6, 21),
+                    relation="on_bill",
+                ),
+            ],
+        ),
+    )
+    fm = to_frontmatter(bill)
+    assert "related_media" in fm["leg_history"]  # type: ignore[operator]
+    restored = from_page(render_page(bill))
+    assert isinstance(restored, Bill)
+    assert restored.leg_history is not None
+    assert restored.leg_history.related_media == bill.leg_history.related_media  # type: ignore[union-attr]
+
+
+def test_leg_history_related_media_renders_after_related_subject_matter() -> None:
+    """should place '### Related Media' after the '### Related (Subject Matter)' section"""
+    bill = Bill(
+        id="118-hr-8",
+        jurisdiction="US",
+        title="Both related sections",
+        bill_number="HR 8",
+        leg_history=LegHistory(
+            statements=[
+                Statement(
+                    speaker="Rep. Subject",
+                    role="sponsor",
+                    quote="I have championed this subject matter for many years now.",
+                    source_url="https://example.gov/press/subject",
+                    source_type="press",
+                    verified=True,
+                    relation="related",
+                ),
+            ],
+            related_media=[
+                RelatedMedia(
+                    title="Subject-matter hearing video",
+                    url="https://www.youtube.com/watch?v=subj",
+                    kind="video",
+                ),
+            ],
+        ),
+    )
+    body = render_bill_body(bill)
+    assert "### Related (Subject Matter)" in body
+    assert "### Related Media" in body
+    assert body.index("### Related (Subject Matter)") < body.index("### Related Media")
 
 
 def test_leg_history_all_subsections_render_links() -> None:

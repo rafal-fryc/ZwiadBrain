@@ -13,6 +13,7 @@ from zwiadbrain.models import (
     FlipOutAudit,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
 )
 from zwiadbrain.pipeline.refresh import (
@@ -172,6 +173,17 @@ def test_preserve_leg_history_reattaches_hearings_statements_narrative() -> None
     # spine taken from fresh (not prev)
     assert out.versions == fresh.versions
     assert out.committee_reports == fresh.committee_reports
+
+
+def test_preserve_leg_history_reattaches_related_media() -> None:
+    """should carry prev.related_media (Tier-2, expensive) onto the fresh spine"""
+    media = RelatedMedia(
+        title="Markup video", url="https://youtube.com/watch?v=abc", kind="video"
+    )
+    prev = LegHistory(related_media=[media], narrative="n")
+    fresh = LegHistory()  # freshly re-derived spine has no related_media
+    out = preserve_leg_history(prev, fresh)
+    assert out.related_media == [media]
 
 
 # --- apply_classifier_flip --------------------------------------------------

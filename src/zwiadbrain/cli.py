@@ -37,6 +37,7 @@ from zwiadbrain.models import (
     EnforcementDevelopment,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
 )
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
@@ -65,7 +66,12 @@ from zwiadbrain.pipeline.lawbrain_review import (
     parse_review_queue,
     render_review_queue,
 )
-from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
+from zwiadbrain.pipeline.leg_history import (
+    assemble_spine,
+    collect_leads,
+    ground_items,
+    ground_related,
+)
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
     clear_flip,
@@ -86,6 +92,7 @@ from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
+from zwiadbrain.sources.transcripts import make_gate_fetch
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
 
@@ -1505,14 +1512,65 @@ def render_leg_history(
                     verified = False
             verifier_verdicts[new_pos] = verified
 
+        # Tier-2 related media (D69 Phase B): hearing/floor videos + reference pages, listed
+        # WITHOUT a quote. Parsed per-item like statements/hearings; grounded by URL + an
+        # independent verifier *identity* check (no verbatim-quote gate). Verdicts are keyed
+        # by each media item's original index and carry a title_prefix echo that we cross-check
+        # against the media at that index (fail-closed on mismatch — same discipline as
+        # statements, mirroring the parse-drop index remap).
+        parse_dropped_media: list[tuple[str, str]] = []
+        related_media: list[RelatedMedia] = []
+        media_original_indices: list[int] = []
+        for i, item in enumerate(_as_list(payload.get("related_media"), "related_media")):
+            try:
+                related_media.append(RelatedMedia.model_validate(item))
+                media_original_indices.append(i)
+            except ValidationError as exc:
+                parse_dropped_media.append((f"related_media[{i}]", str(exc)))
+
+        media_verdicts_by_original: dict[int, tuple[bool, str]] = {}
+        for v in _as_list(payload.get("media_verdicts"), "media_verdicts"):
+            if not isinstance(v, dict):
+                raise ConfigError("each entry in 'media_verdicts' must be a JSON object")
+            mverdict: dict[str, object] = v  # pyright: ignore[reportUnknownVariableType]
+            mindex = mverdict.get("index")
+            if not isinstance(mindex, int):
+                raise ConfigError(
+                    f"media_verdict 'index' must be an integer, got {type(mindex).__name__}"
+                )
+            echo_title = mverdict.get("title_prefix")
+            media_verdicts_by_original[mindex] = (
+                bool(mverdict.get("verified")),
+                echo_title if isinstance(echo_title, str) else "",
+            )
+
+        media_verifier_verdicts: dict[int, bool] = {}
+        for new_pos, orig_idx in enumerate(media_original_indices):
+            m_verified, echo_title = media_verdicts_by_original.get(orig_idx, (False, ""))
+            if m_verified:
+                media = related_media[new_pos]
+                if not (echo_title and media.title.startswith(echo_title)):
+                    m_verified = False
+            media_verifier_verdicts[new_pos] = m_verified
+
+        # A single transcript-aware fetch for BOTH gates: a YouTube source_url resolves to its
+        # caption text (D72 fallback); every other URL uses the normal HTTP fetch. The gate
+        # logic (ground_items / ground_related) is unchanged — it just receives caption text
+        # for a video source_url. `_fetch_url` is referenced by name so tests can monkeypatch it.
+        gate_fetch = make_gate_fetch(_fetch_url)
+
         result = ground_items(
-            statements, hearings, fetch=_fetch_url, verifier_verdicts=verifier_verdicts
+            statements, hearings, fetch=gate_fetch, verifier_verdicts=verifier_verdicts
+        )
+        media_result = ground_related(
+            related_media, fetch=gate_fetch, verifier_verdicts=media_verifier_verdicts
         )
 
         final = spine.model_copy(
             update={
                 "hearings": list(result.hearings),
                 "statements": list(result.statements),
+                "related_media": list(media_result.media),
                 "narrative": narrative,
             }
         )
@@ -1547,6 +1605,11 @@ def render_leg_history(
         hearing_ground_drops = len(hearings) - hearing_kept
         hearing_input = hearing_kept + hearing_ground_drops + hearing_parse_drops
 
+        media_parse_drops = len(parse_dropped_media)
+        media_kept = len(media_result.media)
+        media_ground_drops = len(related_media) - media_kept
+        media_input = media_kept + media_ground_drops + media_parse_drops
+
         page_status = "written" if written else "unchanged"
         typer.echo(
             f"{bill.id}: {spine_summary} | "
@@ -1554,6 +1617,8 @@ def render_leg_history(
             f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop | "
             f"hearings: {hearing_input} input / {hearing_kept} grounded"
             f" / {hearing_parse_drops} parse-drop / {hearing_ground_drops} ground-drop | "
+            f"media: {media_input} input / {media_kept} grounded"
+            f" / {media_parse_drops} parse-drop / {media_ground_drops} ground-drop | "
             f"narrative={'yes' if narrative else 'no'} | "
             f"page {page_status}"
         )
@@ -1565,7 +1630,11 @@ def render_leg_history(
             typer.echo(f"  dropped statement: {identifier} — {reason}")
         for identifier, reason in parse_dropped_hearings:
             typer.echo(f"  dropped hearing: {identifier} — {reason}")
+        for identifier, reason in parse_dropped_media:
+            typer.echo(f"  dropped related_media: {identifier} — {reason}")
         for d in result.dropped:
+            typer.echo(f"  dropped {d.kind}: {d.identifier} — {d.reason}")
+        for d in media_result.dropped:
             typer.echo(f"  dropped {d.kind}: {d.identifier} — {d.reason}")
 
     except AppError as exc:

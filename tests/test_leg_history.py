@@ -17,6 +17,7 @@ from zwiadbrain.models import (
     FloorAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     TextVersion,
     Vote,
@@ -25,10 +26,12 @@ from zwiadbrain.pipeline.ids import parse_bill_id
 from zwiadbrain.pipeline.leg_history import (
     _MIN_QUOTE_CHARS,  # pyright: ignore[reportPrivateUsage]
     GroundingResult,
+    RelatedGroundingResult,
     _quote_present,  # pyright: ignore[reportPrivateUsage]
     assemble_spine,
     collect_leads,
     ground_items,
+    ground_related,
 )
 
 # ---------------------------------------------------------------------------
@@ -629,6 +632,15 @@ def _make_hearing(
     return Hearing(title=title, url=url)
 
 
+def _make_media(
+    *,
+    title: str = "Markup video",
+    url: str = "https://www.youtube.com/watch?v=abc123",
+    kind: str = "video",
+) -> RelatedMedia:
+    return RelatedMedia.model_validate({"title": title, "url": url, "kind": kind})
+
+
 class _FakeFetch:
     """Fetch callable backed by a url->response dict. Missing urls return (0, '')."""
 
@@ -1055,3 +1067,102 @@ def test_gate_alone_does_not_catch_cross_attribution_span() -> None:
     )
     cross_attribution_span = "protects consumers. Rep. B: I oppose this measure"
     assert _quote_present(cross_attribution_span, page) is True
+
+
+# ---------------------------------------------------------------------------
+# ground_related — Tier-2 media gate (URL-200 + verifier identity, no quote)
+# ---------------------------------------------------------------------------
+
+
+def test_ground_related_kept_when_url_200_and_verified() -> None:
+    """should keep media unchanged when url resolves 200 and the verifier confirms it"""
+    media = _make_media(url="https://www.youtube.com/watch?v=abc123")
+    fetch = _fake_fetch({"https://www.youtube.com/watch?v=abc123": (200, "any page body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert isinstance(result, RelatedGroundingResult)
+    assert len(result.media) == 1
+    assert result.media[0] == media  # unchanged — no quote, no verified flag to set
+    assert len(result.dropped) == 0
+
+
+def test_ground_related_dropped_when_url_404() -> None:
+    """should drop media when its url returns 404, recording the status reason"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (404, "")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert len(result.media) == 0
+    assert len(result.dropped) == 1
+    assert result.dropped[0].reason == "media url returned status 404"
+
+
+def test_ground_related_dropped_when_url_unreachable() -> None:
+    """should drop media when the url is unreachable (status 0)"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({})  # all urls -> (0, "")
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert len(result.media) == 0
+    assert result.dropped[0].reason == "media url returned status 0"
+
+
+def test_ground_related_dropped_when_verifier_false() -> None:
+    """should drop media when url 200 but the verifier did not confirm it"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (200, "body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: False})
+    assert len(result.media) == 0
+    assert len(result.dropped) == 1
+    assert "verifier" in result.dropped[0].reason
+
+
+def test_ground_related_dropped_when_verifier_index_missing() -> None:
+    """should treat a missing verifier index as not-confirmed and drop the media"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (200, "body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={})
+    assert len(result.media) == 0
+    assert "verifier" in result.dropped[0].reason
+
+
+def test_ground_related_url_gate_runs_before_verifier() -> None:
+    """should report the url status (not the verifier) when both would fail — url checked first"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (500, "")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: False})
+    assert result.dropped[0].reason == "media url returned status 500"
+
+
+def test_ground_related_dropped_item_kind_is_media() -> None:
+    """should record kind='media' and the title as the identifier on a dropped item"""
+    media = _make_media(title="Subject-matter AI hearing", url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (404, "")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={})
+    assert result.dropped[0].kind == "media"
+    assert result.dropped[0].identifier == "Subject-matter AI hearing"
+
+
+def test_ground_related_result_fields_are_immutable_tuples() -> None:
+    """should return tuples (not lists) so nothing can be appended past the gate"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (200, "body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert isinstance(result.media, tuple)
+    assert isinstance(result.dropped, tuple)
+
+
+def test_ground_related_keys_verdicts_by_position() -> None:
+    """should key verifier verdicts by each media's position in the input list"""
+    kept = _make_media(title="kept", url="https://example.com/a")
+    dropped = _make_media(title="dropped", url="https://example.com/b")
+    fetch = _fake_fetch(
+        {"https://example.com/a": (200, "x"), "https://example.com/b": (200, "y")}
+    )
+    result = ground_related([kept, dropped], fetch=fetch, verifier_verdicts={0: True, 1: False})
+    assert [m.title for m in result.media] == ["kept"]
+    assert [d.identifier for d in result.dropped] == ["dropped"]
+
+
+def test_ground_related_empty_input_returns_empty_result() -> None:
+    """should return an empty RelatedGroundingResult for empty input"""
+    result = ground_related([], fetch=_fake_fetch({}), verifier_verdicts={})
+    assert result.media == ()
+    assert result.dropped == ()

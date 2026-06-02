@@ -140,3 +140,82 @@ def test_render_leg_history_keeps_statement_when_verifier_echo_matches(
 
     rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
     assert "We must protect consumers from" in rendered
+
+
+# --- Tier-2 related media (PHASE-14 / D72) ----------------------------------
+
+# A non-YouTube media URL the fake resolves to 200 (routes through patched _fetch_url,
+# not the live caption path).
+_MEDIA_URL = "https://www.congress.gov/committee-video/markup"
+_MEDIA_TITLE = "Full Committee Markup of H.R. 9020"
+
+
+def _fake_fetch_media_ok(url: str) -> tuple[int, str]:
+    """200 for the statement url and the media url; 404 otherwise."""
+    if url in (_URL_TEST, _MEDIA_URL):
+        return (200, f"Congressional Record: {_QUOTE} The speaker continued.")
+    return (404, "Not Found")
+
+
+def test_render_leg_history_keeps_related_media_when_url_200_and_verified(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should render a related-media item whose url resolves 200 and verifier confirms it"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch_media_ok)
+
+    staging = {
+        "bill": _bill(),
+        "spine": _spine(),
+        "hearings": [],
+        "statements": [],
+        "related_media": [
+            {"title": _MEDIA_TITLE, "url": _MEDIA_URL, "kind": "video", "relation": "on_bill"}
+        ],
+        "media_verdicts": [
+            {"index": 0, "title_prefix": _MEDIA_TITLE[:30], "verified": True, "note": "ok"}
+        ],
+        "narrative": "Journey.",
+    }
+    staging_file = tmp_path / "staging.json"
+    staging_file.write_text(json.dumps(staging), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = runner.invoke(
+        app, ["render-leg-history", "--in", str(staging_file), "--wiki", str(wiki)]
+    )
+    assert result.exit_code == 0, result.output
+    rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
+    assert "### Related Media" in rendered
+    assert _MEDIA_TITLE in rendered
+
+
+def test_render_leg_history_drops_related_media_when_verifier_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop a related-media item the verifier did not confirm (no Related Media section)"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch_media_ok)
+
+    staging = {
+        "bill": _bill(),
+        "spine": _spine(),
+        "hearings": [],
+        "statements": [],
+        "related_media": [
+            {"title": _MEDIA_TITLE, "url": _MEDIA_URL, "kind": "video"}
+        ],
+        "media_verdicts": [
+            {"index": 0, "title_prefix": _MEDIA_TITLE[:30], "verified": False, "note": "no"}
+        ],
+        "narrative": "Journey.",
+    }
+    staging_file = tmp_path / "staging.json"
+    staging_file.write_text(json.dumps(staging), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = runner.invoke(
+        app, ["render-leg-history", "--in", str(staging_file), "--wiki", str(wiki)]
+    )
+    assert result.exit_code == 0, result.output
+    rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
+    assert "### Related Media" not in rendered
+    assert _MEDIA_TITLE not in rendered

@@ -35,6 +35,7 @@ from zwiadbrain.models import (
     FloorAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     Vote,
 )
@@ -47,10 +48,10 @@ from zwiadbrain.pipeline.ids import parse_bill_id
 
 @dataclass(frozen=True)
 class DroppedItem:
-    """Records a statement or hearing that was rejected by the grounding gate."""
+    """Records a statement, hearing, or media item rejected by a grounding gate."""
 
-    kind: Literal["statement", "hearing"]
-    identifier: str  # human-readable: "<speaker>: <first ~50 chars>" or hearing title
+    kind: Literal["statement", "hearing", "media"]
+    identifier: str  # human-readable: "<speaker>: <first ~50 chars>", hearing/media title
     reason: str
 
 
@@ -66,6 +67,20 @@ class GroundingResult:
 
     statements: tuple[Statement, ...] = field(default_factory=tuple)
     hearings: tuple[Hearing, ...] = field(default_factory=tuple)
+    dropped: tuple[DroppedItem, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class RelatedGroundingResult:
+    """Outcome of :func:`ground_related`: kept Tier-2 media and everything rejected.
+
+    Separate from :class:`GroundingResult` so the Tier-1 quote gate (``ground_items``)
+    stays untouched.  ``media`` is a tuple for the same immutability reason
+    :class:`GroundingResult` uses tuples: a list field would let an unconfirmed media
+    item be appended past the gate.
+    """
+
+    media: tuple[RelatedMedia, ...] = field(default_factory=tuple)
     dropped: tuple[DroppedItem, ...] = field(default_factory=tuple)
 
 
@@ -348,6 +363,66 @@ def ground_items(
     return GroundingResult(
         statements=tuple(kept_statements),
         hearings=tuple(kept_hearings),
+        dropped=tuple(dropped),
+    )
+
+
+def ground_related(
+    related_media: list[RelatedMedia],
+    *,
+    fetch: Callable[[str], tuple[int, str]],
+    verifier_verdicts: dict[int, bool],
+) -> RelatedGroundingResult:
+    """Run the Tier-2 grounding gate over *related_media* (D69 Phase B).
+
+    Tier-2 media carries NO attributed quote, so there is nothing to misattribute
+    and the verbatim-quote gate does not apply.  Each item must pass two checks,
+    first failure recorded:
+
+    1. ``status, _ = fetch(media.url)``; if ``status != 200`` -> drop with reason
+       ``"media url returned status {status}"``.  ``RelatedMedia.url`` is required
+       and http-validated by the model, so there is no separate "no url" branch
+       (unlike the hearing gate, whose ``url`` is optional).
+    2. ``verifier_verdicts.get(i, False)`` must be True — an independent verifier
+       *identity* confirmation that the link is the claimed hearing video / page.
+       A missing index counts as not-confirmed; drop with reason
+       ``"verifier did not confirm the media"``.
+
+    **Ordering contract for** *verifier_verdicts*: keyed by each media item's index
+    in THIS list (same enumerate contract as :func:`ground_items`).  Kept items are
+    returned UNCHANGED — there is no ``verified`` flag to set; membership of the kept
+    tuple is itself the confirmation.
+
+    The gate logic for :func:`ground_items`, :func:`_normalize_text`, and the
+    quote-presence path is intentionally untouched by this function.
+    """
+    kept_media: list[RelatedMedia] = []
+    dropped: list[DroppedItem] = []
+
+    for i, media in enumerate(related_media):
+        status, _ = fetch(media.url)
+        if status != 200:
+            dropped.append(
+                DroppedItem(
+                    kind="media",
+                    identifier=media.title,
+                    reason=f"media url returned status {status}",
+                )
+            )
+            continue
+        if not verifier_verdicts.get(i, False):
+            dropped.append(
+                DroppedItem(
+                    kind="media",
+                    identifier=media.title,
+                    reason="verifier did not confirm the media",
+                )
+            )
+            continue
+        kept_media.append(media)
+
+    return RelatedGroundingResult(
+        media=tuple(kept_media),
         dropped=tuple(dropped),
     )
 

@@ -17,6 +17,7 @@ from zwiadbrain.models import (
     EnforcementAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     parse_wiki_item,
 )
@@ -374,6 +375,96 @@ def test_leghistory_list_defaults_are_not_shared() -> None:
         )
     )
     assert b.statements == []
+
+
+# ---------------------------------------------------------------------------
+# RelatedMedia (Tier-2 media: hearing videos / reference pages, no quote)
+# ---------------------------------------------------------------------------
+
+
+def test_related_media_constructs_with_valid_data() -> None:
+    """should store title, url, kind, publisher, date, relation, and note"""
+    m = RelatedMedia(
+        title="Markup of H.R. 2670",
+        url="https://www.youtube.com/watch?v=abc123",
+        kind="video",
+        publisher="House Armed Services Committee",
+        date=dt.date(2023, 6, 21),
+        relation="on_bill",
+        note="Full committee markup",
+    )
+    assert m.title == "Markup of H.R. 2670"
+    assert m.kind == "video"
+    assert m.publisher == "House Armed Services Committee"
+    assert m.date == dt.date(2023, 6, 21)
+    assert m.relation == "on_bill"
+    assert m.note == "Full committee markup"
+
+
+def test_related_media_kind_defaults_to_other() -> None:
+    """should default kind to 'other' and relation to 'related'"""
+    m = RelatedMedia(title="A reference page", url="https://example.gov/ref")
+    assert m.kind == "other"
+    assert m.relation == "related"
+    assert m.publisher is None
+    assert m.date is None
+    assert m.note is None
+
+
+def test_related_media_requires_http_url() -> None:
+    """should reject a url that is not http(s) (no-link-no-render rule)"""
+    with pytest.raises(ValidationError):
+        RelatedMedia(title="x", url="ftp://example.gov/ref")
+
+
+def test_related_media_rejects_empty_title() -> None:
+    """should reject an empty title (min_length=1)"""
+    with pytest.raises(ValidationError):
+        RelatedMedia(title="", url="https://example.gov/ref")
+
+
+def test_related_media_rejects_unknown_kind() -> None:
+    """should reject a kind outside video|page|other"""
+    with pytest.raises(ValidationError):
+        RelatedMedia.model_validate(
+            {"title": "x", "url": "https://example.gov/ref", "kind": "podcast"}
+        )
+
+
+def test_leghistory_accepts_related_media() -> None:
+    """should store a related_media list alongside hearings/statements"""
+    m = RelatedMedia(title="Hearing video", url="https://youtube.com/watch?v=z", kind="video")
+    lh = LegHistory(related_media=[m])
+    assert lh.related_media == [m]
+
+
+def test_leghistory_related_media_defaults_empty() -> None:
+    """should default related_media to an empty list"""
+    assert LegHistory().related_media == []
+
+
+def test_leghistory_related_media_list_defaults_are_not_shared() -> None:
+    """should give each LegHistory instance its own related_media list"""
+    a = LegHistory()
+    b = LegHistory()
+    a.related_media.append(RelatedMedia(title="V", url="https://youtube.com/watch?v=q"))
+    assert b.related_media == []
+
+
+def test_leghistory_related_media_round_trips_through_dump_and_parse() -> None:
+    """should reconstruct related_media after a model_dump / model_validate cycle"""
+    lh = LegHistory(
+        related_media=[
+            RelatedMedia(
+                title="Markup video",
+                url="https://www.youtube.com/watch?v=abc123",
+                kind="video",
+                relation="related",
+            )
+        ]
+    )
+    restored = LegHistory.model_validate(lh.model_dump(mode="json"))
+    assert restored.related_media == lh.related_media
 
 
 # ---------------------------------------------------------------------------

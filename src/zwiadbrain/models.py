@@ -144,6 +144,28 @@ class Statement(BaseModel):
     relation: Literal["on_bill", "related"] = "on_bill"
 
 
+class RelatedMedia(BaseModel):
+    """A Tier-2 media reference — a hearing/floor video or a reference page — listed
+    WITHOUT an attributed quote.
+
+    Tier-2 (D69): media is shown as a labeled link, so there is nothing to
+    misattribute.  It is grounded by URL-resolution plus an independent verifier
+    *identity* check only; it NEVER passes through the verbatim-quote gate that
+    Tier-1 :class:`Statement`s must clear.  ``url`` is required and http-validated
+    (the project's "no link, no render" rule, matching :class:`StatutesAtLarge`).
+    ``relation`` mirrors :class:`Statement`/:class:`Hearing` for parallelism; the
+    default is ``related`` because this is, by construction, *related* media.
+    """
+
+    title: Annotated[str, Field(min_length=1)]
+    url: _HttpUrlStr
+    kind: Literal["video", "page", "other"] = "other"
+    publisher: str | None = None
+    date: dt.date | None = None
+    relation: Literal["on_bill", "related"] = "related"
+    note: str | None = None
+
+
 class StatutesAtLarge(BaseModel):
     """Statutes-at-Large citation for an enacted public law.
 
@@ -176,6 +198,7 @@ class LegHistory(BaseModel):
     enactment: Enactment | None = None
     hearings: list[Hearing] = []
     statements: list[Statement] = []
+    related_media: list[RelatedMedia] = []  # Tier-2 media (videos/pages), no quote (D69, Phase B)
     narrative: str | None = None
 
 

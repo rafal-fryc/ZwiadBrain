@@ -22,6 +22,7 @@ from zwiadbrain.models import (
     FloorAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     TextVersion,
     Vote,
@@ -209,6 +210,33 @@ def _statements_block(statements: list[Statement]) -> str:
     return "\n".join(lines)
 
 
+_RELATED_MEDIA_LABELS: dict[str, str] = {"video": "Video", "page": "Page", "other": "Reference"}
+
+
+def _related_media_block(media: list[RelatedMedia]) -> str:
+    """Render Tier-2 related media (videos / reference pages) as a labeled link list.
+
+    Each item carries NO attributed quote (D69) — only a kind label, optional
+    publisher/date/note, and a link.  ``url`` is required by the model, so every
+    item links.
+    """
+    lines: list[str] = []
+    for m in media:
+        bits: list[str] = [f'**{_RELATED_MEDIA_LABELS[m.kind]}:** "{m.title}"']
+        meta: list[str] = []
+        if m.publisher:
+            meta.append(m.publisher)
+        if m.date:
+            meta.append(m.date.isoformat())
+        if meta:
+            bits.append(", ".join(meta))
+        if m.note:
+            bits.append(m.note)
+        bits.append(f"[link]({m.url})")
+        lines.append("- " + " — ".join(bits))
+    return "\n".join(lines)
+
+
 def _leg_history(history: LegHistory) -> str:
     parts: list[str] = []
     # 1. Legislative Journey (narrative)
@@ -262,6 +290,13 @@ def _leg_history(history: LegHistory) -> str:
             "_On this bill's subject matter — not necessarily about this specific bill._\n\n"
             + "\n\n".join(related_parts)
         )
+    # 11. Related Media — Tier-2 hearing/floor videos + reference pages, listed without an
+    # attributed quote (D69 Phase B). No verbatim-quote gate applies; grounded by URL +
+    # an independent verifier identity check. Its own section so the "not about this bill"
+    # caveat above is never wrongly applied to an on-bill video.
+    media_text = _related_media_block(history.related_media)
+    if media_text:
+        parts.append("### Related Media\n\n" + media_text)
     return "\n\n".join(parts)
 
 

@@ -56,14 +56,16 @@ parallel (separate `Task` calls in a single message): `crec`, `hearings`,
 - `spine.floor_consideration`, `spine.committee_reports`, `spine.enactment` — anchors
   (mainly for the `crec` and `signing` lanes)
 
-Each lane returns `{hearings, statements, narrative}` (every item tagged with a
-`relation` of `on_bill` or `related`; `narrative` is non-empty only from the
-`crec` lane and `""` from the others).
+Each lane returns `{hearings, statements, related_media, narrative}` (every item tagged
+with a `relation` of `on_bill` or `related`; `related_media` are Tier-2 videos / reference
+pages with NO quote; `narrative` is non-empty only from the `crec` lane and `""` from the
+others).
 
-When all four return, **MERGE** them: concatenate `hearings` and `statements`
-across lanes in a FIXED order (`crec`, `hearings`, `press`, `signing`), and take
-the `narrative` from the `crec` lane. This merged `statements` list defines the
-canonical index order used in step 4 — fix it now and do not reorder it.
+When all four return, **MERGE** them: concatenate `hearings`, `statements`, and
+`related_media` across lanes in a FIXED order (`crec`, `hearings`, `press`, `signing`), and
+take the `narrative` from the `crec` lane. The merged `statements` list AND the merged
+`related_media` list each define a canonical index order used in step 4 — fix them now and
+do not reorder either.
 
 Handle failure per lane: if a lane returns malformed JSON, retry it once, then
 drop just that lane and proceed with the others (note the dropped lane in the
@@ -72,9 +74,9 @@ verified quotes is still a valid legislative history.
 
 ### 4. Dispatch the verifier subagent
 
-Dispatch the **leg-history-verifier** subagent over the MERGED `statements` list.
-Provide a `subject` context block and one entry per statement, annotated with its
-0-based `index` in the merged list:
+Dispatch the **leg-history-verifier** subagent over the MERGED `statements` AND
+`related_media` lists. Provide a `subject` context block and one entry per statement and
+per media item, each annotated with its 0-based `index` in its merged list:
 
 ```python
 {
@@ -87,20 +89,28 @@ Provide a `subject` context block and one entry per statement, annotated with it
      "source_url": s["source_url"], "relation": s.get("relation", "on_bill")}
     for i, s in enumerate(statements)
   ],
+  "related_media": [
+    {"index": i, "title": m["title"], "url": m["url"],
+     "kind": m.get("kind", "other"), "relation": m.get("relation", "related")}
+    for i, m in enumerate(related_media)
+  ],
 }
 ```
 
-`index` MUST match the statement's position in the MERGED `statements` list — the
-grounding gate keys verdicts by index, so a mismatch silently applies a verdict to
-the wrong statement (misattribution, the project's worst failure). Do not reorder
-`statements` after this point.
+`index` MUST match the item's position in its MERGED list — the grounding gate keys verdicts
+by index, so a mismatch silently applies a verdict to the wrong item (misattribution, the
+project's worst failure). Do not reorder `statements` or `related_media` after this point.
 
-The verifier independently fetches each `source_url`, applies the verbatim +
-attribution + contiguity checks (and, for `related` items, the subject-relevance
-clamp), and returns one entry per statement:
+The verifier independently fetches each `source_url`/`url`, applies the verbatim +
+attribution + contiguity checks to statements (and, for `related` items, the
+subject-relevance clamp) and a Tier-2 identity check to media, and returns an object with
+two arrays:
 
 ```json
-[{"index": 0, "speaker": "...", "quote_prefix": "...", "on_subject": true, "verified": true, "note": "..."}, ...]
+{
+  "statements": [{"index": 0, "speaker": "...", "quote_prefix": "...", "on_subject": true, "verified": true, "note": "..."}, ...],
+  "related_media": [{"index": 0, "title_prefix": "...", "verified": true, "note": "..."}, ...]
+}
 ```
 
 ### 5. Assemble the render-input JSON
@@ -109,16 +119,19 @@ Combine the three sources into the render-input object:
 
 ```json
 {
-  "bill":       <bill from leghistory.json>,
-  "spine":      <spine from leghistory.json>,
-  "hearings":   <hearings from researcher>,
-  "statements": <statements from researcher>,
-  "narrative":  <narrative from researcher>,
-  "verdicts":   <array from verifier>
+  "bill":           <bill from leghistory.json>,
+  "spine":          <spine from leghistory.json>,
+  "hearings":       <merged hearings from researcher>,
+  "statements":     <merged statements from researcher>,
+  "related_media":  <merged related_media from researcher>,
+  "narrative":      <narrative from researcher>,
+  "verdicts":       <verifier "statements" array>,
+  "media_verdicts": <verifier "related_media" array>
 }
 ```
 
-`Write` this object to the same run directory as `leghistory-research.json`.
+`verdicts` is the verifier's `statements` array; `media_verdicts` is its `related_media`
+array. `Write` this object to the same run directory as `leghistory-research.json`.
 
 ### 6. Render and reindex (Python)
 
@@ -130,8 +143,10 @@ uv run zwiadbrain reindex
 ```
 
 `render-leg-history` parses the staging file, runs the deterministic grounding
-gate (URL resolution + quote-presence check + verifier verdict), and renders the
-wiki page. `reindex` rebuilds the FTS5 index.
+gate over statements (URL resolution + quote-presence check + verifier verdict) and
+over `related_media` (URL resolution + verifier identity verdict, no quote), and renders
+the wiki page. A video `source_url` is resolved to its caption text so the unchanged gate
+can verbatim-match a transcript quote. `reindex` rebuilds the FTS5 index.
 
 ### 7. Report
 
@@ -142,10 +157,12 @@ Summarize:
   enactment present/absent
 - Statements: input count / grounded count (from the render output line)
 - Hearings: input count / grounded count (from the render output line)
+- Related media: input count / grounded count (from the render output line)
 - Narrative: present/absent
 - The rendered page separates **On This Bill** (the bill's own record, under the
   normal sections) from **Related (Subject Matter)** items (sponsor/official
-  statements and hearings on the bill's topic) — note if any `related` items survived.
+  statements and hearings on the bill's topic) and a **Related Media** section (Tier-2
+  videos / reference pages) — note if any `related` items or media survived.
 - Note that any statement whose quote was not found at its source URL, whose
   verifier verdict was `false`, or (for a `related` item) that failed the
   subject-relevance clamp was dropped by the grounding gate — this is expected and

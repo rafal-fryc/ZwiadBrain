@@ -1,5 +1,5 @@
 # Phase 14 — Leg-History Source Breadth · Phase B (Related Media + video transcripts)
-Status: ACTIVE
+Status: DONE
 
 > Part of the Legislative-History Source-Breadth milestone (PHASE-13 Phase A is DONE).
 > Do not start without explicit user approval (one active phase at a time).
@@ -44,4 +44,4 @@ Add a Tier-2 `RelatedMedia` model so hearing videos / reference links persist as
 ## Gate status
 - Offline gate GREEN: pytest **699 passed**, ruff clean, `pyright --strict` 0 errors.
 - Invariant verified by `git diff`: `ground_items` + `_normalize_text` byte-for-byte unchanged (only `DroppedItem.kind` widened); the cli.py statement echo cross-check unchanged (only `fetch=_fetch_url` → `fetch=gate_fetch`).
-- **Remaining: live UAT on 118/hr/2670** (acceptance: ≥1 hearing video renders as Related Media). Interactive + network + multi-subagent — pending the operator's go-ahead.
+- **Live UAT on 118/hr/2670: WAIVED by operator (2026-06-02).** The acceptance criterion (≥1 hearing video renders as Related Media via the real pipeline) was NOT exercised this phase; the phase is closed on the offline gate at the operator's explicit direction to move to the next phase. Outstanding validation: the researcher actually emitting `related_media` and a live video rendering on the real page. Runbook when revisited: `/zwiad-leg-history 118/hr/2670`.

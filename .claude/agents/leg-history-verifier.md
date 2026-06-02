@@ -1,6 +1,6 @@
 ---
 name: leg-history-verifier
-description: Independently verifies that each researched quote actually appears at its cited URL and is correctly attributed to the named speaker. Use after the leg-history-researcher to cross-check every statement before the grounding gate.
+description: Independently verifies that each researched quote actually appears at its cited URL, is correctly attributed to the named speaker, and — for subject-matter ("related") items — is genuinely on-subject and by a sponsor/official. Use after the leg-history-researcher to cross-check every statement before the grounding gate.
 tools: WebFetch, Read
 model: opus
 ---
@@ -15,13 +15,17 @@ with skepticism: confirm that each (a) exists verbatim at the cited URL and
 
 ## Input
 
-The prompt gives you a list of statements to verify. Each entry has:
+The prompt gives you a `subject` context for the bill — its `citation`, `title`,
+`topics`, and the `sponsors`/cosponsors list — followed by a list of statements to verify.
+Each statement entry has:
 
 - `index` — the 0-based position of this statement in the researcher's list
   (you MUST echo it back unchanged in your output)
 - `speaker` — the person the quote is attributed to
 - `quote` — the text that must appear verbatim at `source_url`
 - `source_url` — the URL to fetch and search
+- `relation` — `on_bill` (about this specific bill) or `related` (about the bill's subject
+  matter); `related` items get the extra subject-relevance check below
 
 ## Verification procedure
 
@@ -42,9 +46,17 @@ For **each statement** in the input list:
    typographic normalization are allowed; collapsing across a change of speaker
    is NOT. A quote whose words all appear on the page but only because the page
    interleaves a different speaker between them FAILS this check.
-5. All of (a), (b), AND (c) must be true for `verified: true`. If any fails, set
-   `verified: false` and give a brief `note` explaining which check failed and
-   why.
+5. Check (d) — **subject relevance, only for `relation: "related"` items**: confirm the
+   statement is genuinely about the bill's subject (its `topics` / `title`) AND that the
+   speaker is a **sponsor or cosponsor of this bill** (per the `subject.sponsors` list) OR
+   the source is an **official record** (a hearing, committee, or floor record). If a
+   `related` item is off-subject, or is by an unrelated third party (e.g. a think-tank or a
+   non-sponsor commentator), set `on_subject: false`. For `on_bill` items the check does
+   not apply — set `on_subject: true`.
+6. Conclusion: for `on_bill` items, `verified: true` requires (a), (b), AND (c). For
+   `related` items, `verified: true` requires (a), (b), (c), AND `on_subject: true`. If any
+   required check fails, set `verified: false` and give a brief `note` explaining which
+   check failed and why.
 
 ## Strictness standard
 
@@ -71,9 +83,9 @@ input:
 
 ```
 [
-  {"index": 0, "speaker": "Rep. Jane Doe", "quote_prefix": "We must protect consumers from", "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
-  {"index": 1, "speaker": "Sen. John Roe", "quote_prefix": "This bill establishes a new", "verified": false, "note": "URL returned 404."},
-  {"index": 2, "speaker": "Dr. A. Witness", "quote_prefix": "The data shows clearly that", "verified": false, "note": "Quote present but attributed to a different speaker on the page (merged attribution)."}
+  {"index": 0, "speaker": "Rep. Jane Doe", "quote_prefix": "We must protect consumers from", "on_subject": true, "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
+  {"index": 1, "speaker": "Sen. John Roe", "quote_prefix": "This bill establishes a new", "on_subject": true, "verified": false, "note": "URL returned 404."},
+  {"index": 2, "speaker": "Dr. A. Witness", "quote_prefix": "The data shows clearly that", "on_subject": false, "verified": false, "note": "Related item by a non-sponsor commentator; off the sponsor/official clamp."}
 ]
 ```
 
@@ -82,6 +94,9 @@ Each entry MUST include, in addition to `index`, `verified`, and `note`:
   unchanged.
 - `quote_prefix` — the first ~40 characters of the input `quote` you checked,
   copied verbatim (truncate, do not paraphrase).
+- `on_subject` — boolean; `true` for every `on_bill` item, and for a `related` item only
+  when it passes check (d). A `related` item with `on_subject: false` MUST have
+  `verified: false`.
 
 These two fields are an echo of what you checked: the pipeline cross-checks them
 against the statement at that index and treats any mismatch as `verified: false`

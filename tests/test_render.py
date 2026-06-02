@@ -186,6 +186,96 @@ def _bill_with_full_leg_history() -> Bill:
     )
 
 
+def test_leg_history_related_statements_render_under_related_section() -> None:
+    """should place relation='related' statements under a 'Related (Subject Matter)' section"""
+    bill = Bill(
+        id="118-hr-2",
+        jurisdiction="US",
+        title="Split Bill",
+        bill_number="HR 2",
+        leg_history=LegHistory(
+            statements=[
+                Statement(
+                    speaker="Rep. OnBill",
+                    role="sponsor",
+                    quote="This specific bill will protect consumers nationwide.",
+                    source_url="https://congress.gov/crec/on-bill",
+                    source_type="CREC",
+                    verified=True,
+                    relation="on_bill",
+                ),
+                Statement(
+                    speaker="Rep. Subject",
+                    role="sponsor",
+                    quote="I have championed this subject matter for many years now.",
+                    source_url="https://example.gov/press/subject",
+                    source_type="press",
+                    verified=True,
+                    relation="related",
+                ),
+            ],
+        ),
+    )
+    body = render_bill_body(bill)
+    assert "### Statements" in body
+    assert "### Related (Subject Matter)" in body
+    idx_statements = body.index("### Statements")
+    idx_related = body.index("### Related (Subject Matter)")
+    assert idx_statements < idx_related
+    assert "](https://example.gov/press/subject)" in body
+    assert body.index("Rep. OnBill") < idx_related
+    assert body.index("Rep. Subject") > idx_related
+
+
+def test_leg_history_omits_related_section_when_all_on_bill() -> None:
+    """should not emit a 'Related (Subject Matter)' section when no related items exist"""
+    bill = Bill(
+        id="118-hr-3",
+        jurisdiction="US",
+        title="On-bill only",
+        bill_number="HR 3",
+        leg_history=LegHistory(
+            statements=[
+                Statement(
+                    speaker="Rep. OnBill",
+                    role="sponsor",
+                    quote="This specific bill will protect consumers nationwide.",
+                    source_url="https://congress.gov/crec/on-bill",
+                    source_type="CREC",
+                    verified=True,
+                ),
+            ],
+        ),
+    )
+    body = render_bill_body(bill)
+    assert "### Statements" in body
+    assert "Related (Subject Matter)" not in body
+
+
+def test_leg_history_related_hearing_renders_under_related_section() -> None:
+    """should place a relation='related' hearing under Related, omitting an empty '### Hearings'"""
+    bill = Bill(
+        id="118-hr-4",
+        jurisdiction="US",
+        title="Hearing split",
+        bill_number="HR 4",
+        leg_history=LegHistory(
+            hearings=[
+                Hearing(
+                    title="Subject-matter hearing on AI",
+                    committee="House Science",
+                    url="https://youtube.com/watch?v=abc",
+                    relation="related",
+                ),
+            ],
+        ),
+    )
+    body = render_bill_body(bill)
+    assert "### Related (Subject Matter)" in body
+    assert "](https://youtube.com/watch?v=abc)" in body
+    assert "### Hearings" not in body
+
+
 def test_leg_history_all_subsections_render_links() -> None:
     """should render a Markdown link for each verifiable subsection item"""
     bill = _bill_with_full_leg_history()

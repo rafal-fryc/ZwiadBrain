@@ -261,6 +261,70 @@ def test_statement_requires_source_url() -> None:
         )
 
 
+def test_statement_accepts_signing_source_type() -> None:
+    """should accept 'signing' as a valid source_type (executive signing statements)"""
+    s = Statement(
+        speaker="President",
+        role="other",
+        quote="Today I am signing this important bill into law.",
+        source_url="https://www.whitehouse.gov/signing-statement",
+        source_type="signing",
+    )
+    assert s.source_type == "signing"
+
+
+def test_statement_defaults_relation_on_bill() -> None:
+    """should default relation to 'on_bill' when not supplied"""
+    s = Statement(
+        speaker="Rep. John Smith",
+        role="member",
+        quote="I support this measure wholeheartedly.",
+        source_url="https://example.gov/press",
+        source_type="press",
+    )
+    assert s.relation == "on_bill"
+
+
+def test_statement_accepts_related_relation() -> None:
+    """should accept relation='related' for subject-matter statements"""
+    s = Statement(
+        speaker="Rep. John Smith",
+        role="sponsor",
+        quote="Artificial intelligence safety has been my priority for years.",
+        source_url="https://example.gov/press/ai",
+        source_type="press",
+        relation="related",
+    )
+    assert s.relation == "related"
+
+
+def test_statement_invalid_relation_raises_validation_error() -> None:
+    """should reject an unrecognised relation value"""
+    with pytest.raises(ValidationError):
+        Statement.model_validate(
+            {
+                "speaker": "Rep. X",
+                "role": "member",
+                "quote": "This is a good and necessary bill for consumers.",
+                "source_url": "https://example.gov",
+                "source_type": "press",
+                "relation": "tangential",
+            }
+        )
+
+
+def test_hearing_defaults_relation_on_bill() -> None:
+    """should default a Hearing's relation to 'on_bill'"""
+    h = Hearing(title="Oversight Hearing")
+    assert h.relation == "on_bill"
+
+
+def test_hearing_accepts_related_relation() -> None:
+    """should accept relation='related' for subject-matter hearings"""
+    h = Hearing(title="AI Safety Hearing", relation="related")
+    assert h.relation == "related"
+
+
 # ---------------------------------------------------------------------------
 # LegHistory extensions
 # ---------------------------------------------------------------------------

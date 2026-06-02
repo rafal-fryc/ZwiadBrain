@@ -224,8 +224,8 @@ def _leg_history(history: LegHistory) -> str:
             for r in history.committee_reports
         )
         parts.append("### Committee Reports\n\n" + reports)
-    # 4. Hearings
-    hearings_text = _hearings_block(history.hearings)
+    # 4. Hearings (on this bill only; subject-matter hearings go under "Related")
+    hearings_text = _hearings_block([h for h in history.hearings if h.relation == "on_bill"])
     if hearings_text:
         parts.append("### Hearings\n\n" + hearings_text)
     # 5. Floor Consideration
@@ -244,10 +244,24 @@ def _leg_history(history: LegHistory) -> str:
         enactment_text = _enactment_block(history.enactment)
         if enactment_text:
             parts.append("### Enactment\n\n" + enactment_text)
-    # 9. Statements
-    statements_text = _statements_block(history.statements)
+    # 9. Statements (on this bill only; subject-matter statements go under "Related")
+    statements_text = _statements_block([s for s in history.statements if s.relation == "on_bill"])
     if statements_text:
         parts.append("### Statements\n\n" + statements_text)
+    # 10. Related (Subject Matter) — sponsor/official statements + hearings tied to the
+    # bill's topic but not necessarily this specific bill (D69/D70), labeled so a reader
+    # is never misled into reading them as statements about this bill.
+    related_hearings = _hearings_block([h for h in history.hearings if h.relation == "related"])
+    related_statements = _statements_block(
+        [s for s in history.statements if s.relation == "related"]
+    )
+    related_parts = [block for block in (related_hearings, related_statements) if block]
+    if related_parts:
+        parts.append(
+            "### Related (Subject Matter)\n\n"
+            "_On this bill's subject matter — not necessarily about this specific bill._\n\n"
+            + "\n\n".join(related_parts)
+        )
     return "\n\n".join(parts)
 
 

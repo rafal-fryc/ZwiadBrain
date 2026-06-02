@@ -123,6 +123,9 @@ class Hearing(BaseModel):
     date: dt.date | None = None
     citation: str | None = None
     url: str | None = None
+    # "on_bill" = a hearing on this specific bill; "related" = a subject-matter
+    # hearing (incl. video) tied to the bill's topic but not necessarily this bill (D69).
+    relation: Literal["on_bill", "related"] = "on_bill"
 
 
 class Statement(BaseModel):
@@ -134,8 +137,11 @@ class Statement(BaseModel):
     quote: Annotated[str, Field(min_length=20)]  # D36 grounding floor (_MIN_QUOTE_CHARS)
     context: str | None = None
     source_url: _HttpUrlStr
-    source_type: Literal["CREC", "hearing", "press", "news", "other"]
+    source_type: Literal["CREC", "hearing", "press", "news", "signing", "other"]
     verified: bool = False
+    # "on_bill" = a statement about this specific bill; "related" = a sponsor/official
+    # statement on the bill's subject matter, under the D70 relevance clamp (D69).
+    relation: Literal["on_bill", "related"] = "on_bill"
 
 
 class StatutesAtLarge(BaseModel):

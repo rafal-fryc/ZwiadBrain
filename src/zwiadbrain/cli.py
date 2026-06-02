@@ -298,6 +298,40 @@ def fetch_state_candidates(
     typer.echo(f"fetched {len(bills)} {state} candidate(s) to {path}")
 
 
+@app.command(name="fetch-bill")
+def fetch_bill(
+    bill: Annotated[
+        str,
+        typer.Option(help="Bill ref: '118/hr/2670' (federal) or a LegiScan bill_id with --state."),
+    ],
+    state: Annotated[
+        str | None,
+        typer.Option(help="Two-letter state for LegiScan, e.g. ca. Omit for a federal bill."),
+    ] = None,
+    out: Annotated[Path | None, typer.Option(help="Run directory for classified.json.")] = None,
+) -> None:
+    """Fetch one bill by id into a one-item ``classified.json`` for ``extract-text``.
+
+    Re-derives a fully-enriched ``Bill`` from its source — LegiScan when ``--state``
+    is given, else Congress.gov — and stages it as the single-item JSON list that
+    ``extract-text`` consumes, so an already-committed wiki page can have its
+    official text downloaded and converted.
+    """
+    try:
+        settings = load_settings()
+        source: LegiScanSource | CongressSource = (
+            LegiScanSource(settings.require_legiscan_api_key(), state)
+            if state
+            else CongressSource(settings.require_congress_api_key())
+        )
+        fetched = source.fetch(bill)
+        path = stage_json([fetched.model_dump(mode="json")], name="classified.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"fetched {fetched.id} to {path}")
+
+
 @app.command(name="fetch-state-refreshable")
 def fetch_state_refreshable(
     wiki: Annotated[Path, typer.Option(help="Wiki root to scan for tracked state bills.")] = Path(

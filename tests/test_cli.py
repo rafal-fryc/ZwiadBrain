@@ -1329,6 +1329,45 @@ def test_fetch_state_candidates_stages_enriched_bills(
     assert staged[0]["id"] == "ca-2023-sb-362"
 
 
+def test_fetch_bill_stages_federal_bill_when_no_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should fetch one federal bill from Congress.gov into a one-item classified.json"""
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        _route_backfill(mock)
+        result = runner.invoke(app, ["fetch-bill", "--bill", "118/hr/8818", "--out", str(out)])
+    assert result.exit_code == 0, result.output
+    staged = json.loads((out / "classified.json").read_text(encoding="utf-8"))
+    assert len(staged) == 1
+    assert Bill.model_validate(staged[0]).id == "118-hr-8818"
+
+
+def test_fetch_bill_stages_state_bill_when_state_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should fetch one state bill via LegiScan when --state is given"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    fix = Path(__file__).parent / "fixtures" / "legiscan"
+    bill = json.loads((fix / "getBill.json").read_text(encoding="utf-8"))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        op = request.url.params.get("op", "")
+        return httpx.Response(200, json={"getBill": bill}[op])
+
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(url=LEGISCAN_API_BASE).mock(side_effect=handler)
+        result = runner.invoke(
+            app, ["fetch-bill", "--bill", "1904800", "--state", "ca", "--out", str(out)]
+        )
+    assert result.exit_code == 0, result.output
+    staged = json.loads((out / "classified.json").read_text(encoding="utf-8"))
+    assert len(staged) == 1
+    assert Bill.model_validate(staged[0]).id == "ca-2023-sb-362"
+
+
 def test_reindex_skips_corrupt_page_and_indexes_the_rest(tmp_path: Path) -> None:
     """should index the valid page and skip a page whose frontmatter YAML is malformed"""
     wiki = tmp_path / "wiki"

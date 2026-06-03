@@ -22,11 +22,12 @@ Two entry points:
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
 from bs4 import BeautifulSoup, Comment
+from pydantic import ValidationError
 
 from zwiadbrain.models import (
     Bill,
@@ -424,6 +425,167 @@ def ground_related(
     return RelatedGroundingResult(
         media=tuple(kept_media),
         dropped=tuple(dropped),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Lane merge (PHASE-15 / D74) — shared by build-verifier-input + assemble-leg-history-input
+# ---------------------------------------------------------------------------
+
+# Canonical fan-out lane order.  The merged statement / hearing / media order is fixed by
+# THIS tuple, never by the caller's dict order, so the verifier (dispatched over the
+# build-verifier-input merge) and the assembler (which re-merges) agree on every index.
+LANE_ORDER: tuple[str, ...] = ("crec", "hearings", "press", "signing")
+
+
+@dataclass(frozen=True)
+class MergedResearch:
+    """Deterministic merge of the four researcher lane outputs (PHASE-15 / D74).
+
+    Produced by :func:`merge_lanes` and consumed by BOTH the ``build-verifier-input`` and
+    ``assemble-leg-history-input`` CLI steps.  The merge is pure and deterministic, so
+    calling it on the same lane inputs on either side of the verifier yields byte-identical
+    statement / media order — the verifier's echoed indices therefore align with the
+    assembler's positions by construction, not by hand.
+
+    Tuples (not lists) for the same trust-boundary immutability reason
+    :class:`GroundingResult` uses them.
+    """
+
+    statements: tuple[Statement, ...] = field(default_factory=tuple)
+    hearings: tuple[Hearing, ...] = field(default_factory=tuple)
+    related_media: tuple[RelatedMedia, ...] = field(default_factory=tuple)
+    narrative: str | None = None
+    dropped_lanes: tuple[str, ...] = field(default_factory=tuple)
+    parse_dropped: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+
+
+def _lane_items(payload: dict[str, object], key: str) -> list[object] | None:
+    """Return the list at *key* in a lane payload, or ``None`` if the field is malformed.
+
+    A missing or ``null`` field becomes an empty list (a lane legitimately produces nothing
+    in a category).  A present-but-non-list field means the lane's JSON is structurally
+    broken at the top level; returning ``None`` signals the caller to drop the whole lane.
+    """
+    value = payload.get(key)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        return None
+    items: list[object] = list(value)  # pyright: ignore[reportUnknownArgumentType]
+    return items
+
+
+def merge_lanes(lanes: Mapping[str, object | None]) -> MergedResearch:
+    """Merge the four researcher lane payloads into one deterministic research set.
+
+    *lanes* maps a lane name (``crec`` / ``hearings`` / ``press`` / ``signing``) to that
+    lane's loaded JSON object, or ``None`` when the lane file was missing / unreadable.
+    Lanes are processed in :data:`LANE_ORDER` (NOT input dict order), so the merged
+    statement / media order is stable regardless of how the caller built the mapping.
+
+    Merge rules:
+
+    * **statements** — concatenated across lanes; deduped by ``(speaker, quote)`` (first
+      occurrence wins).
+    * **hearings** — concatenated; deduped by ``url`` (first wins).  Url-less hearings are
+      NEVER deduped against each other (a missing url is not an identity) — they are kept and
+      left for the render gate to drop with a per-item audit line.
+    * **related_media** — concatenated; deduped by ``url`` (first wins; ``url`` is required
+      by the model).
+    * **narrative** — taken ONLY from the ``crec`` lane (the sole lane that writes one);
+      ``None`` when that lane is absent or its narrative is blank.
+
+    Failure handling:
+
+    * A lane whose payload is ``None`` or not a JSON object, or whose ``statements`` /
+      ``hearings`` / ``related_media`` field is present-but-not-a-list (or whose
+      ``narrative`` is present-but-not-a-string), is dropped whole and recorded in
+      ``dropped_lanes`` (mirrors the orchestrator's "drop just that lane" rule).
+    * An individual item that fails model validation is parse-dropped (recorded in
+      ``parse_dropped`` as ``(identifier, reason)``) without dropping the rest of its lane,
+      mirroring render-leg-history's per-item parse-drop.
+
+    No I/O and no LLM calls: pure deterministic plumbing.
+    """
+    statements: list[Statement] = []
+    hearings: list[Hearing] = []
+    related_media: list[RelatedMedia] = []
+    dropped_lanes: list[str] = []
+    parse_dropped: list[tuple[str, str]] = []
+
+    seen_statements: set[tuple[str, str]] = set()
+    seen_hearing_urls: set[str] = set()
+    seen_media_urls: set[str] = set()
+
+    narrative: str | None = None
+
+    for lane in LANE_ORDER:
+        payload = lanes.get(lane)
+        if not isinstance(payload, dict):
+            # None (unreadable file) or a non-object top level -> drop the whole lane.
+            dropped_lanes.append(lane)
+            continue
+        lane_payload: dict[str, object] = payload  # pyright: ignore[reportUnknownVariableType]
+
+        stmt_items = _lane_items(lane_payload, "statements")
+        hearing_items = _lane_items(lane_payload, "hearings")
+        media_items = _lane_items(lane_payload, "related_media")
+        narrative_raw = lane_payload.get("narrative")
+        if (
+            stmt_items is None
+            or hearing_items is None
+            or media_items is None
+            or (narrative_raw is not None and not isinstance(narrative_raw, str))
+        ):
+            dropped_lanes.append(lane)
+            continue
+
+        for i, item in enumerate(stmt_items):
+            try:
+                stmt = Statement.model_validate(item)
+            except ValidationError as exc:
+                parse_dropped.append((f"{lane} statement[{i}]", str(exc)))
+                continue
+            key = (stmt.speaker, stmt.quote)
+            if key in seen_statements:
+                continue
+            seen_statements.add(key)
+            statements.append(stmt)
+
+        for i, item in enumerate(hearing_items):
+            try:
+                hearing = Hearing.model_validate(item)
+            except ValidationError as exc:
+                parse_dropped.append((f"{lane} hearing[{i}]", str(exc)))
+                continue
+            if hearing.url:
+                if hearing.url in seen_hearing_urls:
+                    continue
+                seen_hearing_urls.add(hearing.url)
+            hearings.append(hearing)
+
+        for i, item in enumerate(media_items):
+            try:
+                media = RelatedMedia.model_validate(item)
+            except ValidationError as exc:
+                parse_dropped.append((f"{lane} related_media[{i}]", str(exc)))
+                continue
+            if media.url in seen_media_urls:
+                continue
+            seen_media_urls.add(media.url)
+            related_media.append(media)
+
+        if lane == "crec" and isinstance(narrative_raw, str) and narrative_raw.strip():
+            narrative = narrative_raw
+
+    return MergedResearch(
+        statements=tuple(statements),
+        hearings=tuple(hearings),
+        related_media=tuple(related_media),
+        narrative=narrative,
+        dropped_lanes=tuple(dropped_lanes),
+        parse_dropped=tuple(parse_dropped),
     )
 
 

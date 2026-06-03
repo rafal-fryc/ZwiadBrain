@@ -67,10 +67,12 @@ from zwiadbrain.pipeline.lawbrain_review import (
     render_review_queue,
 )
 from zwiadbrain.pipeline.leg_history import (
+    LANE_ORDER,
     assemble_spine,
     collect_leads,
     ground_items,
     ground_related,
+    merge_lanes,
 )
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
@@ -1403,6 +1405,316 @@ def _fetch_url(url: str) -> tuple[int, str]:
         return (resp.status_code, resp.text)
     except (httpx.HTTPError, httpx.InvalidURL):
         return (0, "")
+
+
+def _load_leghistory(run_dir: Path) -> dict[str, object]:
+    """Read ``<run_dir>/leghistory.json`` (bill + spine + leads) or raise ConfigError.
+
+    Required by both PHASE-15 steps: it carries the ``bill`` (for the verifier subject and
+    the render-input) and the ``spine`` (for the render-input).
+    """
+    path = run_dir / "leghistory.json"
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError(f"could not read {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path} must be a JSON object, got {type(raw).__name__}")
+    payload: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+    return payload
+
+
+def _load_lane_payloads(run_dir: Path) -> dict[str, object | None]:
+    """Load ``lane-<name>.json`` for each lane; ``None`` when missing or invalid JSON.
+
+    A ``None`` lane is treated by :func:`merge_lanes` as a dropped lane — mirroring the
+    orchestrator's "retry once, then drop just that lane" rule.  Both PHASE-15 steps load the
+    lanes the same way so the two merges see identical inputs.
+    """
+    lanes: dict[str, object | None] = {}
+    for lane in LANE_ORDER:
+        path = run_dir / f"lane-{lane}.json"
+        try:
+            lanes[lane] = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            lanes[lane] = None
+    return lanes
+
+
+@app.command(name="build-verifier-input")
+def build_verifier_input(
+    run_dir: Annotated[
+        Path, typer.Option("--run-dir", help="Run dir with leghistory.json + lane-*.json.")
+    ],
+) -> None:
+    """Merge the researcher lanes and stage the verifier input (PHASE-15 step 1 / D74).
+
+    Reads ``leghistory.json`` (for the bill) and the four ``lane-<name>.json`` files, runs the
+    deterministic :func:`merge_lanes`, and writes ``verifier-input.json`` — a ``subject`` block
+    plus index-stamped ``statements`` / ``related_media``.  The interactive session dispatches
+    the leg-history-verifier over that file, then runs ``assemble-leg-history-input``.  Pure
+    deterministic plumbing: NO LLM calls.
+    """
+    try:
+        leghistory = _load_leghistory(run_dir)
+        if "bill" not in leghistory:
+            raise ConfigError("leghistory.json is missing required key 'bill'")
+        bill = validate_model(Bill, leghistory["bill"], label="bill")
+
+        merged = merge_lanes(_load_lane_payloads(run_dir))
+
+        verifier_input = {
+            "subject": {
+                "citation": bill.bill_number,
+                "title": bill.title,
+                "topics": bill.topics,
+                "sponsors": bill.sponsors,
+            },
+            "statements": [
+                {
+                    "index": i,
+                    "speaker": s.speaker,
+                    "quote": s.quote,
+                    "source_url": s.source_url,
+                    "relation": s.relation,
+                }
+                for i, s in enumerate(merged.statements)
+            ],
+            "related_media": [
+                {
+                    "index": i,
+                    "title": m.title,
+                    "url": m.url,
+                    "kind": m.kind,
+                    "relation": m.relation,
+                }
+                for i, m in enumerate(merged.related_media)
+            ],
+        }
+        path = stage_json(verifier_input, name="verifier-input.json", out=run_dir)
+
+        typer.echo(
+            f"verifier-input: {len(merged.statements)} statement(s),"
+            f" {len(merged.related_media)} media,"
+            f" {len(merged.dropped_lanes)} lane(s) dropped -> {path}"
+        )
+        for lane in merged.dropped_lanes:
+            typer.echo(f"  dropped lane: {lane}")
+        for ident, reason in merged.parse_dropped:
+            typer.echo(f"  parse-drop: {ident} — {reason}")
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
+def _load_run_json_object(path: Path) -> dict[str, object]:
+    """Read a required run-dir JSON object (e.g. verifier.json) or raise ConfigError."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError(f"could not read {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path} must be a JSON object, got {type(raw).__name__}")
+    payload: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+    return payload
+
+
+def _verdicts_by_index(
+    raw_verdicts: object, *, label: str
+) -> tuple[dict[int, dict[str, object]], list[tuple[str, str]]]:
+    """Index verifier verdict entries by their self-reported ``index``.
+
+    Skips (with an audit note) any entry that is not an object or whose ``index`` is not an
+    integer — an unparseable verdict cannot confirm anything, so the item it would have
+    scored falls through to verified:false (fail-closed) rather than aborting the assemble.
+    """
+    by_index: dict[int, dict[str, object]] = {}
+    audit: list[tuple[str, str]] = []
+    for v in _as_list(raw_verdicts, label):
+        if not isinstance(v, dict):
+            audit.append((label, "verdict entry is not an object"))
+            continue
+        entry: dict[str, object] = v  # pyright: ignore[reportUnknownVariableType]
+        idx = entry.get("index")
+        if not isinstance(idx, int):
+            audit.append((label, f"verdict 'index' is not an integer: {idx!r}"))
+            continue
+        by_index[idx] = entry
+    return by_index, audit
+
+
+def _str_field(entry: dict[str, object], key: str) -> str:
+    """Return entry[key] when it is a string, else ``""`` (verdict echoes are optional)."""
+    value = entry.get(key)
+    return value if isinstance(value, str) else ""
+
+
+def _attach_statement_verdicts(
+    statements: tuple[Statement, ...], raw_verdicts: object
+) -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
+    """Build the render-input ``verdicts`` array — one per merged statement, echo-validated.
+
+    Each emitted verdict is keyed by the statement's MERGED index.  The verifier echo
+    (speaker + quote_prefix) is cross-checked against the merged statement; a verified verdict
+    whose echo does not match is downgraded to verified:false (fail-closed) — the same
+    discipline render-leg-history enforces (kept here as defense in depth, D74).  A merged
+    statement with no verdict gets an explicit verified:false entry.
+    """
+    by_index, audit = _verdicts_by_index(raw_verdicts, label="verifier statements")
+    out: list[dict[str, object]] = []
+    for i, stmt in enumerate(statements):
+        entry = by_index.get(i)
+        if entry is None:
+            audit.append((f"statement[{i}] {stmt.speaker}", "no verifier verdict"))
+            out.append(
+                {
+                    "index": i,
+                    "speaker": "",
+                    "quote_prefix": "",
+                    "verified": False,
+                    "note": "no verifier verdict for this statement",
+                }
+            )
+            continue
+        echo_speaker = _str_field(entry, "speaker")
+        echo_prefix = _str_field(entry, "quote_prefix")
+        verified = bool(entry.get("verified"))
+        if verified:
+            speaker_ok = echo_speaker == stmt.speaker
+            prefix_ok = bool(echo_prefix) and stmt.quote.startswith(echo_prefix)
+            if not (speaker_ok and prefix_ok):
+                verified = False
+                audit.append(
+                    (
+                        f"statement[{i}] {stmt.speaker}",
+                        "verifier echo mismatch (downgraded to false)",
+                    )
+                )
+        out.append(
+            {
+                "index": i,
+                "speaker": echo_speaker,
+                "quote_prefix": echo_prefix,
+                "verified": verified,
+                "note": _str_field(entry, "note"),
+            }
+        )
+    for idx in by_index:
+        if idx >= len(statements):
+            audit.append(
+                ("verifier statements", f"orphan verdict index {idx} (no such merged statement)")
+            )
+    return out, audit
+
+
+def _attach_media_verdicts(
+    related_media: tuple[RelatedMedia, ...], raw_verdicts: object
+) -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
+    """Build the render-input ``media_verdicts`` array — one per merged media item, echo-validated.
+
+    Mirrors :func:`_attach_statement_verdicts` with the Tier-2 ``title_prefix`` echo: a verified
+    verdict whose echoed title does not prefix the merged media title is downgraded fail-closed.
+    """
+    by_index, audit = _verdicts_by_index(raw_verdicts, label="verifier related_media")
+    out: list[dict[str, object]] = []
+    for i, media in enumerate(related_media):
+        entry = by_index.get(i)
+        if entry is None:
+            audit.append((f"related_media[{i}] {media.title}", "no verifier verdict"))
+            out.append(
+                {
+                    "index": i,
+                    "title_prefix": "",
+                    "verified": False,
+                    "note": "no verifier verdict for this media",
+                }
+            )
+            continue
+        echo_title = _str_field(entry, "title_prefix")
+        verified = bool(entry.get("verified"))
+        if verified and not (echo_title and media.title.startswith(echo_title)):
+            verified = False
+            audit.append(
+                (
+                    f"related_media[{i}] {media.title}",
+                    "verifier echo mismatch (downgraded to false)",
+                )
+            )
+        out.append(
+            {
+                "index": i,
+                "title_prefix": echo_title,
+                "verified": verified,
+                "note": _str_field(entry, "note"),
+            }
+        )
+    for idx in by_index:
+        if idx >= len(related_media):
+            audit.append(
+                ("verifier related_media", f"orphan verdict index {idx} (no such merged media)")
+            )
+    return out, audit
+
+
+@app.command(name="assemble-leg-history-input")
+def assemble_leg_history_input(
+    run_dir: Annotated[
+        Path,
+        typer.Option("--run-dir", help="Run dir with leghistory.json, lane-*.json, verifier.json."),
+    ],
+) -> None:
+    """Attach verifier verdicts to the merged research; stage the render input (PHASE-15 / D74).
+
+    Re-runs the deterministic :func:`merge_lanes` (byte-identical to ``build-verifier-input``'s,
+    so verdict indices align by construction), attaches each verifier verdict to its merged
+    statement / media by index with the echo cross-check applied fail-closed, and writes
+    ``leghistory-research.json`` — the staging file ``render-leg-history`` already consumes.
+    Pure deterministic plumbing: NO LLM calls.
+    """
+    try:
+        leghistory = _load_leghistory(run_dir)
+        for key in ("bill", "spine"):
+            if key not in leghistory:
+                raise ConfigError(f"leghistory.json is missing required key '{key}'")
+
+        merged = merge_lanes(_load_lane_payloads(run_dir))
+        verifier = _load_run_json_object(run_dir / "verifier.json")
+
+        verdicts, stmt_audit = _attach_statement_verdicts(
+            merged.statements, verifier.get("statements")
+        )
+        media_verdicts, media_audit = _attach_media_verdicts(
+            merged.related_media, verifier.get("related_media")
+        )
+
+        render_input = {
+            "bill": leghistory["bill"],
+            "spine": leghistory["spine"],
+            "hearings": [h.model_dump(mode="json") for h in merged.hearings],
+            "statements": [s.model_dump(mode="json") for s in merged.statements],
+            "related_media": [m.model_dump(mode="json") for m in merged.related_media],
+            "narrative": merged.narrative,
+            "verdicts": verdicts,
+            "media_verdicts": media_verdicts,
+        }
+        path = stage_json(render_input, name="leghistory-research.json", out=run_dir)
+
+        verified_stmts = sum(1 for v in verdicts if v["verified"] is True)
+        verified_media = sum(1 for v in media_verdicts if v["verified"] is True)
+        typer.echo(
+            f"render-input: {len(merged.statements)} statement(s)"
+            f" ({verified_stmts} verifier-confirmed),"
+            f" {len(merged.hearings)} hearing(s),"
+            f" {len(merged.related_media)} media ({verified_media} confirmed),"
+            f" narrative={'yes' if merged.narrative else 'no'} -> {path}"
+        )
+        for lane in merged.dropped_lanes:
+            typer.echo(f"  dropped lane: {lane}")
+        for ident, reason in (*merged.parse_dropped, *stmt_audit, *media_audit):
+            typer.echo(f"  note: {ident} — {reason}")
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @app.command(name="render-leg-history")

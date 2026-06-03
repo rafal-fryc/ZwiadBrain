@@ -212,11 +212,26 @@ def test_leg_history_command_references_both_subagents() -> None:
     assert "render-leg-history" in body
 
 
-def test_leg_history_command_wires_related_media() -> None:
-    """should wire the Tier-2 related_media + media_verdicts keys into the render-input JSON"""
+def test_leg_history_command_wires_the_two_step_assembler() -> None:
+    """should wire the PHASE-15/D74 deterministic two-step flow (no hand-built index arrays).
+
+    The Tier-2 related-media path still flows through the orchestrator, but via the
+    deterministic assembler — lane files -> build-verifier-input -> verifier.json ->
+    assemble-leg-history-input -> render — not a hand-merged/hand-indexed render-input.
+    The media_verdicts/verdicts keys are now produced by assemble-leg-history-input and are
+    contract-tested in tests/test_assemble_leg_history.py.
+    """
     body = _LEG_COMMAND.read_text(encoding="utf-8")
     assert "related_media" in body
-    assert "media_verdicts" in body
+    for token in (
+        "lane-",
+        "build-verifier-input",
+        "verifier-input.json",
+        "verifier.json",
+        "assemble-leg-history-input",
+        "leghistory-research.json",
+    ):
+        assert token in body, f"command must wire '{token}'"
 
 
 # ---------------------------------------------------------------------------

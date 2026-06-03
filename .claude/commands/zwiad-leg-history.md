@@ -61,47 +61,39 @@ with a `relation` of `on_bill` or `related`; `related_media` are Tier-2 videos /
 pages with NO quote; `narrative` is non-empty only from the `crec` lane and `""` from the
 others).
 
-When all four return, **MERGE** them: concatenate `hearings`, `statements`, and
-`related_media` across lanes in a FIXED order (`crec`, `hearings`, `press`, `signing`), and
-take the `narrative` from the `crec` lane. The merged `statements` list AND the merged
-`related_media` list each define a canonical index order used in step 4 — fix them now and
-do not reorder either.
+**Write each lane's raw JSON, exactly as returned, to the run directory** as
+`<run dir>/lane-<lane>.json` — `lane-crec.json`, `lane-hearings.json`, `lane-press.json`,
+`lane-signing.json`. Do **not** merge, reorder, dedup, or re-index anything by hand: the
+deterministic assembler (step 4) owns the merge and the index, which is exactly what removes
+the old misattribution footgun (D74).
 
-Handle failure per lane: if a lane returns malformed JSON, retry it once, then
-drop just that lane and proceed with the others (note the dropped lane in the
-report). Empty `statements`/`hearings` from a lane is fine — a bill with no
-verified quotes is still a valid legislative history.
+Handle failure per lane: if a lane returns malformed JSON, retry it once; if it still fails,
+simply do not write that lane's file. The assembler treats a missing `lane-<lane>.json` as a
+dropped lane and proceeds with the others (it prints the drop). Empty `statements` /
+`hearings` from a lane is fine — a bill with no verified quotes is still a valid legislative
+history.
 
-### 4. Dispatch the verifier subagent
+### 4. Build the verifier input (Python)
 
-Dispatch the **leg-history-verifier** subagent over the MERGED `statements` AND
-`related_media` lists. Provide a `subject` context block and one entry per statement and
-per media item, each annotated with its 0-based `index` in its merged list:
+Run:
 
-```python
-{
-  "subject": {
-    "citation": leads["citation"], "title": leads["title"],
-    "topics": bill["topics"], "sponsors": leads["sponsors"],
-  },
-  "statements": [
-    {"index": i, "speaker": s["speaker"], "quote": s["quote"],
-     "source_url": s["source_url"], "relation": s.get("relation", "on_bill")}
-    for i, s in enumerate(statements)
-  ],
-  "related_media": [
-    {"index": i, "title": m["title"], "url": m["url"],
-     "kind": m.get("kind", "other"), "relation": m.get("relation", "related")}
-    for i, m in enumerate(related_media)
-  ],
-}
+```
+uv run zwiadbrain build-verifier-input --run-dir <run dir>
 ```
 
-`index` MUST match the item's position in its MERGED list — the grounding gate keys verdicts
-by index, so a mismatch silently applies a verdict to the wrong item (misattribution, the
-project's worst failure). Do not reorder `statements` or `related_media` after this point.
+This runs the deterministic merge (`merge_lanes`): concatenate the lanes in the FIXED order
+`crec, hearings, press, signing`, dedup statements by `(speaker, quote)` and hearings/media
+by `url`, take the `narrative` from the `crec` lane, and write `<run dir>/verifier-input.json`
+— a `subject` block plus `statements` and `related_media` arrays, **each entry stamped with
+its 0-based merged `index`**. Python assigns every index; you never hand-build the index
+array. No LLM calls happen in this step.
 
-The verifier independently fetches each `source_url`/`url`, applies the verbatim +
+### 5. Dispatch the verifier subagent
+
+`Read` `<run dir>/verifier-input.json` and dispatch the **leg-history-verifier** subagent
+over it. Pass the `subject` block, the `statements` array, and the `related_media` array
+exactly as written — each entry already carries its `index`; do not re-number or reorder
+them. The verifier independently fetches each `source_url` / `url`, applies the verbatim +
 attribution + contiguity checks to statements (and, for `related` items, the
 subject-relevance clamp) and a Tier-2 identity check to media, and returns an object with
 two arrays:
@@ -113,27 +105,26 @@ two arrays:
 }
 ```
 
-### 5. Assemble the render-input JSON
+**Write the verifier's output object, unmodified, to `<run dir>/verifier.json`.** Do not
+reorder or re-key it — the assembler binds each verdict to its merged item by `index` and
+re-checks the verifier's echo.
 
-Combine the three sources into the render-input object:
+### 6. Assemble the render input (Python)
 
-```json
-{
-  "bill":           <bill from leghistory.json>,
-  "spine":          <spine from leghistory.json>,
-  "hearings":       <merged hearings from researcher>,
-  "statements":     <merged statements from researcher>,
-  "related_media":  <merged related_media from researcher>,
-  "narrative":      <narrative from researcher>,
-  "verdicts":       <verifier "statements" array>,
-  "media_verdicts": <verifier "related_media" array>
-}
+Run:
+
+```
+uv run zwiadbrain assemble-leg-history-input --run-dir <run dir>
 ```
 
-`verdicts` is the verifier's `statements` array; `media_verdicts` is its `related_media`
-array. `Write` this object to the same run directory as `leghistory-research.json`.
+This re-runs the SAME deterministic merge (byte-identical order to step 4, so the indices
+line up by construction), attaches each verifier verdict to its merged statement / media by
+`index`, and applies the echo cross-check fail-closed: a verdict whose `speaker` /
+`quote_prefix` (or media `title_prefix`) does not match the merged item is downgraded to
+`verified: false`, and a statement with no verdict is `verified: false`. It writes
+`<run dir>/leghistory-research.json` — the render input. No LLM calls happen in this step.
 
-### 6. Render and reindex (Python)
+### 7. Render and reindex (Python)
 
 Run:
 
@@ -148,7 +139,7 @@ over `related_media` (URL resolution + verifier identity verdict, no quote), and
 the wiki page. A video `source_url` is resolved to its caption text so the unchanged gate
 can verbatim-match a transcript quote. `reindex` rebuilds the FTS5 index.
 
-### 7. Report
+### 8. Report
 
 Summarize:
 

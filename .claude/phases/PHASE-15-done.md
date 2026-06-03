@@ -1,5 +1,5 @@
 # Phase 15 — Leg-History Source Breadth · Phase C (orchestration automation)
-Status: ACTIVE
+Status: DONE
 
 > Part of the Legislative-History Source-Breadth milestone (PHASE-13 Phase A is DONE).
 > Do not start without explicit user approval (one active phase at a time).
@@ -23,11 +23,22 @@ Two deterministic Python steps share one merge helper, so the verifier is dispat
 - [x] Update `/zwiad-leg-history` (command md): write each lane's JSON to the run dir → `build-verifier-input` → dispatch verifier over `verifier-input.json` → write `verifier.json` → `assemble-leg-history-input` → `render-leg-history` (no hand-built index arrays)
 - [x] Tests (TDD): fixed-order merge, dedup, index alignment, verdict keying, malformed-lane drop, echo-mismatch fail-closed
 - [x] Decision log: D74 (two-step deterministic assembler boundary; Python assembles, subagents still dispatched only from the interactive session per D26)
-- [ ] **Live UAT (gate-blocking acceptance criterion 3):** re-run `/zwiad-leg-history 118/hr/2670` end-to-end via the updated command and confirm it reproduces the Phase-A result. NOT exercised offline (needs live subagent dispatch + network). Pending operator.
+- [x] **Live UAT (acceptance criterion 3):** re-ran the full `/zwiad-leg-history 118/hr/2670` end-to-end via the updated command — PASSED (see below).
 
 ## Gate status (offline)
 - pytest **717 passed** (+18 new in `tests/test_assemble_leg_history.py`); ruff clean; `pyright` 0 errors.
 - Invariant: `ground_items` / `ground_related` / `_normalize_text` and the render-leg-history echo logic are byte-for-byte unchanged — PHASE-15 is additive (new `merge_lanes` helper + two new CLI commands + the command-md flow rewrite). render was NOT refactored.
+
+## Live UAT result (2026-06-02 — 118/hr/2670, NDAA FY2024, PL 118-31)
+Full real-pipeline run via the rewritten command, all five steps:
+1. `fetch-leg-history` → spine (7 versions, 2 reports, 7 votes, 50 floor, enactment).
+2. 4 researcher lanes dispatched → wrote `lane-{crec,hearings,press,signing}.json` (15 + (12 hearings/5 videos) + 14 + 4 statements).
+3. `build-verifier-input` → merged to **33 statements + 5 media**, 0 lanes dropped, Python-stamped indices 0–32 / 0–4.
+4. `leg-history-verifier` dispatched over `verifier-input.json` → 31 statements confirmed, **2 fail-closed (joint statement attributed to one signer)**, 5 media confirmed.
+5. `assemble-leg-history-input` → bound verdicts by merged index with echo cross-check → `leghistory-research.json`.
+6. `render-leg-history` (live grounding) → **28 statements grounded / 5 ground-dropped** (2 verifier-rejected + 3 live "quote not found": a wrong-page CREC URL, a `--`/em-dash mismatch, a paywalled Roll Call), **12/12 hearings, 5/5 media, narrative** — page written; `reindex` OK.
+
+Outcome: verdict↔statement index binding was correct by construction across all 33 items (Biden's 4 passages at idx 29–32 rendered with the right quotes; the two rejected joint-statement items correctly absent) — **zero misattribution**. The on-bill / Related (Subject Matter) / Related Media split rendered as designed. The two-step assembler fully reproduced and exceeded the Phase-A manual result with no hand-built JSON. Rendered page (`wiki/federal/bills/118-hr-2670.md`) left UNCOMMITTED for operator review per the command's "do not commit" rule.
 
 ## Acceptance Criteria
 - A full leg-history run requires zero hand-built JSON; the lane merge + verdict indexing is deterministic and unit-tested

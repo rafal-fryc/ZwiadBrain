@@ -149,6 +149,27 @@ def _signed_date(bill: Bill) -> dt.date | None:
     return signed if signed is not None else became_law
 
 
+def _state_signed_date(bill: Bill) -> dt.date | None:
+    """Scan a state bill's actions for the governor's approval (signing) date.
+
+    Prefers an action containing ``"approved by the governor"`` / ``"signed by governor"``
+    (the executive signing event) over the ``"chaptered"`` action (the secretary-of-state
+    enrollment, which is dated a day or two later). Returns ``None`` when neither is found.
+    """
+    approved: dt.date | None = None
+    chaptered: dt.date | None = None
+    for action in bill.actions:
+        text_lower = action.text.lower()
+        if approved is None and (
+            "approved by the governor" in text_lower
+            or "signed by governor" in text_lower
+        ):
+            approved = action.date
+        if chaptered is None and "chaptered" in text_lower:
+            chaptered = action.date
+    return approved if approved is not None else chaptered
+
+
 # ---------------------------------------------------------------------------
 # Grounding gate helpers
 # ---------------------------------------------------------------------------
@@ -698,4 +719,70 @@ def collect_leads(
             bill.latest_action_date.isoformat() if bill.latest_action_date else None
         ),
         "hearings": hearing_dicts,
+    }
+
+
+def assemble_state_spine(bill: Bill, votes: list[Vote]) -> LegHistory:
+    """Build a :class:`LegHistory` spine for an enacted STATE bill (PHASE-16 / D75).
+
+    State data arrives in one LegiScan ``getBill`` (no Congress.gov / GovInfo fan-out), so
+    this is a pure transform of the already-mapped :class:`Bill` plus its parsed *votes*:
+
+    * ``versions`` -- from ``bill.text_versions``
+    * ``votes`` -- the parsed roll calls (passed through)
+    * ``floor_consideration`` -- left EMPTY: a state history action carries no Congressional-
+      Record citation or per-action url, the full timeline already renders in the bill body's
+      "Status & Timeline", and roll-call passage events render under "Votes"
+    * ``enactment`` -- ``date_signed`` from the governor-approval action (fallback: the
+      Chaptered action), ``url`` from the State source link (fallback: the LegiScan page)
+
+    ``committee_reports`` and the researcher fields (``hearings``, ``statements``,
+    ``related_media``, ``conference``, ``narrative``) are left at their defaults: there is no
+    deterministic state source for them; the researcher fills the latter.
+    """
+    signed = _state_signed_date(bill)
+    url = bill.sources.get("State source") or bill.sources.get("LegiScan")
+    enactment = Enactment(date_signed=signed, url=url) if (signed or url) else None
+    return LegHistory(
+        versions=bill.text_versions,
+        committee_reports=[],
+        votes=votes,
+        floor_consideration=[],
+        enactment=enactment,
+        conference=None,
+        narrative=None,
+        hearings=[],
+        statements=[],
+        related_media=[],
+    )
+
+
+def collect_state_leads(bill: Bill, supplement_media: list[RelatedMedia]) -> dict[str, Any]:
+    """Return JSON-serializable research leads for a STATE bill (PHASE-16 / D75).
+
+    Mirrors :func:`collect_leads` for a state bill: carries the ``state`` (in place of a
+    federal ``congress``), the bill identity, and the LegiScan ``supplements`` as Tier-2
+    :class:`RelatedMedia` *leads* (``supplement_media``) — candidate reference links the
+    researcher may confirm. The governor signing message (Tier-1 ``signing``) and any
+    state-legislature hearing video (Tier-2) are dispatch-time directives, not deterministic
+    leads. ``enacted_date`` is the governor-approval (signing) date — an anchor for the
+    ``signing`` lane.
+    """
+    state = bill.jurisdiction.split("-", 1)[-1]
+    signed = _state_signed_date(bill)
+    return {
+        "id": bill.id,
+        "state": state,
+        "citation": bill.bill_number,
+        "title": bill.title,
+        "sponsors": bill.sponsors,
+        "related_bills": bill.related_bills,
+        "introduced_date": bill.introduced_date.isoformat() if bill.introduced_date else None,
+        "latest_action_date": (
+            bill.latest_action_date.isoformat() if bill.latest_action_date else None
+        ),
+        "enacted_date": signed.isoformat() if signed else None,
+        "supplement_media": [
+            m.model_dump(mode="json", exclude_none=True) for m in supplement_media
+        ],
     }

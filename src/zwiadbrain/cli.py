@@ -69,7 +69,9 @@ from zwiadbrain.pipeline.lawbrain_review import (
 from zwiadbrain.pipeline.leg_history import (
     LANE_ORDER,
     assemble_spine,
+    assemble_state_spine,
     collect_leads,
+    collect_state_leads,
     ground_items,
     ground_related,
     merge_lanes,
@@ -435,6 +437,47 @@ def fetch_leg_history(
         govinfo_source = GovInfoSource(settings.require_govinfo_api_key())
         spine = assemble_spine(fetched, congress_source, govinfo_source)
         leads = collect_leads(fetched, govinfo_source)
+        payload = {
+            "bill": fetched.model_dump(mode="json"),
+            "spine": spine.model_dump(mode="json"),
+            "leads": leads,
+        }
+        path = stage_json(payload, name="leghistory.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged legislative-history inputs for {fetched.id} to {path}")
+
+
+@app.command(name="fetch-state-leg-history")
+def fetch_state_leg_history(
+    bill: Annotated[str, typer.Option(help="LegiScan bill_id, e.g. 1904800 (CA SB-53).")],
+    state: Annotated[str, typer.Option(help="Two-letter state, e.g. ca.")],
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for leghistory.json.")
+    ] = None,
+) -> None:
+    """Fetch an enacted STATE bill and stage its legislative-history inputs (PHASE-16 / D75).
+
+    Assembles the state spine (text versions, roll-call votes, enactment) and research leads
+    (supplements as Tier-2 media) from a SINGLE LegiScan getBill, writing them to
+    ``leghistory.json`` for the interactive session's researcher/verifier subagents — feeding
+    the same downstream (build-verifier-input -> verifier -> assemble-leg-history-input ->
+    render-leg-history) the federal flow uses. There is no GovInfo for states, so committee
+    reports / floor / hearings are left for the researcher.
+    """
+    try:
+        settings = load_settings()
+        source = LegiScanSource(settings.require_legiscan_api_key(), state)
+        inputs = source.fetch_leg_history(bill)
+        fetched = inputs.bill
+        if not fetched.enacted:
+            raise ConfigError(
+                f"bill {fetched.id} is not enacted — legislative history is assembled"
+                " only for enacted bills"
+            )
+        spine = assemble_state_spine(fetched, inputs.votes)
+        leads = collect_state_leads(fetched, inputs.supplement_media)
         payload = {
             "bill": fetched.model_dump(mode="json"),
             "spine": spine.model_dump(mode="json"),

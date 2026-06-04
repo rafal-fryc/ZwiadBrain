@@ -159,3 +159,52 @@ def test_change_hashes_maps_bill_id_to_hash_skipping_non_bill_entries() -> None:
         _route_by_op(mock, {"getMasterListRaw": _fixture("getMasterListRaw.json")})
         hashes = _source().change_hashes()
     assert hashes == {1789012: "abc123-NEW", 1789055: "def456"}
+
+
+# --- leg-history extraction (PHASE-16 / D75) --------------------------------
+
+
+def test_fetch_leg_history_parses_votes() -> None:
+    """should map getBill votes to a Vote list with date, chamber, result, and roll-call url"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill_leghistory.json")})
+        inputs = _source().fetch_leg_history("1789012")
+    assert [v.chamber for v in inputs.votes] == ["S", "A"]
+    assert inputs.votes[0].date == dt.date(2023, 5, 31)
+    assert inputs.votes[0].result == "Senate Third Reading — Passed 30-8"
+    # state_link present on vote 0 wins; vote 1 has empty state_link so falls back to url.
+    assert inputs.votes[0].roll_call_url == (
+        "https://leginfo.legislature.ca.gov/faces/billVotesClient.xhtml?bill_id=202320240SB362"
+    )
+    assert inputs.votes[1].roll_call_url == "https://legiscan.com/CA/rollcall/SB362/id/555002"
+
+
+def test_fetch_leg_history_maps_supplements_to_tier2_media() -> None:
+    """should map url-bearing supplements to Tier-2 RelatedMedia leads, skipping url-less ones"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill_leghistory.json")})
+        inputs = _source().fetch_leg_history("1789012")
+    # Two url-bearing supplements map; the link-less third is skipped.
+    assert [m.kind for m in inputs.supplement_media] == ["page", "page"]
+    assert inputs.supplement_media[0].title == "Senate Appropriations Fiscal Note"
+    assert inputs.supplement_media[0].note == "Fiscal Note"
+    assert inputs.supplement_media[0].relation == "related"
+    assert all(m.url for m in inputs.supplement_media)
+
+
+def test_fetch_leg_history_returns_enacted_bill() -> None:
+    """should return the mapped enacted Bill alongside its votes and supplements"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill_leghistory.json")})
+        inputs = _source().fetch_leg_history("1789012")
+    assert inputs.bill.id == "ca-2023-sb-362"
+    assert inputs.bill.enacted is True
+
+
+def test_fetch_leg_history_uses_single_getbill_call() -> None:
+    """should fetch the bill, votes, and supplements from exactly one getBill request"""
+    payload = _fixture("getBill_leghistory.json")
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.get(url=LEGISCAN_API_BASE).respond(200, json=payload)
+        _source().fetch_leg_history("1789012")
+    assert route.call_count == 1

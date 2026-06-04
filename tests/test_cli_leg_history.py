@@ -3,12 +3,17 @@
 import json
 from pathlib import Path
 
+import httpx
 import pytest
+import respx
 from typer.testing import CliRunner
 
 from zwiadbrain.cli import app
+from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE
 
 runner = CliRunner()
+
+_FIX = Path(__file__).parent / "fixtures" / "legiscan"
 
 # A URL the fake fetch will resolve to 200 with the test quote.
 _URL_TEST = "https://www.congress.gov/congressional-record/test-stmt"
@@ -219,3 +224,108 @@ def test_render_leg_history_drops_related_media_when_verifier_false(
     rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
     assert "### Related Media" not in rendered
     assert _MEDIA_TITLE not in rendered
+
+
+# --- fetch-state-leg-history (PHASE-16 / D75) -------------------------------
+
+
+def _serve_getbill(mock: respx.MockRouter, payload: dict[str, object]) -> None:
+    """Route every LegiScan GET to return *payload* (the getBill fixture)."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+    mock.get(url=LEGISCAN_API_BASE).mock(side_effect=handler)
+
+
+def test_fetch_state_leg_history_stages_state_spine_and_leads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should stage leghistory.json with the state spine (votes, enactment) and leads"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    payload = json.loads((_FIX / "getBill_leghistory.json").read_text(encoding="utf-8"))
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        _serve_getbill(mock, payload)
+        result = runner.invoke(
+            app,
+            ["fetch-state-leg-history", "--bill", "1789012", "--state", "ca", "--out", str(out)],
+        )
+    assert result.exit_code == 0, result.output
+    staged = json.loads((out / "leghistory.json").read_text(encoding="utf-8"))
+    assert staged["bill"]["id"] == "ca-2023-sb-362"
+    assert len(staged["spine"]["votes"]) == 2
+    assert staged["spine"]["floor_consideration"] == []
+    assert staged["spine"]["enactment"]["date_signed"] == "2023-10-08"
+    assert staged["leads"]["state"] == "CA"
+    assert len(staged["leads"]["supplement_media"]) == 2
+
+
+def test_fetch_state_leg_history_rejects_unenacted_bill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero with a 'not enacted' message for a bill that has not been chaptered"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    payload = json.loads((_FIX / "getBill_leghistory.json").read_text(encoding="utf-8"))
+    # Demote the bill to in-progress: not Passed, no Chaptered progress event.
+    payload["bill"]["status"] = 1
+    payload["bill"]["progress"] = [{"date": "2023-02-08", "event": 1}]
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        _serve_getbill(mock, payload)
+        result = runner.invoke(
+            app,
+            ["fetch-state-leg-history", "--bill", "1789012", "--state", "ca", "--out", str(out)],
+        )
+    assert result.exit_code == 1
+    assert "not enacted" in result.output
+    assert not (out / "leghistory.json").exists()
+
+
+def test_render_leg_history_routes_state_bill_to_states_path(tmp_path: Path) -> None:
+    """should write a rendered state-bill leg history under wiki/states/ca/bills (Task 5)"""
+    staging: dict[str, object] = {
+        "bill": {
+            "type": "bill",
+            "id": "ca-2023-sb-362",
+            "jurisdiction": "US-CA",
+            "title": "Data broker registration.",
+            "bill_number": "SB 362",
+            "summary": "A state test bill.",
+            "sponsors": [],
+            "actions": [],
+            "amendments": [],
+        },
+        "spine": {
+            "versions": [],
+            "committee_reports": [],
+            "votes": [
+                {
+                    "date": "2023-05-31",
+                    "chamber": "S",
+                    "result": "Senate Third Reading — Passed 30-8",
+                    "roll_call_url": "https://legiscan.com/CA/rollcall/SB362/id/555001",
+                }
+            ],
+            "floor_consideration": [],
+            "enactment": {
+                "date_signed": "2023-10-08",
+                "url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?id=SB362",
+            },
+            "hearings": [],
+            "statements": [],
+            "narrative": None,
+        },
+        "hearings": [],
+        "statements": [],
+        "narrative": "State journey.",
+    }
+    staging_file = tmp_path / "staging.json"
+    staging_file.write_text(json.dumps(staging), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = runner.invoke(
+        app, ["render-leg-history", "--in", str(staging_file), "--wiki", str(wiki)]
+    )
+    assert result.exit_code == 0, result.output
+    page = wiki / "states" / "ca" / "bills" / "ca-2023-sb-362.md"
+    assert page.exists()
+    assert "Senate Third Reading" in page.read_text(encoding="utf-8")

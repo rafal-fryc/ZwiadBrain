@@ -33,7 +33,7 @@ fields outside your lane stay empty.
 | `crec` | Congressional Record (floor) + committee-report text, via `spine.floor_consideration` and committee reports | on-bill floor statements **and the narrative** | `CREC` |
 | `hearings` | Congressional/committee hearing **records** + **hearing videos** | hearing records → `hearings[]`; hearing videos → `related_media[]` (`kind: video`); witness `statements[]` only if a transcript page carries the verbatim words | `hearing` |
 | `press` | Member press releases (house.gov/senate.gov), reputable news, sponsors' **past/subject-matter** statements | on-bill and subject-matter `statements[]` | `press`, `news`, `other` |
-| `signing` | The executive **signing statement** (President for a federal bill) and any contemporaneous signing remarks | `statements[]` for the signer | `signing` |
+| `signing` | The executive **signing statement** — the **President** for a federal bill, the **Governor** for a state bill — and any contemporaneous signing remarks | `statements[]` for the signer | `signing` |
 
 **Only the `crec` lane writes the narrative.** Every other lane returns `"narrative": ""`.
 
@@ -42,8 +42,12 @@ fields outside your lane stay empty.
 The prompt gives you:
 
 - `lane` — your assigned lane (one of the four above)
-- `citation` — the bill's citation (e.g. "H.R. 9020")
-- `congress` — the Congress number (e.g. "118")
+- `citation` — the bill's citation (e.g. "H.R. 9020", or a state "SB 53")
+- `congress` — the Congress number (e.g. "118") for a federal bill
+- `state` — for a STATE bill, the two-letter state (e.g. "CA") is given INSTEAD of `congress`;
+  search that state's legislature, its committees, the Governor's office, and state press —
+  not Congress.gov / GovInfo. The `signing` executive is the Governor; the `crec` lane covers
+  the state's legislative record and floor/committee analyses.
 - `sponsors` — list of sponsor / cosponsor names (the relevance clamp keys on these)
 - `topics`, `policy_area` — the bill's subject tags (use to judge subject-matter relevance)
 - `hearings` — hearing leads from GovInfo (unverified; starting points, not confirmed records)

@@ -29,7 +29,9 @@ from zwiadbrain.pipeline.leg_history import (
     RelatedGroundingResult,
     _quote_present,  # pyright: ignore[reportPrivateUsage]
     assemble_spine,
+    assemble_state_spine,
     collect_leads,
+    collect_state_leads,
     ground_items,
     ground_related,
 )
@@ -1166,3 +1168,181 @@ def test_ground_related_empty_input_returns_empty_result() -> None:
     result = ground_related([], fetch=_fake_fetch({}), verifier_verdicts={})
     assert result.media == ()
     assert result.dropped == ()
+
+
+# ---------------------------------------------------------------------------
+# assemble_state_spine + collect_state_leads (PHASE-16 / D75)
+# ---------------------------------------------------------------------------
+
+
+def _enacted_state_bill(
+    *,
+    actions: list[Action] | None = None,
+    sources: dict[str, str] | None = None,
+) -> Bill:
+    """A minimal enacted CA state bill (mirrors LegiScanSource._to_bill output)."""
+    if actions is None:
+        actions = [
+            Action(date=dt.date(2023, 2, 8), text="Introduced. Read first time.", chamber="S"),
+            Action(date=dt.date(2023, 5, 31), text="Read third time. Passed.", chamber="S"),
+            Action(date=dt.date(2023, 10, 8), text="Approved by the Governor.", chamber="S"),
+            Action(
+                date=dt.date(2023, 10, 10),
+                text="Chaptered by Secretary of State. Chapter 709.",
+                chamber="S",
+            ),
+        ]
+    if sources is None:
+        sources = {
+            "LegiScan": "https://legiscan.com/CA/bill/SB362/2023",
+            "State source": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?id=SB362",
+        }
+    return Bill(
+        id="ca-2023-sb-362",
+        jurisdiction="US-CA",
+        title="Data broker registration: accessible deletion mechanism.",
+        bill_number="SB 362",
+        session="2023-2024 Regular Session",
+        enacted=True,
+        sponsors=["Josh Becker"],
+        related_bills=["Same As: AB1194"],
+        introduced_date=dt.date(2023, 2, 8),
+        latest_action_date=dt.date(2023, 10, 10),
+        actions=actions,
+        text_versions=[
+            TextVersion(code="Introduced", date=dt.date(2023, 2, 8)),
+            TextVersion(code="Chaptered", date=dt.date(2023, 10, 10)),
+        ],
+        sources=sources,
+    )
+
+
+def _state_votes() -> list[Vote]:
+    return [
+        Vote(
+            date=dt.date(2023, 5, 31),
+            chamber="S",
+            result="Senate Third Reading — Passed 30-8",
+            roll_call_url="https://legiscan.com/CA/rollcall/SB362/id/555001",
+        ),
+        Vote(
+            date=dt.date(2023, 9, 12),
+            chamber="A",
+            result="Assembly Third Reading — Passed 60-15",
+            roll_call_url="https://legiscan.com/CA/rollcall/SB362/id/555002",
+        ),
+    ]
+
+
+def test_assemble_state_spine_versions_come_from_bill() -> None:
+    """should source the spine's versions directly from the state bill's text_versions"""
+    bill = _enacted_state_bill()
+    spine = assemble_state_spine(bill, _state_votes())
+    assert [v.code for v in spine.versions] == ["Introduced", "Chaptered"]
+
+
+def test_assemble_state_spine_votes_are_passed_through() -> None:
+    """should carry the parsed roll-call votes into the spine unchanged"""
+    votes = _state_votes()
+    spine = assemble_state_spine(_enacted_state_bill(), votes)
+    assert spine.votes == votes
+
+
+def test_assemble_state_spine_floor_consideration_is_empty() -> None:
+    """should leave floor_consideration empty for state bills (D75 — timeline+votes cover it)"""
+    spine = assemble_state_spine(_enacted_state_bill(), _state_votes())
+    assert spine.floor_consideration == []
+
+
+def test_assemble_state_spine_enactment_signed_date_from_governor_action() -> None:
+    """should set the enactment signed date from the 'Approved by the Governor' action"""
+    spine = assemble_state_spine(_enacted_state_bill(), _state_votes())
+    assert spine.enactment is not None
+    assert spine.enactment.date_signed == dt.date(2023, 10, 8)
+    assert spine.enactment.url == (
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?id=SB362"
+    )
+
+
+def test_assemble_state_spine_enactment_signed_date_falls_back_to_chaptered() -> None:
+    """should fall back to the Chaptered date when there is no governor-approval action"""
+    bill = _enacted_state_bill(
+        actions=[
+            Action(date=dt.date(2023, 2, 8), text="Introduced.", chamber="S"),
+            Action(
+                date=dt.date(2023, 10, 10),
+                text="Chaptered by Secretary of State. Chapter 709.",
+                chamber="S",
+            ),
+        ]
+    )
+    spine = assemble_state_spine(bill, _state_votes())
+    assert spine.enactment is not None
+    assert spine.enactment.date_signed == dt.date(2023, 10, 10)
+
+
+def test_assemble_state_spine_enactment_url_falls_back_to_legiscan() -> None:
+    """should use the LegiScan url for enactment when no State source link is present"""
+    bill = _enacted_state_bill(
+        sources={"LegiScan": "https://legiscan.com/CA/bill/SB362/2023"}
+    )
+    spine = assemble_state_spine(bill, _state_votes())
+    assert spine.enactment is not None
+    assert spine.enactment.url == "https://legiscan.com/CA/bill/SB362/2023"
+
+
+def test_assemble_state_spine_leaves_researcher_and_federal_only_fields_empty() -> None:
+    """should leave committee_reports + researcher fields empty (state has no GovInfo)"""
+    spine = assemble_state_spine(_enacted_state_bill(), _state_votes())
+    assert spine.committee_reports == []
+    assert spine.hearings == []
+    assert spine.statements == []
+    assert spine.related_media == []
+    assert spine.conference is None
+    assert spine.narrative is None
+
+
+def _supplement_media() -> list[RelatedMedia]:
+    return [
+        RelatedMedia(
+            title="Senate Appropriations Fiscal Note",
+            url="https://leginfo.legislature.ca.gov/faces/billAnalysisClient.xhtml?id=SB362",
+            kind="page",
+            date=dt.date(2023, 4, 10),
+            relation="related",
+            note="Fiscal Note",
+        )
+    ]
+
+
+def test_collect_state_leads_core_fields() -> None:
+    """should return the state, citation, sponsors, and id as researcher leads"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    assert leads["id"] == "ca-2023-sb-362"
+    assert leads["state"] == "CA"
+    assert leads["citation"] == "SB 362"
+    assert leads["sponsors"] == ["Josh Becker"]
+    assert leads["related_bills"] == ["Same As: AB1194"]
+
+
+def test_collect_state_leads_supplement_media_as_dicts() -> None:
+    """should serialize supplement media into JSON-ready Tier-2 lead dicts"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    media = leads["supplement_media"]
+    assert isinstance(media, list)
+    assert media[0]["title"] == "Senate Appropriations Fiscal Note"
+    assert media[0]["kind"] == "page"
+
+
+def test_collect_state_leads_enacted_date_is_isoformat() -> None:
+    """should expose the enactment (governor-approval) date as an ISO string lead"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    assert leads["enacted_date"] == "2023-10-08"
+
+
+def test_collect_state_leads_does_not_include_spine_fields() -> None:
+    """leads carry research starting points, not the deterministic spine"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    assert "votes" not in leads
+    assert "versions" not in leads
+    assert "enactment" not in leads

@@ -21,6 +21,7 @@ import datetime as dt
 import json
 import logging
 import sys
+import tempfile
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -41,7 +42,7 @@ from zwiadbrain.models import (
     Statement,
 )
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
-from zwiadbrain.pipeline.docling_text import docling_available
+from zwiadbrain.pipeline.docling_text import docling_available, extract_markdown
 from zwiadbrain.pipeline.enforcement import (
     MatterRef,
     confirm_match,
@@ -1436,18 +1437,70 @@ def _as_list(value: object, key: str) -> list[object]:
     return items
 
 
+# A browser-like User-Agent for the deterministic grounding fetch. Some legislative
+# WAFs (e.g. gov.ca.gov) 403 the default "python-httpx/x" agent, which fail-closed
+# dropped a verifier-confirmed signing statement in the PHASE-16 UAT (PHASE-17 / D76).
+_GATE_HEADERS: dict[str, str] = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/pdf,*/*",
+}
+
+
+def _is_pdf_response(resp: httpx.Response) -> bool:
+    """True when *resp* is a PDF — by content-type or the ``%PDF-`` magic bytes.
+
+    The magic-byte fallback catches servers that label a PDF as a generic
+    ``application/octet-stream``.
+    """
+    if "application/pdf" in resp.headers.get("content-type", "").lower():
+        return True
+    return resp.content[:5] == b"%PDF-"
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    """Extract text from PDF *data* via the Docling boundary; ``""`` when unavailable.
+
+    Deterministic (no LLM) and never raises: the grounding gate must never crash a
+    render, so an absent Docling (D68, optional) or any extraction failure yields ``""``
+    and the gate fail-closed drops the item (quote-not-found), exactly as it would for an
+    unfetchable page. Docling parses a document path, so the already-fetched bytes are
+    written to a temp file that is always removed.
+    """
+    if not docling_available():
+        return ""
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as fh:
+            fh.write(data)
+            tmp_path = Path(fh.name)
+        return extract_markdown(tmp_path)
+    except Exception:  # noqa: BLE001 — gate must never raise; any failure -> fail-closed drop
+        return ""
+    finally:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+
+
 def _fetch_url(url: str) -> tuple[int, str]:
     """Fetch a URL for grounding; returns (status_code, body_text).
 
-    Never raises — returns (0, '') on any HTTP error or on a malformed
-    researcher-supplied URL (``httpx.InvalidURL``, which is NOT an HTTPError
-    subclass and would otherwise crash the whole render).
+    Sends a browser-like User-Agent (so UA-gated hosts return 200, PHASE-17) and, for a
+    200 PDF response, returns Docling-extracted text so PDF-sourced quotes can ground.
+    Body-text extraction is deterministic (no LLM), preserving the gate's trust boundary.
+    Never raises — returns (0, '') on any HTTP error or on a malformed researcher-supplied
+    URL (``httpx.InvalidURL``, which is NOT an HTTPError subclass and would otherwise crash
+    the whole render).
     """
     try:
-        resp = httpx.get(url, timeout=30.0, follow_redirects=True)
-        return (resp.status_code, resp.text)
+        resp = httpx.get(url, timeout=30.0, follow_redirects=True, headers=_GATE_HEADERS)
     except (httpx.HTTPError, httpx.InvalidURL):
         return (0, "")
+    if resp.status_code == 200 and _is_pdf_response(resp):
+        return (200, _extract_pdf_text(resp.content))
+    return (resp.status_code, resp.text)
 
 
 def _load_leghistory(run_dir: Path) -> dict[str, object]:

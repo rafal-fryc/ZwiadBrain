@@ -73,6 +73,7 @@ from zwiadbrain.pipeline.leg_history import (
     assemble_state_spine,
     collect_leads,
     collect_state_leads,
+    dedup_statements,
     ground_items,
     ground_related,
     merge_lanes,
@@ -1974,10 +1975,17 @@ def render_leg_history(
             related_media, fetch=gate_fetch, verifier_verdicts=media_verifier_verdicts
         )
 
+        # Collapse near-duplicate statements that BOTH grounded (e.g. a press-lane
+        # "Gavin Newsom" and a signing-lane "Gov. Gavin Newsom" with the same quote).
+        # Done POST-grounding so a groundable copy is never dropped for an ungroundable
+        # near-dup (merge dedup is first-wins by lane order, so it cannot do this safely).
+        grounded_statements = dedup_statements(result.statements)
+        stmt_near_dup_drops = len(result.statements) - len(grounded_statements)
+
         final = spine.model_copy(
             update={
                 "hearings": list(result.hearings),
-                "statements": list(result.statements),
+                "statements": grounded_statements,
                 "related_media": list(media_result.media),
                 "narrative": narrative,
             }
@@ -2004,9 +2012,13 @@ def render_leg_history(
         # Counts reconcile against ALL input items: parse-dropped items never reach
         # the grounding gate, so they are tracked separately from ground-drops.
         stmt_parse_drops = len(parse_dropped_statements)
-        stmt_grounded = len(result.statements)
-        stmt_ground_drops = len(statements) - stmt_grounded
-        stmt_input = stmt_grounded + stmt_ground_drops + stmt_parse_drops
+        stmt_grounded = len(grounded_statements)
+        # Gate ground-drops are measured against the pre-dedup grounded set; near-dup
+        # collapses are reported separately so the reconciliation stays exact.
+        stmt_ground_drops = len(statements) - len(result.statements)
+        stmt_input = (
+            stmt_grounded + stmt_near_dup_drops + stmt_ground_drops + stmt_parse_drops
+        )
 
         hearing_parse_drops = len(parse_dropped_hearings)
         hearing_kept = len(result.hearings)
@@ -2022,7 +2034,8 @@ def render_leg_history(
         typer.echo(
             f"{bill.id}: {spine_summary} | "
             f"statements: {stmt_input} input / {stmt_grounded} grounded"
-            f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop | "
+            f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop"
+            f" / {stmt_near_dup_drops} near-dup | "
             f"hearings: {hearing_input} input / {hearing_kept} grounded"
             f" / {hearing_parse_drops} parse-drop / {hearing_ground_drops} ground-drop | "
             f"media: {media_input} input / {media_kept} grounded"

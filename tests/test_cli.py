@@ -676,6 +676,82 @@ def test_render_leg_history_echo_reports_counts_and_drop_lines(
     assert "AI and Data Governance" in out
 
 
+def test_render_leg_history_collapses_grounded_near_duplicate_statements(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should list a quote once when it grounds under two speaker honorific variants
+
+    Regression guard for PHASE-18: dedup runs POST-grounding, so two statements that
+    BOTH ground (same quote, "Gavin Newsom" vs "Gov. Gavin Newsom") collapse to one
+    instead of double-listing — without dropping a groundable copy.
+    """
+    quote = "I am proud to sign this landmark AI transparency bill into law today."
+    url_press = "https://www.congress.gov/congressional-record/newsom-press"
+    url_signing = "https://www.congress.gov/congressional-record/newsom-signing"
+
+    def _fetch(url: str) -> tuple[int, str]:
+        # Both sources carry the SAME verbatim quote, so both pass the quote gate.
+        if url in (url_press, url_signing):
+            return (200, f"Statement: {quote} The speaker continued.")
+        return (404, "Not Found")
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fetch)
+
+    bill = Bill(
+        id="118-hr-9999",
+        jurisdiction="US",
+        title="AI Transparency Act",
+        bill_number="H.R. 9999",
+        congress="118",
+    )
+    spine = LegHistory()
+    statements = [
+        Statement(
+            speaker="Gavin Newsom",
+            role="other",
+            quote=quote,
+            source_url=url_press,
+            source_type="press",
+            verified=False,
+        ),
+        Statement(
+            speaker="Gov. Gavin Newsom",
+            role="other",
+            quote=quote,
+            source_url=url_signing,
+            source_type="signing",
+            verified=False,
+        ),
+    ]
+    verdicts = [
+        {"index": 0, "verified": True, "speaker": "Gavin Newsom", "quote_prefix": quote[:40]},
+        {"index": 1, "verified": True, "speaker": "Gov. Gavin Newsom", "quote_prefix": quote[:40]},
+    ]
+    payload: dict[str, object] = {
+        "bill": bill.model_dump(mode="json"),
+        "spine": spine.model_dump(mode="json"),
+        "hearings": [],
+        "statements": [s.model_dump(mode="json") for s in statements],
+        "narrative": None,
+        "verdicts": verdicts,
+    }
+    staging = tmp_path / "neardup_staging.json"
+    staging.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    # Both grounded, but the near-dup collapses: 1 final grounded, 1 near-dup, 0 ground-drop.
+    assert "2 input / 1 grounded" in result.output
+    assert "1 near-dup" in result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-9999.md"
+    content = page.read_text(encoding="utf-8")
+    # First-wins: the press-lane copy survives; the signing-lane near-dup's url is gone.
+    assert url_press in content
+    assert url_signing not in content
+
+
 def test_render_leg_history_is_idempotent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -27,11 +27,13 @@ from zwiadbrain.pipeline.leg_history import (
     _MIN_QUOTE_CHARS,  # pyright: ignore[reportPrivateUsage]
     GroundingResult,
     RelatedGroundingResult,
+    _normalize_speaker,  # pyright: ignore[reportPrivateUsage]
     _quote_present,  # pyright: ignore[reportPrivateUsage]
     assemble_spine,
     assemble_state_spine,
     collect_leads,
     collect_state_leads,
+    dedup_statements,
     ground_items,
     ground_related,
 )
@@ -1346,3 +1348,84 @@ def test_collect_state_leads_does_not_include_spine_fields() -> None:
     assert "votes" not in leads
     assert "versions" not in leads
     assert "enactment" not in leads
+
+
+# ---------------------------------------------------------------------------
+# PHASE-18: speaker-normalized near-duplicate statement dedup
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_speaker_strips_single_word_honorific() -> None:
+    """should strip a leading title so 'Gov. X' and 'X' normalize equal"""
+    assert _normalize_speaker("Gov. Gavin Newsom") == _normalize_speaker("Gavin Newsom")
+    assert _normalize_speaker("Gov. Gavin Newsom") == "gavin newsom"
+
+
+def test_normalize_speaker_strips_spelled_out_and_multiword_titles() -> None:
+    """should strip 'Senator' and the two-word 'Attorney General' prefixes"""
+    assert _normalize_speaker("Senator Scott Wiener") == "scott wiener"
+    assert _normalize_speaker("Attorney General Rob Bonta") == "rob bonta"
+
+
+def test_normalize_speaker_never_strips_the_whole_name() -> None:
+    """a bare title token must not normalize to empty — the name is preserved"""
+    # Only one non-title-looking token: nothing to strip past it.
+    assert _normalize_speaker("Newsom") == "newsom"
+    # A name that happens to equal a title token is still kept (guard leaves >=1 token).
+    assert _normalize_speaker("Governor") == "governor"
+
+
+def test_dedup_collapses_honorific_speaker_variant() -> None:
+    """should collapse 'Gavin Newsom' and 'Gov. Gavin Newsom' with the same quote"""
+    quote = "I am proud to sign this landmark transparency bill into law today."
+    press = _make_statement(speaker="Gavin Newsom", quote=quote, source_url="https://a.test/p")
+    signing = _make_statement(
+        speaker="Gov. Gavin Newsom", quote=quote, source_url="https://b.test/s"
+    )
+
+    deduped = dedup_statements([press, signing])
+
+    assert len(deduped) == 1
+    assert deduped[0].source_url == "https://a.test/p"  # first wins
+
+
+def test_dedup_collapses_typographic_quote_variant() -> None:
+    """should collapse the same speaker+quote differing only by curly vs straight quotes"""
+    straight = _make_statement(quote='He called it "a milestone" for the state.')
+    curly = _make_statement(quote='He called it “a milestone” for the state.')
+
+    deduped = dedup_statements([straight, curly])
+
+    assert len(deduped) == 1
+
+
+def test_dedup_keeps_distinct_speakers() -> None:
+    """different speakers with the same quote are NEVER collapsed"""
+    quote = "This bill protects Californians from real and present harms."
+    a = _make_statement(speaker="Scott Wiener", quote=quote)
+    b = _make_statement(speaker="Rebecca Bauer-Kahan", quote=quote)
+
+    deduped = dedup_statements([a, b])
+
+    assert len(deduped) == 2
+
+
+def test_dedup_keeps_distinct_quotes() -> None:
+    """the same speaker with different quotes is NEVER collapsed"""
+    a = _make_statement(speaker="Scott Wiener", quote="The first thing this bill does is X.")
+    b = _make_statement(speaker="Scott Wiener", quote="The second thing this bill does is Y.")
+
+    deduped = dedup_statements([a, b])
+
+    assert len(deduped) == 2
+
+
+def test_dedup_preserves_input_order() -> None:
+    """surviving statements keep their first-seen order"""
+    a = _make_statement(speaker="A. One", quote="Quote number one is long enough here.")
+    b = _make_statement(speaker="B. Two", quote="Quote number two is long enough here.")
+    c = _make_statement(speaker="C. Three", quote="Quote number three is long enough now.")
+
+    deduped = dedup_statements([a, b, c])
+
+    assert [s.speaker for s in deduped] == ["A. One", "B. Two", "C. Three"]

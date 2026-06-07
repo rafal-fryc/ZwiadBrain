@@ -22,7 +22,7 @@ Two entry points:
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
@@ -209,6 +209,104 @@ def _normalize_text(s: str) -> str:
     """
     s = s.translate(_CURLY_QUOTE_TABLE)
     return " ".join(s.split())
+
+
+# Leading honorifics/titles stripped when normalizing a speaker for near-duplicate
+# dedup. Stored lowercase and period-free (periods are normalized to spaces before
+# matching), so "Gov.", "Gov", and "Governor" all collapse to the same name. Both
+# one- and two-word prefixes are matched (two-word first); a guard always leaves at
+# least one token, so a speaker that IS only a title (e.g. "Governor") is never
+# emptied.
+_SPEAKER_HONORIFICS: frozenset[str] = frozenset(
+    {
+        "gov",
+        "governor",
+        "lt gov",
+        "lt governor",
+        "lieutenant governor",
+        "sen",
+        "senator",
+        "rep",
+        "representative",
+        "congressman",
+        "congresswoman",
+        "assemblymember",
+        "assembly member",
+        "asm",
+        "asw",
+        "dr",
+        "mr",
+        "mrs",
+        "ms",
+        "mx",
+        "hon",
+        "honorable",
+        "president",
+        "vice president",
+        "speaker",
+        "chair",
+        "chairman",
+        "chairwoman",
+        "attorney general",
+        "ag",
+        "secretary",
+        "commissioner",
+        "mayor",
+        "judge",
+        "justice",
+    }
+)
+
+
+def _normalize_speaker(speaker: str) -> str:
+    """Normalize a speaker name for near-duplicate dedup.
+
+    Lowercases, maps curly quotes/apostrophes to ASCII (so "O'Brien" forms match),
+    turns periods into spaces (so "Gov." == "Gov"), collapses whitespace, then strips
+    leading honorific/title prefixes (see :data:`_SPEAKER_HONORIFICS`).  A guard keeps
+    at least one token, so a bare title never normalizes to the empty string.
+
+    This is deliberately conservative: it only removes a curated set of *leading*
+    titles.  It is paired with quote normalization in the dedup key, so two genuinely
+    different officials would have to share BOTH a normalized name and a verbatim 20+
+    char quote to wrongly collapse.
+    """
+    s = speaker.translate(_CURLY_QUOTE_TABLE).lower().replace(".", " ")
+    tokens = s.split()
+    changed = True
+    while changed and tokens:
+        changed = False
+        for n in (2, 1):
+            # Keep at least one token: never strip a prefix that would empty the name.
+            if len(tokens) > n and " ".join(tokens[:n]) in _SPEAKER_HONORIFICS:
+                tokens = tokens[n:]
+                changed = True
+                break
+    return " ".join(tokens)
+
+
+def dedup_statements(statements: Sequence[Statement]) -> list[Statement]:
+    """Collapse near-duplicate statements, keeping the first occurrence.
+
+    Two statements are near-duplicates when their normalized speaker
+    (:func:`_normalize_speaker`) AND normalized quote (:func:`_normalize_text`) are
+    equal — e.g. a press-lane "Gavin Newsom" and a signing-lane "Gov. Gavin Newsom"
+    carrying the same quote.  Order is preserved; the first-seen copy wins.
+
+    This runs POST-grounding (on already-grounded statements), NOT at merge time:
+    merge dedup is first-wins by lane order, and collapsing there could keep an
+    ungroundable copy over a groundable one.  Deduping among grounded statements is
+    regression-safe — every survivor is one that already passed the gate.
+    """
+    seen: set[tuple[str, str]] = set()
+    out: list[Statement] = []
+    for stmt in statements:
+        key = (_normalize_speaker(stmt.speaker), _normalize_text(stmt.quote))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(stmt)
+    return out
 
 
 def _page_text(page: str) -> str:

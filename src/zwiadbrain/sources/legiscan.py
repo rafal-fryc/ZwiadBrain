@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
+from pydantic import ValidationError
 from tenacity import (
     Retrying,
     retry_if_exception_type,
@@ -23,7 +25,7 @@ from tenacity import (
 )
 
 from zwiadbrain.exceptions import ConfigError, RateLimitError, SourceError, SourceFetchError
-from zwiadbrain.models import Action, Amendment, Bill, TextVersion
+from zwiadbrain.models import Action, Amendment, Bill, RelatedMedia, TextVersion, Vote
 from zwiadbrain.pipeline.ids import build_state_bill_id, format_state_bill_number
 from zwiadbrain.sources._redact import redact_api_key
 from zwiadbrain.sources.base import Candidate
@@ -76,6 +78,98 @@ def _parse_date(value: Any) -> dt.date | None:
         return dt.date.fromisoformat(text[:10])
     except ValueError:
         return None
+
+
+def _vote_result(vote: dict[str, Any]) -> str | None:
+    """Build a human-readable result string from a LegiScan roll-call summary.
+
+    Combines the roll-call description with the pass/fail outcome and the yea-nay
+    tally, e.g. ``"Senate Third Reading — Passed 30-8"``. Returns ``None`` when the
+    roll call carries neither a description nor a ``passed`` flag.
+    """
+    parts: list[str] = []
+    desc = str(vote.get("desc") or "").strip()
+    if desc:
+        parts.append(desc)
+    passed = vote.get("passed")
+    if passed is not None:
+        outcome = "Passed" if int(passed) == 1 else "Failed"
+        yea = vote.get("yea")
+        nay = vote.get("nay")
+        if isinstance(yea, int) and isinstance(nay, int):
+            parts.append(f"{outcome} {yea}-{nay}")
+        else:
+            parts.append(outcome)
+    return " — ".join(parts) if parts else None
+
+
+def _parse_votes(detail: dict[str, Any]) -> list[Vote]:
+    """Map a getBill ``votes`` array (roll-call summaries) to :class:`Vote` records.
+
+    ``roll_call_url`` prefers the state's own vote page (``state_link``) and falls back
+    to the LegiScan roll-call page (``url``), matching the text-version url precedence in
+    :meth:`LegiScanSource._to_bill`. Sorted oldest-first (undated last) like the timeline.
+    """
+    votes = [
+        Vote(
+            date=_parse_date(v.get("date")),
+            chamber=_opt_str(v.get("chamber")),
+            result=_vote_result(v),
+            roll_call_url=_opt_str(v.get("state_link") or v.get("url")),
+        )
+        for v in _items(detail.get("votes"))
+    ]
+    votes.sort(key=lambda v: (v.date is None, v.date or dt.date.min))
+    return votes
+
+
+def _parse_supplement_media(detail: dict[str, Any]) -> list[RelatedMedia]:
+    """Map a getBill ``supplements`` array to Tier-2 :class:`RelatedMedia` leads (``kind=page``).
+
+    Supplements (fiscal notes, analyses, veto/signing docs) become quote-less Tier-2
+    references (D69/D72): there is nothing to misattribute, so the researcher/verifier treat
+    each as a candidate link, never a quote. ``url`` prefers ``state_link`` then the LegiScan
+    ``url``; a supplement with neither is skipped (RelatedMedia requires a url — the project's
+    "no link, no render" rule). A supplement that fails model validation is skipped rather
+    than aborting the fetch.
+    """
+    media: list[RelatedMedia] = []
+    for s in _items(detail.get("supplements")):
+        url = _opt_str(s.get("state_link") or s.get("url"))
+        if not url:
+            continue
+        title = str(s.get("title") or s.get("type") or "").strip()
+        if not title:
+            continue
+        note = str(s.get("type") or "").strip() or None
+        try:
+            media.append(
+                RelatedMedia(
+                    title=title,
+                    url=url,
+                    kind="page",
+                    date=_parse_date(s.get("date")),
+                    relation="related",
+                    note=note,
+                )
+            )
+        except ValidationError:
+            continue
+    return media
+
+
+@dataclass(frozen=True)
+class StateLegHistoryInputs:
+    """One getBill's legislative-history inputs (PHASE-16 / D75).
+
+    Transient — never persisted. Carries the mapped :class:`Bill`, its parsed roll-call
+    :class:`Vote`s, and its supplements as Tier-2 :class:`RelatedMedia` leads from a single
+    LegiScan call to ``assemble_state_spine`` / ``collect_state_leads``.
+    """
+
+    bill: Bill
+    votes: list[Vote]
+    supplement_media: list[RelatedMedia]
 
 
 class LegiScanSource:
@@ -146,6 +240,20 @@ class LegiScanSource:
         """Fetch a single bill by LegiScan ``bill_id`` and map it to a :class:`Bill`."""
         bill = _obj(self._get("getBill", id=native_id).get("bill"))
         return self._to_bill(bill)
+
+    def fetch_leg_history(self, native_id: str) -> StateLegHistoryInputs:
+        """Fetch one bill's legislative-history inputs from a SINGLE getBill (PHASE-16 / D75).
+
+        Returns the mapped :class:`Bill`, its parsed roll-call :class:`Vote`s, and its
+        supplements as Tier-2 :class:`RelatedMedia` leads — everything the state spine and
+        leads need — without a second API call (getBill already returns all three).
+        """
+        detail = _obj(self._get("getBill", id=native_id).get("bill"))
+        return StateLegHistoryInputs(
+            bill=self._to_bill(detail),
+            votes=_parse_votes(detail),
+            supplement_media=_parse_supplement_media(detail),
+        )
 
     def fetch_policy_area(self, native_id: str) -> str | None:
         """States need no policyArea probe — full-text search is the recall stage (D50)."""

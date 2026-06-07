@@ -22,6 +22,7 @@ from zwiadbrain.models import (
     FloorAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     TextVersion,
     Vote,
@@ -46,6 +47,9 @@ _COMMENTARY_NOTE = (
 
 LAWBRAIN_REGION_BEGIN = "<!-- lawbrain:region:begin -->"
 LAWBRAIN_REGION_END = "<!-- lawbrain:region:end -->"
+
+EXTRACTED_TEXT_REGION_BEGIN = "<!-- extracted-text:region:begin -->"
+EXTRACTED_TEXT_REGION_END = "<!-- extracted-text:region:end -->"
 
 
 def _demote_headings(text: str) -> str:
@@ -206,6 +210,33 @@ def _statements_block(statements: list[Statement]) -> str:
     return "\n".join(lines)
 
 
+_RELATED_MEDIA_LABELS: dict[str, str] = {"video": "Video", "page": "Page", "other": "Reference"}
+
+
+def _related_media_block(media: list[RelatedMedia]) -> str:
+    """Render Tier-2 related media (videos / reference pages) as a labeled link list.
+
+    Each item carries NO attributed quote (D69) — only a kind label, optional
+    publisher/date/note, and a link.  ``url`` is required by the model, so every
+    item links.
+    """
+    lines: list[str] = []
+    for m in media:
+        bits: list[str] = [f'**{_RELATED_MEDIA_LABELS[m.kind]}:** "{m.title}"']
+        meta: list[str] = []
+        if m.publisher:
+            meta.append(m.publisher)
+        if m.date:
+            meta.append(m.date.isoformat())
+        if meta:
+            bits.append(", ".join(meta))
+        if m.note:
+            bits.append(m.note)
+        bits.append(f"[link]({m.url})")
+        lines.append("- " + " — ".join(bits))
+    return "\n".join(lines)
+
+
 def _leg_history(history: LegHistory) -> str:
     parts: list[str] = []
     # 1. Legislative Journey (narrative)
@@ -221,8 +252,8 @@ def _leg_history(history: LegHistory) -> str:
             for r in history.committee_reports
         )
         parts.append("### Committee Reports\n\n" + reports)
-    # 4. Hearings
-    hearings_text = _hearings_block(history.hearings)
+    # 4. Hearings (on this bill only; subject-matter hearings go under "Related")
+    hearings_text = _hearings_block([h for h in history.hearings if h.relation == "on_bill"])
     if hearings_text:
         parts.append("### Hearings\n\n" + hearings_text)
     # 5. Floor Consideration
@@ -241,10 +272,31 @@ def _leg_history(history: LegHistory) -> str:
         enactment_text = _enactment_block(history.enactment)
         if enactment_text:
             parts.append("### Enactment\n\n" + enactment_text)
-    # 9. Statements
-    statements_text = _statements_block(history.statements)
+    # 9. Statements (on this bill only; subject-matter statements go under "Related")
+    statements_text = _statements_block([s for s in history.statements if s.relation == "on_bill"])
     if statements_text:
         parts.append("### Statements\n\n" + statements_text)
+    # 10. Related (Subject Matter) — sponsor/official statements + hearings tied to the
+    # bill's topic but not necessarily this specific bill (D69/D70), labeled so a reader
+    # is never misled into reading them as statements about this bill.
+    related_hearings = _hearings_block([h for h in history.hearings if h.relation == "related"])
+    related_statements = _statements_block(
+        [s for s in history.statements if s.relation == "related"]
+    )
+    related_parts = [block for block in (related_hearings, related_statements) if block]
+    if related_parts:
+        parts.append(
+            "### Related (Subject Matter)\n\n"
+            "_On this bill's subject matter — not necessarily about this specific bill._\n\n"
+            + "\n\n".join(related_parts)
+        )
+    # 11. Related Media — Tier-2 hearing/floor videos + reference pages, listed without an
+    # attributed quote (D69 Phase B). No verbatim-quote gate applies; grounded by URL +
+    # an independent verifier identity check. Its own section so the "not about this bill"
+    # caveat above is never wrongly applied to an on-bill video.
+    media_text = _related_media_block(history.related_media)
+    if media_text:
+        parts.append("### Related Media\n\n" + media_text)
     return "\n\n".join(parts)
 
 
@@ -451,3 +503,46 @@ def splice_lawbrain_region(body: str, region: str | None) -> str:
     if region:
         return base + "\n\n" + region
     return base
+
+
+def render_extracted_text_region(sidecar_name: str) -> str:
+    """Build the marker-delimited "Extracted Text" region linking the sidecar file.
+
+    ``sidecar_name`` is the bare ``<id>.text.md`` filename, which lives in the same
+    directory as the page, so the Markdown link is relative.
+    """
+    inner = f"## Extracted Text\n\n- [Full text extracted via Docling]({sidecar_name})"
+    return f"{EXTRACTED_TEXT_REGION_BEGIN}\n{inner}\n{EXTRACTED_TEXT_REGION_END}"
+
+
+def splice_extracted_text_region(page_text: str, region: str) -> str:
+    """Append/replace the extracted-text region as the strictly-last page element.
+
+    Operates on the full page text (frontmatter included) rather than a parsed
+    body, so output is byte-stable and a committed law-brain region (which sits
+    before it) is preserved verbatim. Any existing extracted-text region is
+    replaced in place.
+    """
+    begin = page_text.find(EXTRACTED_TEXT_REGION_BEGIN)
+    base = (page_text[:begin] if begin != -1 else page_text).rstrip("\n")
+    return base + "\n\n" + region + "\n"
+
+
+def preserve_extracted_text_region(prev_text: str, fresh_text: str) -> str:
+    """Splice a prior page's extracted-text region forward onto a fresh page.
+
+    The extracted-text analog of :func:`preserve_lawbrain_region`. A non-extract
+    render (e.g. ``render-refreshed``) emits ``fresh_text`` without the region;
+    this re-appends the committed one verbatim (strictly last) so the link is not
+    lost. If ``fresh_text`` already has a region it is authoritative.
+    """
+    if EXTRACTED_TEXT_REGION_BEGIN in fresh_text:
+        return fresh_text
+    begin = prev_text.find(EXTRACTED_TEXT_REGION_BEGIN)
+    if begin == -1:
+        return fresh_text
+    end = prev_text.find(EXTRACTED_TEXT_REGION_END, begin)
+    if end == -1:
+        return fresh_text
+    region = prev_text[begin : end + len(EXTRACTED_TEXT_REGION_END)]
+    return fresh_text.rstrip("\n") + "\n\n" + region + "\n"

@@ -8,10 +8,13 @@ from zwiadbrain.exceptions import WikiSchemaError
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.wiki.schema import to_frontmatter
 from zwiadbrain.wiki.templates import (
+    preserve_extracted_text_region,
     preserve_lawbrain_region,
     render_bill_body,
     render_enforcement_body,
+    render_extracted_text_region,
     render_lawbrain_region,
+    splice_extracted_text_region,
     splice_lawbrain_region,
 )
 
@@ -45,6 +48,12 @@ def page_path(item: Bill | EnforcementAction, wiki_root: Path) -> Path:
     return wiki_root.joinpath(*_jurisdiction_parts(item.jurisdiction), kind, f"{item.id}.md")
 
 
+def sidecar_path(item: Bill | EnforcementAction, wiki_root: Path) -> Path:
+    """The ``<id>.text.md`` sibling that holds an item's extracted document text."""
+    page = page_path(item, wiki_root)
+    return page.with_name(f"{page.stem}.text.md")
+
+
 def write_page(item: Bill | EnforcementAction, wiki_root: Path) -> bool:
     """Write the rendered page, skipping the write when content is unchanged.
 
@@ -62,6 +71,7 @@ def write_page(item: Bill | EnforcementAction, wiki_root: Path) -> bool:
     if path.exists():
         prev_text = path.read_text(encoding="utf-8")
         content = preserve_lawbrain_region(prev_text, content)
+        content = preserve_extracted_text_region(prev_text, content)
         if prev_text == content:
             return False
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,6 +115,24 @@ def write_lawbrain_region(item: Bill | EnforcementAction, wiki_root: Path) -> bo
     content: str = frontmatter.dumps(post)
     if not content.endswith("\n"):
         content += "\n"
+    if content == prev_text:
+        return False
+    path.write_text(content, encoding="utf-8", newline="\n")
+    return True
+
+
+def write_extracted_text_region(item: Bill | EnforcementAction, wiki_root: Path) -> bool:
+    """Add/refresh a page's extracted-text link region pointing at its sidecar file.
+
+    Splices the region onto the raw committed page text (no body/frontmatter
+    re-render), so it is byte-stable, sits strictly last, and leaves any committed
+    law-brain region intact. The page must already exist. Idempotent: returns
+    ``True`` only when the bytes change.
+    """
+    path = page_path(item, wiki_root)
+    prev_text = path.read_text(encoding="utf-8")
+    region = render_extracted_text_region(sidecar_path(item, wiki_root).name)
+    content = splice_extracted_text_region(prev_text, region)
     if content == prev_text:
         return False
     path.write_text(content, encoding="utf-8", newline="\n")

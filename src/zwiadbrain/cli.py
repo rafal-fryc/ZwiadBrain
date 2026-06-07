@@ -21,6 +21,7 @@ import datetime as dt
 import json
 import logging
 import sys
+import tempfile
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -37,9 +38,11 @@ from zwiadbrain.models import (
     EnforcementDevelopment,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
 )
 from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
+from zwiadbrain.pipeline.docling_text import docling_available, extract_markdown
 from zwiadbrain.pipeline.enforcement import (
     MatterRef,
     confirm_match,
@@ -47,6 +50,7 @@ from zwiadbrain.pipeline.enforcement import (
     merge_developments,
 )
 from zwiadbrain.pipeline.enrich import enrich
+from zwiadbrain.pipeline.extract import extract_item, plan_extraction
 from zwiadbrain.pipeline.ids import build_enforcement_id, parse_bill_id, parse_strong_key
 from zwiadbrain.pipeline.lawbrain_copy import (
     build_commentary_source,
@@ -63,7 +67,16 @@ from zwiadbrain.pipeline.lawbrain_review import (
     parse_review_queue,
     render_review_queue,
 )
-from zwiadbrain.pipeline.leg_history import assemble_spine, collect_leads, ground_items
+from zwiadbrain.pipeline.leg_history import (
+    LANE_ORDER,
+    assemble_spine,
+    assemble_state_spine,
+    collect_leads,
+    collect_state_leads,
+    ground_items,
+    ground_related,
+    merge_lanes,
+)
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
     clear_flip,
@@ -84,6 +97,7 @@ from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
+from zwiadbrain.sources.transcripts import make_gate_fetch
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
 
@@ -296,6 +310,40 @@ def fetch_state_candidates(
     typer.echo(f"fetched {len(bills)} {state} candidate(s) to {path}")
 
 
+@app.command(name="fetch-bill")
+def fetch_bill(
+    bill: Annotated[
+        str,
+        typer.Option(help="Bill ref: '118/hr/2670' (federal) or a LegiScan bill_id with --state."),
+    ],
+    state: Annotated[
+        str | None,
+        typer.Option(help="Two-letter state for LegiScan, e.g. ca. Omit for a federal bill."),
+    ] = None,
+    out: Annotated[Path | None, typer.Option(help="Run directory for classified.json.")] = None,
+) -> None:
+    """Fetch one bill by id into a one-item ``classified.json`` for ``extract-text``.
+
+    Re-derives a fully-enriched ``Bill`` from its source — LegiScan when ``--state``
+    is given, else Congress.gov — and stages it as the single-item JSON list that
+    ``extract-text`` consumes, so an already-committed wiki page can have its
+    official text downloaded and converted.
+    """
+    try:
+        settings = load_settings()
+        source: LegiScanSource | CongressSource = (
+            LegiScanSource(settings.require_legiscan_api_key(), state)
+            if state
+            else CongressSource(settings.require_congress_api_key())
+        )
+        fetched = source.fetch(bill)
+        path = stage_json([fetched.model_dump(mode="json")], name="classified.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"fetched {fetched.id} to {path}")
+
+
 @app.command(name="fetch-state-refreshable")
 def fetch_state_refreshable(
     wiki: Annotated[Path, typer.Option(help="Wiki root to scan for tracked state bills.")] = Path(
@@ -390,6 +438,47 @@ def fetch_leg_history(
         govinfo_source = GovInfoSource(settings.require_govinfo_api_key())
         spine = assemble_spine(fetched, congress_source, govinfo_source)
         leads = collect_leads(fetched, govinfo_source)
+        payload = {
+            "bill": fetched.model_dump(mode="json"),
+            "spine": spine.model_dump(mode="json"),
+            "leads": leads,
+        }
+        path = stage_json(payload, name="leghistory.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"staged legislative-history inputs for {fetched.id} to {path}")
+
+
+@app.command(name="fetch-state-leg-history")
+def fetch_state_leg_history(
+    bill: Annotated[str, typer.Option(help="LegiScan bill_id, e.g. 1904800 (CA SB-53).")],
+    state: Annotated[str, typer.Option(help="Two-letter state, e.g. ca.")],
+    out: Annotated[
+        Path | None, typer.Option(help="Run directory for leghistory.json.")
+    ] = None,
+) -> None:
+    """Fetch an enacted STATE bill and stage its legislative-history inputs (PHASE-16 / D75).
+
+    Assembles the state spine (text versions, roll-call votes, enactment) and research leads
+    (supplements as Tier-2 media) from a SINGLE LegiScan getBill, writing them to
+    ``leghistory.json`` for the interactive session's researcher/verifier subagents — feeding
+    the same downstream (build-verifier-input -> verifier -> assemble-leg-history-input ->
+    render-leg-history) the federal flow uses. There is no GovInfo for states, so committee
+    reports / floor / hearings are left for the researcher.
+    """
+    try:
+        settings = load_settings()
+        source = LegiScanSource(settings.require_legiscan_api_key(), state)
+        inputs = source.fetch_leg_history(bill)
+        fetched = inputs.bill
+        if not fetched.enacted:
+            raise ConfigError(
+                f"bill {fetched.id} is not enacted — legislative history is assembled"
+                " only for enacted bills"
+            )
+        spine = assemble_state_spine(fetched, inputs.votes)
+        leads = collect_state_leads(fetched, inputs.supplement_media)
         payload = {
             "bill": fetched.model_dump(mode="json"),
             "spine": spine.model_dump(mode="json"),
@@ -1348,18 +1437,380 @@ def _as_list(value: object, key: str) -> list[object]:
     return items
 
 
+# A browser-like User-Agent for the deterministic grounding fetch. Some legislative
+# WAFs (e.g. gov.ca.gov) 403 the default "python-httpx/x" agent, which fail-closed
+# dropped a verifier-confirmed signing statement in the PHASE-16 UAT (PHASE-17 / D76).
+_GATE_HEADERS: dict[str, str] = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/pdf,*/*",
+}
+
+
+def _is_pdf_response(resp: httpx.Response) -> bool:
+    """True when *resp* is a PDF — by content-type or the ``%PDF-`` magic bytes.
+
+    The magic-byte fallback catches servers that label a PDF as a generic
+    ``application/octet-stream``.
+    """
+    if "application/pdf" in resp.headers.get("content-type", "").lower():
+        return True
+    return resp.content[:5] == b"%PDF-"
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    """Extract text from PDF *data* via the Docling boundary; ``""`` when unavailable.
+
+    Deterministic (no LLM) and never raises: the grounding gate must never crash a
+    render, so an absent Docling (D68, optional) or any extraction failure yields ``""``
+    and the gate fail-closed drops the item (quote-not-found), exactly as it would for an
+    unfetchable page. Docling parses a document path, so the already-fetched bytes are
+    written to a temp file that is always removed.
+    """
+    if not docling_available():
+        return ""
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as fh:
+            fh.write(data)
+            tmp_path = Path(fh.name)
+        return extract_markdown(tmp_path)
+    except Exception:  # noqa: BLE001 — gate must never raise; any failure -> fail-closed drop
+        return ""
+    finally:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+
+
 def _fetch_url(url: str) -> tuple[int, str]:
     """Fetch a URL for grounding; returns (status_code, body_text).
 
-    Never raises — returns (0, '') on any HTTP error or on a malformed
-    researcher-supplied URL (``httpx.InvalidURL``, which is NOT an HTTPError
-    subclass and would otherwise crash the whole render).
+    Sends a browser-like User-Agent (so UA-gated hosts return 200, PHASE-17) and, for a
+    200 PDF response, returns Docling-extracted text so PDF-sourced quotes can ground.
+    Body-text extraction is deterministic (no LLM), preserving the gate's trust boundary.
+    Never raises — returns (0, '') on any HTTP error or on a malformed researcher-supplied
+    URL (``httpx.InvalidURL``, which is NOT an HTTPError subclass and would otherwise crash
+    the whole render).
     """
     try:
-        resp = httpx.get(url, timeout=30.0, follow_redirects=True)
-        return (resp.status_code, resp.text)
+        resp = httpx.get(url, timeout=30.0, follow_redirects=True, headers=_GATE_HEADERS)
     except (httpx.HTTPError, httpx.InvalidURL):
         return (0, "")
+    if resp.status_code == 200 and _is_pdf_response(resp):
+        return (200, _extract_pdf_text(resp.content))
+    return (resp.status_code, resp.text)
+
+
+def _load_leghistory(run_dir: Path) -> dict[str, object]:
+    """Read ``<run_dir>/leghistory.json`` (bill + spine + leads) or raise ConfigError.
+
+    Required by both PHASE-15 steps: it carries the ``bill`` (for the verifier subject and
+    the render-input) and the ``spine`` (for the render-input).
+    """
+    path = run_dir / "leghistory.json"
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError(f"could not read {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path} must be a JSON object, got {type(raw).__name__}")
+    payload: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+    return payload
+
+
+def _load_lane_payloads(run_dir: Path) -> dict[str, object | None]:
+    """Load ``lane-<name>.json`` for each lane; ``None`` when missing or invalid JSON.
+
+    A ``None`` lane is treated by :func:`merge_lanes` as a dropped lane — mirroring the
+    orchestrator's "retry once, then drop just that lane" rule.  Both PHASE-15 steps load the
+    lanes the same way so the two merges see identical inputs.
+    """
+    lanes: dict[str, object | None] = {}
+    for lane in LANE_ORDER:
+        path = run_dir / f"lane-{lane}.json"
+        try:
+            lanes[lane] = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            lanes[lane] = None
+    return lanes
+
+
+@app.command(name="build-verifier-input")
+def build_verifier_input(
+    run_dir: Annotated[
+        Path, typer.Option("--run-dir", help="Run dir with leghistory.json + lane-*.json.")
+    ],
+) -> None:
+    """Merge the researcher lanes and stage the verifier input (PHASE-15 step 1 / D74).
+
+    Reads ``leghistory.json`` (for the bill) and the four ``lane-<name>.json`` files, runs the
+    deterministic :func:`merge_lanes`, and writes ``verifier-input.json`` — a ``subject`` block
+    plus index-stamped ``statements`` / ``related_media``.  The interactive session dispatches
+    the leg-history-verifier over that file, then runs ``assemble-leg-history-input``.  Pure
+    deterministic plumbing: NO LLM calls.
+    """
+    try:
+        leghistory = _load_leghistory(run_dir)
+        if "bill" not in leghistory:
+            raise ConfigError("leghistory.json is missing required key 'bill'")
+        bill = validate_model(Bill, leghistory["bill"], label="bill")
+
+        merged = merge_lanes(_load_lane_payloads(run_dir))
+
+        verifier_input = {
+            "subject": {
+                "citation": bill.bill_number,
+                "title": bill.title,
+                "topics": bill.topics,
+                "sponsors": bill.sponsors,
+            },
+            "statements": [
+                {
+                    "index": i,
+                    "speaker": s.speaker,
+                    "quote": s.quote,
+                    "source_url": s.source_url,
+                    "relation": s.relation,
+                }
+                for i, s in enumerate(merged.statements)
+            ],
+            "related_media": [
+                {
+                    "index": i,
+                    "title": m.title,
+                    "url": m.url,
+                    "kind": m.kind,
+                    "relation": m.relation,
+                }
+                for i, m in enumerate(merged.related_media)
+            ],
+        }
+        path = stage_json(verifier_input, name="verifier-input.json", out=run_dir)
+
+        typer.echo(
+            f"verifier-input: {len(merged.statements)} statement(s),"
+            f" {len(merged.related_media)} media,"
+            f" {len(merged.dropped_lanes)} lane(s) dropped -> {path}"
+        )
+        for lane in merged.dropped_lanes:
+            typer.echo(f"  dropped lane: {lane}")
+        for ident, reason in merged.parse_dropped:
+            typer.echo(f"  parse-drop: {ident} — {reason}")
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
+def _load_run_json_object(path: Path) -> dict[str, object]:
+    """Read a required run-dir JSON object (e.g. verifier.json) or raise ConfigError."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError(f"could not read {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path} must be a JSON object, got {type(raw).__name__}")
+    payload: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+    return payload
+
+
+def _verdicts_by_index(
+    raw_verdicts: object, *, label: str
+) -> tuple[dict[int, dict[str, object]], list[tuple[str, str]]]:
+    """Index verifier verdict entries by their self-reported ``index``.
+
+    Skips (with an audit note) any entry that is not an object or whose ``index`` is not an
+    integer — an unparseable verdict cannot confirm anything, so the item it would have
+    scored falls through to verified:false (fail-closed) rather than aborting the assemble.
+    """
+    by_index: dict[int, dict[str, object]] = {}
+    audit: list[tuple[str, str]] = []
+    for v in _as_list(raw_verdicts, label):
+        if not isinstance(v, dict):
+            audit.append((label, "verdict entry is not an object"))
+            continue
+        entry: dict[str, object] = v  # pyright: ignore[reportUnknownVariableType]
+        idx = entry.get("index")
+        if not isinstance(idx, int):
+            audit.append((label, f"verdict 'index' is not an integer: {idx!r}"))
+            continue
+        by_index[idx] = entry
+    return by_index, audit
+
+
+def _str_field(entry: dict[str, object], key: str) -> str:
+    """Return entry[key] when it is a string, else ``""`` (verdict echoes are optional)."""
+    value = entry.get(key)
+    return value if isinstance(value, str) else ""
+
+
+def _attach_statement_verdicts(
+    statements: tuple[Statement, ...], raw_verdicts: object
+) -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
+    """Build the render-input ``verdicts`` array — one per merged statement, echo-validated.
+
+    Each emitted verdict is keyed by the statement's MERGED index.  The verifier echo
+    (speaker + quote_prefix) is cross-checked against the merged statement; a verified verdict
+    whose echo does not match is downgraded to verified:false (fail-closed) — the same
+    discipline render-leg-history enforces (kept here as defense in depth, D74).  A merged
+    statement with no verdict gets an explicit verified:false entry.
+    """
+    by_index, audit = _verdicts_by_index(raw_verdicts, label="verifier statements")
+    out: list[dict[str, object]] = []
+    for i, stmt in enumerate(statements):
+        entry = by_index.get(i)
+        if entry is None:
+            audit.append((f"statement[{i}] {stmt.speaker}", "no verifier verdict"))
+            out.append(
+                {
+                    "index": i,
+                    "speaker": "",
+                    "quote_prefix": "",
+                    "verified": False,
+                    "note": "no verifier verdict for this statement",
+                }
+            )
+            continue
+        echo_speaker = _str_field(entry, "speaker")
+        echo_prefix = _str_field(entry, "quote_prefix")
+        verified = bool(entry.get("verified"))
+        if verified:
+            speaker_ok = echo_speaker == stmt.speaker
+            prefix_ok = bool(echo_prefix) and stmt.quote.startswith(echo_prefix)
+            if not (speaker_ok and prefix_ok):
+                verified = False
+                audit.append(
+                    (
+                        f"statement[{i}] {stmt.speaker}",
+                        "verifier echo mismatch (downgraded to false)",
+                    )
+                )
+        out.append(
+            {
+                "index": i,
+                "speaker": echo_speaker,
+                "quote_prefix": echo_prefix,
+                "verified": verified,
+                "note": _str_field(entry, "note"),
+            }
+        )
+    for idx in by_index:
+        if idx >= len(statements):
+            audit.append(
+                ("verifier statements", f"orphan verdict index {idx} (no such merged statement)")
+            )
+    return out, audit
+
+
+def _attach_media_verdicts(
+    related_media: tuple[RelatedMedia, ...], raw_verdicts: object
+) -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
+    """Build the render-input ``media_verdicts`` array — one per merged media item, echo-validated.
+
+    Mirrors :func:`_attach_statement_verdicts` with the Tier-2 ``title_prefix`` echo: a verified
+    verdict whose echoed title does not prefix the merged media title is downgraded fail-closed.
+    """
+    by_index, audit = _verdicts_by_index(raw_verdicts, label="verifier related_media")
+    out: list[dict[str, object]] = []
+    for i, media in enumerate(related_media):
+        entry = by_index.get(i)
+        if entry is None:
+            audit.append((f"related_media[{i}] {media.title}", "no verifier verdict"))
+            out.append(
+                {
+                    "index": i,
+                    "title_prefix": "",
+                    "verified": False,
+                    "note": "no verifier verdict for this media",
+                }
+            )
+            continue
+        echo_title = _str_field(entry, "title_prefix")
+        verified = bool(entry.get("verified"))
+        if verified and not (echo_title and media.title.startswith(echo_title)):
+            verified = False
+            audit.append(
+                (
+                    f"related_media[{i}] {media.title}",
+                    "verifier echo mismatch (downgraded to false)",
+                )
+            )
+        out.append(
+            {
+                "index": i,
+                "title_prefix": echo_title,
+                "verified": verified,
+                "note": _str_field(entry, "note"),
+            }
+        )
+    for idx in by_index:
+        if idx >= len(related_media):
+            audit.append(
+                ("verifier related_media", f"orphan verdict index {idx} (no such merged media)")
+            )
+    return out, audit
+
+
+@app.command(name="assemble-leg-history-input")
+def assemble_leg_history_input(
+    run_dir: Annotated[
+        Path,
+        typer.Option("--run-dir", help="Run dir with leghistory.json, lane-*.json, verifier.json."),
+    ],
+) -> None:
+    """Attach verifier verdicts to the merged research; stage the render input (PHASE-15 / D74).
+
+    Re-runs the deterministic :func:`merge_lanes` (byte-identical to ``build-verifier-input``'s,
+    so verdict indices align by construction), attaches each verifier verdict to its merged
+    statement / media by index with the echo cross-check applied fail-closed, and writes
+    ``leghistory-research.json`` — the staging file ``render-leg-history`` already consumes.
+    Pure deterministic plumbing: NO LLM calls.
+    """
+    try:
+        leghistory = _load_leghistory(run_dir)
+        for key in ("bill", "spine"):
+            if key not in leghistory:
+                raise ConfigError(f"leghistory.json is missing required key '{key}'")
+
+        merged = merge_lanes(_load_lane_payloads(run_dir))
+        verifier = _load_run_json_object(run_dir / "verifier.json")
+
+        verdicts, stmt_audit = _attach_statement_verdicts(
+            merged.statements, verifier.get("statements")
+        )
+        media_verdicts, media_audit = _attach_media_verdicts(
+            merged.related_media, verifier.get("related_media")
+        )
+
+        render_input = {
+            "bill": leghistory["bill"],
+            "spine": leghistory["spine"],
+            "hearings": [h.model_dump(mode="json") for h in merged.hearings],
+            "statements": [s.model_dump(mode="json") for s in merged.statements],
+            "related_media": [m.model_dump(mode="json") for m in merged.related_media],
+            "narrative": merged.narrative,
+            "verdicts": verdicts,
+            "media_verdicts": media_verdicts,
+        }
+        path = stage_json(render_input, name="leghistory-research.json", out=run_dir)
+
+        verified_stmts = sum(1 for v in verdicts if v["verified"] is True)
+        verified_media = sum(1 for v in media_verdicts if v["verified"] is True)
+        typer.echo(
+            f"render-input: {len(merged.statements)} statement(s)"
+            f" ({verified_stmts} verifier-confirmed),"
+            f" {len(merged.hearings)} hearing(s),"
+            f" {len(merged.related_media)} media ({verified_media} confirmed),"
+            f" narrative={'yes' if merged.narrative else 'no'} -> {path}"
+        )
+        for lane in merged.dropped_lanes:
+            typer.echo(f"  dropped lane: {lane}")
+        for ident, reason in (*merged.parse_dropped, *stmt_audit, *media_audit):
+            typer.echo(f"  note: {ident} — {reason}")
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @app.command(name="render-leg-history")
@@ -1469,14 +1920,65 @@ def render_leg_history(
                     verified = False
             verifier_verdicts[new_pos] = verified
 
+        # Tier-2 related media (D69 Phase B): hearing/floor videos + reference pages, listed
+        # WITHOUT a quote. Parsed per-item like statements/hearings; grounded by URL + an
+        # independent verifier *identity* check (no verbatim-quote gate). Verdicts are keyed
+        # by each media item's original index and carry a title_prefix echo that we cross-check
+        # against the media at that index (fail-closed on mismatch — same discipline as
+        # statements, mirroring the parse-drop index remap).
+        parse_dropped_media: list[tuple[str, str]] = []
+        related_media: list[RelatedMedia] = []
+        media_original_indices: list[int] = []
+        for i, item in enumerate(_as_list(payload.get("related_media"), "related_media")):
+            try:
+                related_media.append(RelatedMedia.model_validate(item))
+                media_original_indices.append(i)
+            except ValidationError as exc:
+                parse_dropped_media.append((f"related_media[{i}]", str(exc)))
+
+        media_verdicts_by_original: dict[int, tuple[bool, str]] = {}
+        for v in _as_list(payload.get("media_verdicts"), "media_verdicts"):
+            if not isinstance(v, dict):
+                raise ConfigError("each entry in 'media_verdicts' must be a JSON object")
+            mverdict: dict[str, object] = v  # pyright: ignore[reportUnknownVariableType]
+            mindex = mverdict.get("index")
+            if not isinstance(mindex, int):
+                raise ConfigError(
+                    f"media_verdict 'index' must be an integer, got {type(mindex).__name__}"
+                )
+            echo_title = mverdict.get("title_prefix")
+            media_verdicts_by_original[mindex] = (
+                bool(mverdict.get("verified")),
+                echo_title if isinstance(echo_title, str) else "",
+            )
+
+        media_verifier_verdicts: dict[int, bool] = {}
+        for new_pos, orig_idx in enumerate(media_original_indices):
+            m_verified, echo_title = media_verdicts_by_original.get(orig_idx, (False, ""))
+            if m_verified:
+                media = related_media[new_pos]
+                if not (echo_title and media.title.startswith(echo_title)):
+                    m_verified = False
+            media_verifier_verdicts[new_pos] = m_verified
+
+        # A single transcript-aware fetch for BOTH gates: a YouTube source_url resolves to its
+        # caption text (D72 fallback); every other URL uses the normal HTTP fetch. The gate
+        # logic (ground_items / ground_related) is unchanged — it just receives caption text
+        # for a video source_url. `_fetch_url` is referenced by name so tests can monkeypatch it.
+        gate_fetch = make_gate_fetch(_fetch_url)
+
         result = ground_items(
-            statements, hearings, fetch=_fetch_url, verifier_verdicts=verifier_verdicts
+            statements, hearings, fetch=gate_fetch, verifier_verdicts=verifier_verdicts
+        )
+        media_result = ground_related(
+            related_media, fetch=gate_fetch, verifier_verdicts=media_verifier_verdicts
         )
 
         final = spine.model_copy(
             update={
                 "hearings": list(result.hearings),
                 "statements": list(result.statements),
+                "related_media": list(media_result.media),
                 "narrative": narrative,
             }
         )
@@ -1511,6 +2013,11 @@ def render_leg_history(
         hearing_ground_drops = len(hearings) - hearing_kept
         hearing_input = hearing_kept + hearing_ground_drops + hearing_parse_drops
 
+        media_parse_drops = len(parse_dropped_media)
+        media_kept = len(media_result.media)
+        media_ground_drops = len(related_media) - media_kept
+        media_input = media_kept + media_ground_drops + media_parse_drops
+
         page_status = "written" if written else "unchanged"
         typer.echo(
             f"{bill.id}: {spine_summary} | "
@@ -1518,6 +2025,8 @@ def render_leg_history(
             f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop | "
             f"hearings: {hearing_input} input / {hearing_kept} grounded"
             f" / {hearing_parse_drops} parse-drop / {hearing_ground_drops} ground-drop | "
+            f"media: {media_input} input / {media_kept} grounded"
+            f" / {media_parse_drops} parse-drop / {media_ground_drops} ground-drop | "
             f"narrative={'yes' if narrative else 'no'} | "
             f"page {page_status}"
         )
@@ -1529,7 +2038,11 @@ def render_leg_history(
             typer.echo(f"  dropped statement: {identifier} — {reason}")
         for identifier, reason in parse_dropped_hearings:
             typer.echo(f"  dropped hearing: {identifier} — {reason}")
+        for identifier, reason in parse_dropped_media:
+            typer.echo(f"  dropped related_media: {identifier} — {reason}")
         for d in result.dropped:
+            typer.echo(f"  dropped {d.kind}: {d.identifier} — {d.reason}")
+        for d in media_result.dropped:
             typer.echo(f"  dropped {d.kind}: {d.identifier} — {d.reason}")
 
     except AppError as exc:
@@ -1560,6 +2073,92 @@ def run_log(
     when = dt.datetime.fromisoformat(at) if at else dt.datetime.now(dt.UTC)
     append_run_log(log_file, format_run_log_entry(summary, when))
     typer.echo(f"run-log: appended {summary.run_id} ({len(summary.sources)} sources)")
+
+
+@app.command(name="extract-text")
+def extract_text(
+    input_file: Annotated[
+        Path, typer.Option("--in", help="classified.json (Bill/EnforcementAction dumps).")
+    ],
+    wiki: Annotated[Path, typer.Option(help="Wiki root holding the pages + sidecars.")] = Path(
+        "wiki"
+    ),
+    limit: Annotated[
+        int | None, typer.Option(min=1, help="Max items to extract this run.")
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="List planned extractions; write nothing.")
+    ] = False,
+) -> None:
+    """Extract operative source documents to ``<id>.text.md`` sidecars via Docling.
+
+    For each tracked page it picks the operative document — a bill's
+    enrolled/latest text version, or an enforcement action's press release plus
+    linked filing PDFs — extracts Markdown through the Docling boundary, writes the
+    sidecar, and links it from the page. The existing "Full Text" source links are
+    left untouched. Per-item isolation: a malformed or unfetchable item is recorded
+    as a skip, never fatal (mirrors render-enforcement).
+    """
+    try:
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read classified file {input_file}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise ConfigError(f"classified file must be a JSON list, got {type(raw).__name__}")
+        entries: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    # Fail fast (real runs only): Docling is an optional, unlocked extra. Dry-run
+    # never invokes it, so it stays useful for previewing without Docling installed.
+    if not dry_run and not docling_available():
+        typer.echo(
+            "error: Docling is not installed. Install it to run extract-text:\n"
+            "  uv pip install docling\n"
+            "then re-run with `uv run --no-sync zwiadbrain extract-text ...`.\n"
+            "(Use --dry-run to preview planned extractions without Docling.)",
+            err=True,
+        )
+        raise typer.Exit(1)
+    if limit is not None:
+        entries = entries[:limit]
+
+    done = 0
+    dropped: list[tuple[str, str]] = []
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            dropped.append((f"entry[{i}]", "entry is not a JSON object"))
+            continue
+        record: dict[str, object] = entry  # pyright: ignore[reportUnknownVariableType]
+        identifier = str(record.get("id") or f"entry[{i}]")
+        try:
+            item: Bill | EnforcementAction
+            if record.get("type") == "enforcement":
+                item = validate_model(EnforcementAction, record, label="enforcement item")
+            else:
+                item = validate_model(Bill, record, label="bill item")
+            if dry_run:
+                plan = plan_extraction(item, wiki)
+                if plan is None:
+                    dropped.append((identifier, "no committed page or no fetchable document"))
+                    continue
+                sidecar, urls = plan
+                typer.echo(f"would extract {identifier}: {len(urls)} doc(s) -> {sidecar}")
+                done += 1
+                continue
+            sidecar_written = extract_item(item, wiki)
+            if sidecar_written is None:
+                dropped.append((identifier, "no committed page or no fetchable document"))
+                continue
+            done += 1
+        except Exception as exc:  # noqa: BLE001 - per-item isolation: one bad item never aborts the batch
+            dropped.append((identifier, str(exc)))
+
+    verb = "would extract" if dry_run else "extracted"
+    typer.echo(f"extract-text: {verb} {done} item(s), {len(dropped)} skipped")
+    for ident, reason in dropped:
+        typer.echo(f"  - skipped {ident}: {reason}", err=True)
 
 
 def main() -> None:

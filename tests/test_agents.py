@@ -102,6 +102,17 @@ def test_leg_history_researcher_prompt_states_output_contract() -> None:
         assert key in body
 
 
+def test_leg_history_researcher_prompt_states_related_media_contract() -> None:
+    """should instruct emitting hearing videos as related_media (Tier-2) with kind, and the
+    transcript rule (a video quote only when a transcript/captions ground it)."""
+    body = (_AGENTS / "leg-history-researcher.md").read_text(encoding="utf-8")
+    assert "related_media" in body
+    # RelatedMedia fields the render-leg-history --in contract requires
+    for key in ("kind", "publisher"):
+        assert key in body
+    assert "transcript" in body.lower()
+
+
 # ---------------------------------------------------------------------------
 # T12 — leg-history-verifier
 # ---------------------------------------------------------------------------
@@ -139,6 +150,15 @@ def test_leg_history_verifier_prompt_states_output_contract() -> None:
     # The single-speaker contiguity check (c) and its rejection note.
     assert "contiguity" in body.lower()
     assert "merged attribution" in body.lower()
+
+
+def test_leg_history_verifier_prompt_states_media_identity_check() -> None:
+    """should describe the Tier-2 related_media identity check and its verdict echo"""
+    body = (_AGENTS / "leg-history-verifier.md").read_text(encoding="utf-8")
+    assert "related_media" in body
+    assert "identity" in body.lower()
+    # The media verdict carries a title_prefix echo the pipeline cross-checks (fail-closed).
+    assert "title_prefix" in body
 
 
 # ---------------------------------------------------------------------------
@@ -190,6 +210,28 @@ def test_leg_history_command_references_both_subagents() -> None:
     # Python CLI commands wired by the orchestrator
     assert "fetch-leg-history" in body
     assert "render-leg-history" in body
+
+
+def test_leg_history_command_wires_the_two_step_assembler() -> None:
+    """should wire the PHASE-15/D74 deterministic two-step flow (no hand-built index arrays).
+
+    The Tier-2 related-media path still flows through the orchestrator, but via the
+    deterministic assembler — lane files -> build-verifier-input -> verifier.json ->
+    assemble-leg-history-input -> render — not a hand-merged/hand-indexed render-input.
+    The media_verdicts/verdicts keys are now produced by assemble-leg-history-input and are
+    contract-tested in tests/test_assemble_leg_history.py.
+    """
+    body = _LEG_COMMAND.read_text(encoding="utf-8")
+    assert "related_media" in body
+    for token in (
+        "lane-",
+        "build-verifier-input",
+        "verifier-input.json",
+        "verifier.json",
+        "assemble-leg-history-input",
+        "leghistory-research.json",
+    ):
+        assert token in body, f"command must wire '{token}'"
 
 
 # ---------------------------------------------------------------------------

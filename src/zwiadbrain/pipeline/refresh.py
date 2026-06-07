@@ -153,10 +153,10 @@ def preserve_leg_history(prev: LegHistory | None, fresh_spine: LegHistory) -> Le
     Implements the D38 + D40 preservation rule: the spine fields (``versions``,
     ``committee_reports``, ``votes``, ``floor_consideration``, ``conference``,
     ``enactment``) come from *fresh_spine* (re-derived from the API); the
-    expensive cross-modal-verified research (``hearings``, ``statements``) and
-    the narrative come from *prev*.  Returns *fresh_spine* unchanged when *prev*
-    is ``None`` (e.g. a non-enacted bill or a bill that never had leg-history
-    assembled).
+    expensive cross-modal-verified research (``hearings``, ``statements``,
+    ``related_media``) and the narrative come from *prev*.  Returns *fresh_spine*
+    unchanged when *prev* is ``None`` (e.g. a non-enacted bill or a bill that never
+    had leg-history assembled).
     """
     if prev is None:
         return fresh_spine
@@ -164,6 +164,7 @@ def preserve_leg_history(prev: LegHistory | None, fresh_spine: LegHistory) -> Le
         update={
             "hearings": prev.hearings,
             "statements": prev.statements,
+            "related_media": prev.related_media,
             "narrative": prev.narrative,
         }
     )

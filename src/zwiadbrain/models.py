@@ -123,6 +123,9 @@ class Hearing(BaseModel):
     date: dt.date | None = None
     citation: str | None = None
     url: str | None = None
+    # "on_bill" = a hearing on this specific bill; "related" = a subject-matter
+    # hearing (incl. video) tied to the bill's topic but not necessarily this bill (D69).
+    relation: Literal["on_bill", "related"] = "on_bill"
 
 
 class Statement(BaseModel):
@@ -134,8 +137,33 @@ class Statement(BaseModel):
     quote: Annotated[str, Field(min_length=20)]  # D36 grounding floor (_MIN_QUOTE_CHARS)
     context: str | None = None
     source_url: _HttpUrlStr
-    source_type: Literal["CREC", "hearing", "press", "news", "other"]
+    source_type: Literal["CREC", "hearing", "press", "news", "signing", "other"]
     verified: bool = False
+    # "on_bill" = a statement about this specific bill; "related" = a sponsor/official
+    # statement on the bill's subject matter, under the D70 relevance clamp (D69).
+    relation: Literal["on_bill", "related"] = "on_bill"
+
+
+class RelatedMedia(BaseModel):
+    """A Tier-2 media reference — a hearing/floor video or a reference page — listed
+    WITHOUT an attributed quote.
+
+    Tier-2 (D69): media is shown as a labeled link, so there is nothing to
+    misattribute.  It is grounded by URL-resolution plus an independent verifier
+    *identity* check only; it NEVER passes through the verbatim-quote gate that
+    Tier-1 :class:`Statement`s must clear.  ``url`` is required and http-validated
+    (the project's "no link, no render" rule, matching :class:`StatutesAtLarge`).
+    ``relation`` mirrors :class:`Statement`/:class:`Hearing` for parallelism; the
+    default is ``related`` because this is, by construction, *related* media.
+    """
+
+    title: Annotated[str, Field(min_length=1)]
+    url: _HttpUrlStr
+    kind: Literal["video", "page", "other"] = "other"
+    publisher: str | None = None
+    date: dt.date | None = None
+    relation: Literal["on_bill", "related"] = "related"
+    note: str | None = None
 
 
 class StatutesAtLarge(BaseModel):
@@ -170,6 +198,7 @@ class LegHistory(BaseModel):
     enactment: Enactment | None = None
     hearings: list[Hearing] = []
     statements: list[Statement] = []
+    related_media: list[RelatedMedia] = []  # Tier-2 media (videos/pages), no quote (D69, Phase B)
     narrative: str | None = None
 
 

@@ -22,11 +22,12 @@ Two entry points:
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
 from bs4 import BeautifulSoup, Comment
+from pydantic import ValidationError
 
 from zwiadbrain.models import (
     Bill,
@@ -35,6 +36,7 @@ from zwiadbrain.models import (
     FloorAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     Vote,
 )
@@ -47,10 +49,10 @@ from zwiadbrain.pipeline.ids import parse_bill_id
 
 @dataclass(frozen=True)
 class DroppedItem:
-    """Records a statement or hearing that was rejected by the grounding gate."""
+    """Records a statement, hearing, or media item rejected by a grounding gate."""
 
-    kind: Literal["statement", "hearing"]
-    identifier: str  # human-readable: "<speaker>: <first ~50 chars>" or hearing title
+    kind: Literal["statement", "hearing", "media"]
+    identifier: str  # human-readable: "<speaker>: <first ~50 chars>", hearing/media title
     reason: str
 
 
@@ -66,6 +68,20 @@ class GroundingResult:
 
     statements: tuple[Statement, ...] = field(default_factory=tuple)
     hearings: tuple[Hearing, ...] = field(default_factory=tuple)
+    dropped: tuple[DroppedItem, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class RelatedGroundingResult:
+    """Outcome of :func:`ground_related`: kept Tier-2 media and everything rejected.
+
+    Separate from :class:`GroundingResult` so the Tier-1 quote gate (``ground_items``)
+    stays untouched.  ``media`` is a tuple for the same immutability reason
+    :class:`GroundingResult` uses tuples: a list field would let an unconfirmed media
+    item be appended past the gate.
+    """
+
+    media: tuple[RelatedMedia, ...] = field(default_factory=tuple)
     dropped: tuple[DroppedItem, ...] = field(default_factory=tuple)
 
 
@@ -131,6 +147,27 @@ def _signed_date(bill: Bill) -> dt.date | None:
         if "became public law" in text_lower and became_law is None:
             became_law = action.date
     return signed if signed is not None else became_law
+
+
+def _state_signed_date(bill: Bill) -> dt.date | None:
+    """Scan a state bill's actions for the governor's approval (signing) date.
+
+    Prefers an action containing ``"approved by the governor"`` / ``"signed by governor"``
+    (the executive signing event) over the ``"chaptered"`` action (the secretary-of-state
+    enrollment, which is dated a day or two later). Returns ``None`` when neither is found.
+    """
+    approved: dt.date | None = None
+    chaptered: dt.date | None = None
+    for action in bill.actions:
+        text_lower = action.text.lower()
+        if approved is None and (
+            "approved by the governor" in text_lower
+            or "signed by governor" in text_lower
+        ):
+            approved = action.date
+        if chaptered is None and "chaptered" in text_lower:
+            chaptered = action.date
+    return approved if approved is not None else chaptered
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +389,227 @@ def ground_items(
     )
 
 
+def ground_related(
+    related_media: list[RelatedMedia],
+    *,
+    fetch: Callable[[str], tuple[int, str]],
+    verifier_verdicts: dict[int, bool],
+) -> RelatedGroundingResult:
+    """Run the Tier-2 grounding gate over *related_media* (D69 Phase B).
+
+    Tier-2 media carries NO attributed quote, so there is nothing to misattribute
+    and the verbatim-quote gate does not apply.  Each item must pass two checks,
+    first failure recorded:
+
+    1. ``status, _ = fetch(media.url)``; if ``status != 200`` -> drop with reason
+       ``"media url returned status {status}"``.  ``RelatedMedia.url`` is required
+       and http-validated by the model, so there is no separate "no url" branch
+       (unlike the hearing gate, whose ``url`` is optional).
+    2. ``verifier_verdicts.get(i, False)`` must be True — an independent verifier
+       *identity* confirmation that the link is the claimed hearing video / page.
+       A missing index counts as not-confirmed; drop with reason
+       ``"verifier did not confirm the media"``.
+
+    **Ordering contract for** *verifier_verdicts*: keyed by each media item's index
+    in THIS list (same enumerate contract as :func:`ground_items`).  Kept items are
+    returned UNCHANGED — there is no ``verified`` flag to set; membership of the kept
+    tuple is itself the confirmation.
+
+    The gate logic for :func:`ground_items`, :func:`_normalize_text`, and the
+    quote-presence path is intentionally untouched by this function.
+    """
+    kept_media: list[RelatedMedia] = []
+    dropped: list[DroppedItem] = []
+
+    for i, media in enumerate(related_media):
+        status, _ = fetch(media.url)
+        if status != 200:
+            dropped.append(
+                DroppedItem(
+                    kind="media",
+                    identifier=media.title,
+                    reason=f"media url returned status {status}",
+                )
+            )
+            continue
+        if not verifier_verdicts.get(i, False):
+            dropped.append(
+                DroppedItem(
+                    kind="media",
+                    identifier=media.title,
+                    reason="verifier did not confirm the media",
+                )
+            )
+            continue
+        kept_media.append(media)
+
+    return RelatedGroundingResult(
+        media=tuple(kept_media),
+        dropped=tuple(dropped),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Lane merge (PHASE-15 / D74) — shared by build-verifier-input + assemble-leg-history-input
+# ---------------------------------------------------------------------------
+
+# Canonical fan-out lane order.  The merged statement / hearing / media order is fixed by
+# THIS tuple, never by the caller's dict order, so the verifier (dispatched over the
+# build-verifier-input merge) and the assembler (which re-merges) agree on every index.
+LANE_ORDER: tuple[str, ...] = ("crec", "hearings", "press", "signing")
+
+
+@dataclass(frozen=True)
+class MergedResearch:
+    """Deterministic merge of the four researcher lane outputs (PHASE-15 / D74).
+
+    Produced by :func:`merge_lanes` and consumed by BOTH the ``build-verifier-input`` and
+    ``assemble-leg-history-input`` CLI steps.  The merge is pure and deterministic, so
+    calling it on the same lane inputs on either side of the verifier yields byte-identical
+    statement / media order — the verifier's echoed indices therefore align with the
+    assembler's positions by construction, not by hand.
+
+    Tuples (not lists) for the same trust-boundary immutability reason
+    :class:`GroundingResult` uses them.
+    """
+
+    statements: tuple[Statement, ...] = field(default_factory=tuple)
+    hearings: tuple[Hearing, ...] = field(default_factory=tuple)
+    related_media: tuple[RelatedMedia, ...] = field(default_factory=tuple)
+    narrative: str | None = None
+    dropped_lanes: tuple[str, ...] = field(default_factory=tuple)
+    parse_dropped: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+
+
+def _lane_items(payload: dict[str, object], key: str) -> list[object] | None:
+    """Return the list at *key* in a lane payload, or ``None`` if the field is malformed.
+
+    A missing or ``null`` field becomes an empty list (a lane legitimately produces nothing
+    in a category).  A present-but-non-list field means the lane's JSON is structurally
+    broken at the top level; returning ``None`` signals the caller to drop the whole lane.
+    """
+    value = payload.get(key)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        return None
+    items: list[object] = list(value)  # pyright: ignore[reportUnknownArgumentType]
+    return items
+
+
+def merge_lanes(lanes: Mapping[str, object | None]) -> MergedResearch:
+    """Merge the four researcher lane payloads into one deterministic research set.
+
+    *lanes* maps a lane name (``crec`` / ``hearings`` / ``press`` / ``signing``) to that
+    lane's loaded JSON object, or ``None`` when the lane file was missing / unreadable.
+    Lanes are processed in :data:`LANE_ORDER` (NOT input dict order), so the merged
+    statement / media order is stable regardless of how the caller built the mapping.
+
+    Merge rules:
+
+    * **statements** — concatenated across lanes; deduped by ``(speaker, quote)`` (first
+      occurrence wins).
+    * **hearings** — concatenated; deduped by ``url`` (first wins).  Url-less hearings are
+      NEVER deduped against each other (a missing url is not an identity) — they are kept and
+      left for the render gate to drop with a per-item audit line.
+    * **related_media** — concatenated; deduped by ``url`` (first wins; ``url`` is required
+      by the model).
+    * **narrative** — taken ONLY from the ``crec`` lane (the sole lane that writes one);
+      ``None`` when that lane is absent or its narrative is blank.
+
+    Failure handling:
+
+    * A lane whose payload is ``None`` or not a JSON object, or whose ``statements`` /
+      ``hearings`` / ``related_media`` field is present-but-not-a-list (or whose
+      ``narrative`` is present-but-not-a-string), is dropped whole and recorded in
+      ``dropped_lanes`` (mirrors the orchestrator's "drop just that lane" rule).
+    * An individual item that fails model validation is parse-dropped (recorded in
+      ``parse_dropped`` as ``(identifier, reason)``) without dropping the rest of its lane,
+      mirroring render-leg-history's per-item parse-drop.
+
+    No I/O and no LLM calls: pure deterministic plumbing.
+    """
+    statements: list[Statement] = []
+    hearings: list[Hearing] = []
+    related_media: list[RelatedMedia] = []
+    dropped_lanes: list[str] = []
+    parse_dropped: list[tuple[str, str]] = []
+
+    seen_statements: set[tuple[str, str]] = set()
+    seen_hearing_urls: set[str] = set()
+    seen_media_urls: set[str] = set()
+
+    narrative: str | None = None
+
+    for lane in LANE_ORDER:
+        payload = lanes.get(lane)
+        if not isinstance(payload, dict):
+            # None (unreadable file) or a non-object top level -> drop the whole lane.
+            dropped_lanes.append(lane)
+            continue
+        lane_payload: dict[str, object] = payload  # pyright: ignore[reportUnknownVariableType]
+
+        stmt_items = _lane_items(lane_payload, "statements")
+        hearing_items = _lane_items(lane_payload, "hearings")
+        media_items = _lane_items(lane_payload, "related_media")
+        narrative_raw = lane_payload.get("narrative")
+        if (
+            stmt_items is None
+            or hearing_items is None
+            or media_items is None
+            or (narrative_raw is not None and not isinstance(narrative_raw, str))
+        ):
+            dropped_lanes.append(lane)
+            continue
+
+        for i, item in enumerate(stmt_items):
+            try:
+                stmt = Statement.model_validate(item)
+            except ValidationError as exc:
+                parse_dropped.append((f"{lane} statement[{i}]", str(exc)))
+                continue
+            key = (stmt.speaker, stmt.quote)
+            if key in seen_statements:
+                continue
+            seen_statements.add(key)
+            statements.append(stmt)
+
+        for i, item in enumerate(hearing_items):
+            try:
+                hearing = Hearing.model_validate(item)
+            except ValidationError as exc:
+                parse_dropped.append((f"{lane} hearing[{i}]", str(exc)))
+                continue
+            if hearing.url:
+                if hearing.url in seen_hearing_urls:
+                    continue
+                seen_hearing_urls.add(hearing.url)
+            hearings.append(hearing)
+
+        for i, item in enumerate(media_items):
+            try:
+                media = RelatedMedia.model_validate(item)
+            except ValidationError as exc:
+                parse_dropped.append((f"{lane} related_media[{i}]", str(exc)))
+                continue
+            if media.url in seen_media_urls:
+                continue
+            seen_media_urls.add(media.url)
+            related_media.append(media)
+
+        if lane == "crec" and isinstance(narrative_raw, str) and narrative_raw.strip():
+            narrative = narrative_raw
+
+    return MergedResearch(
+        statements=tuple(statements),
+        hearings=tuple(hearings),
+        related_media=tuple(related_media),
+        narrative=narrative,
+        dropped_lanes=tuple(dropped_lanes),
+        parse_dropped=tuple(parse_dropped),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -461,4 +719,70 @@ def collect_leads(
             bill.latest_action_date.isoformat() if bill.latest_action_date else None
         ),
         "hearings": hearing_dicts,
+    }
+
+
+def assemble_state_spine(bill: Bill, votes: list[Vote]) -> LegHistory:
+    """Build a :class:`LegHistory` spine for an enacted STATE bill (PHASE-16 / D75).
+
+    State data arrives in one LegiScan ``getBill`` (no Congress.gov / GovInfo fan-out), so
+    this is a pure transform of the already-mapped :class:`Bill` plus its parsed *votes*:
+
+    * ``versions`` -- from ``bill.text_versions``
+    * ``votes`` -- the parsed roll calls (passed through)
+    * ``floor_consideration`` -- left EMPTY: a state history action carries no Congressional-
+      Record citation or per-action url, the full timeline already renders in the bill body's
+      "Status & Timeline", and roll-call passage events render under "Votes"
+    * ``enactment`` -- ``date_signed`` from the governor-approval action (fallback: the
+      Chaptered action), ``url`` from the State source link (fallback: the LegiScan page)
+
+    ``committee_reports`` and the researcher fields (``hearings``, ``statements``,
+    ``related_media``, ``conference``, ``narrative``) are left at their defaults: there is no
+    deterministic state source for them; the researcher fills the latter.
+    """
+    signed = _state_signed_date(bill)
+    url = bill.sources.get("State source") or bill.sources.get("LegiScan")
+    enactment = Enactment(date_signed=signed, url=url) if (signed or url) else None
+    return LegHistory(
+        versions=bill.text_versions,
+        committee_reports=[],
+        votes=votes,
+        floor_consideration=[],
+        enactment=enactment,
+        conference=None,
+        narrative=None,
+        hearings=[],
+        statements=[],
+        related_media=[],
+    )
+
+
+def collect_state_leads(bill: Bill, supplement_media: list[RelatedMedia]) -> dict[str, Any]:
+    """Return JSON-serializable research leads for a STATE bill (PHASE-16 / D75).
+
+    Mirrors :func:`collect_leads` for a state bill: carries the ``state`` (in place of a
+    federal ``congress``), the bill identity, and the LegiScan ``supplements`` as Tier-2
+    :class:`RelatedMedia` *leads* (``supplement_media``) — candidate reference links the
+    researcher may confirm. The governor signing message (Tier-1 ``signing``) and any
+    state-legislature hearing video (Tier-2) are dispatch-time directives, not deterministic
+    leads. ``enacted_date`` is the governor-approval (signing) date — an anchor for the
+    ``signing`` lane.
+    """
+    state = bill.jurisdiction.split("-", 1)[-1]
+    signed = _state_signed_date(bill)
+    return {
+        "id": bill.id,
+        "state": state,
+        "citation": bill.bill_number,
+        "title": bill.title,
+        "sponsors": bill.sponsors,
+        "related_bills": bill.related_bills,
+        "introduced_date": bill.introduced_date.isoformat() if bill.introduced_date else None,
+        "latest_action_date": (
+            bill.latest_action_date.isoformat() if bill.latest_action_date else None
+        ),
+        "enacted_date": signed.isoformat() if signed else None,
+        "supplement_media": [
+            m.model_dump(mode="json", exclude_none=True) for m in supplement_media
+        ],
     }

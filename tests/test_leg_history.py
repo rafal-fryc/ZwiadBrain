@@ -17,6 +17,7 @@ from zwiadbrain.models import (
     FloorAction,
     Hearing,
     LegHistory,
+    RelatedMedia,
     Statement,
     TextVersion,
     Vote,
@@ -25,10 +26,14 @@ from zwiadbrain.pipeline.ids import parse_bill_id
 from zwiadbrain.pipeline.leg_history import (
     _MIN_QUOTE_CHARS,  # pyright: ignore[reportPrivateUsage]
     GroundingResult,
+    RelatedGroundingResult,
     _quote_present,  # pyright: ignore[reportPrivateUsage]
     assemble_spine,
+    assemble_state_spine,
     collect_leads,
+    collect_state_leads,
     ground_items,
+    ground_related,
 )
 
 # ---------------------------------------------------------------------------
@@ -629,6 +634,15 @@ def _make_hearing(
     return Hearing(title=title, url=url)
 
 
+def _make_media(
+    *,
+    title: str = "Markup video",
+    url: str = "https://www.youtube.com/watch?v=abc123",
+    kind: str = "video",
+) -> RelatedMedia:
+    return RelatedMedia.model_validate({"title": title, "url": url, "kind": kind})
+
+
 class _FakeFetch:
     """Fetch callable backed by a url->response dict. Missing urls return (0, '')."""
 
@@ -1055,3 +1069,280 @@ def test_gate_alone_does_not_catch_cross_attribution_span() -> None:
     )
     cross_attribution_span = "protects consumers. Rep. B: I oppose this measure"
     assert _quote_present(cross_attribution_span, page) is True
+
+
+# ---------------------------------------------------------------------------
+# ground_related — Tier-2 media gate (URL-200 + verifier identity, no quote)
+# ---------------------------------------------------------------------------
+
+
+def test_ground_related_kept_when_url_200_and_verified() -> None:
+    """should keep media unchanged when url resolves 200 and the verifier confirms it"""
+    media = _make_media(url="https://www.youtube.com/watch?v=abc123")
+    fetch = _fake_fetch({"https://www.youtube.com/watch?v=abc123": (200, "any page body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert isinstance(result, RelatedGroundingResult)
+    assert len(result.media) == 1
+    assert result.media[0] == media  # unchanged — no quote, no verified flag to set
+    assert len(result.dropped) == 0
+
+
+def test_ground_related_dropped_when_url_404() -> None:
+    """should drop media when its url returns 404, recording the status reason"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (404, "")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert len(result.media) == 0
+    assert len(result.dropped) == 1
+    assert result.dropped[0].reason == "media url returned status 404"
+
+
+def test_ground_related_dropped_when_url_unreachable() -> None:
+    """should drop media when the url is unreachable (status 0)"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({})  # all urls -> (0, "")
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert len(result.media) == 0
+    assert result.dropped[0].reason == "media url returned status 0"
+
+
+def test_ground_related_dropped_when_verifier_false() -> None:
+    """should drop media when url 200 but the verifier did not confirm it"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (200, "body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: False})
+    assert len(result.media) == 0
+    assert len(result.dropped) == 1
+    assert "verifier" in result.dropped[0].reason
+
+
+def test_ground_related_dropped_when_verifier_index_missing() -> None:
+    """should treat a missing verifier index as not-confirmed and drop the media"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (200, "body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={})
+    assert len(result.media) == 0
+    assert "verifier" in result.dropped[0].reason
+
+
+def test_ground_related_url_gate_runs_before_verifier() -> None:
+    """should report the url status (not the verifier) when both would fail — url checked first"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (500, "")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: False})
+    assert result.dropped[0].reason == "media url returned status 500"
+
+
+def test_ground_related_dropped_item_kind_is_media() -> None:
+    """should record kind='media' and the title as the identifier on a dropped item"""
+    media = _make_media(title="Subject-matter AI hearing", url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (404, "")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={})
+    assert result.dropped[0].kind == "media"
+    assert result.dropped[0].identifier == "Subject-matter AI hearing"
+
+
+def test_ground_related_result_fields_are_immutable_tuples() -> None:
+    """should return tuples (not lists) so nothing can be appended past the gate"""
+    media = _make_media(url="https://example.com/v")
+    fetch = _fake_fetch({"https://example.com/v": (200, "body")})
+    result = ground_related([media], fetch=fetch, verifier_verdicts={0: True})
+    assert isinstance(result.media, tuple)
+    assert isinstance(result.dropped, tuple)
+
+
+def test_ground_related_keys_verdicts_by_position() -> None:
+    """should key verifier verdicts by each media's position in the input list"""
+    kept = _make_media(title="kept", url="https://example.com/a")
+    dropped = _make_media(title="dropped", url="https://example.com/b")
+    fetch = _fake_fetch(
+        {"https://example.com/a": (200, "x"), "https://example.com/b": (200, "y")}
+    )
+    result = ground_related([kept, dropped], fetch=fetch, verifier_verdicts={0: True, 1: False})
+    assert [m.title for m in result.media] == ["kept"]
+    assert [d.identifier for d in result.dropped] == ["dropped"]
+
+
+def test_ground_related_empty_input_returns_empty_result() -> None:
+    """should return an empty RelatedGroundingResult for empty input"""
+    result = ground_related([], fetch=_fake_fetch({}), verifier_verdicts={})
+    assert result.media == ()
+    assert result.dropped == ()
+
+
+# ---------------------------------------------------------------------------
+# assemble_state_spine + collect_state_leads (PHASE-16 / D75)
+# ---------------------------------------------------------------------------
+
+
+def _enacted_state_bill(
+    *,
+    actions: list[Action] | None = None,
+    sources: dict[str, str] | None = None,
+) -> Bill:
+    """A minimal enacted CA state bill (mirrors LegiScanSource._to_bill output)."""
+    if actions is None:
+        actions = [
+            Action(date=dt.date(2023, 2, 8), text="Introduced. Read first time.", chamber="S"),
+            Action(date=dt.date(2023, 5, 31), text="Read third time. Passed.", chamber="S"),
+            Action(date=dt.date(2023, 10, 8), text="Approved by the Governor.", chamber="S"),
+            Action(
+                date=dt.date(2023, 10, 10),
+                text="Chaptered by Secretary of State. Chapter 709.",
+                chamber="S",
+            ),
+        ]
+    if sources is None:
+        sources = {
+            "LegiScan": "https://legiscan.com/CA/bill/SB362/2023",
+            "State source": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?id=SB362",
+        }
+    return Bill(
+        id="ca-2023-sb-362",
+        jurisdiction="US-CA",
+        title="Data broker registration: accessible deletion mechanism.",
+        bill_number="SB 362",
+        session="2023-2024 Regular Session",
+        enacted=True,
+        sponsors=["Josh Becker"],
+        related_bills=["Same As: AB1194"],
+        introduced_date=dt.date(2023, 2, 8),
+        latest_action_date=dt.date(2023, 10, 10),
+        actions=actions,
+        text_versions=[
+            TextVersion(code="Introduced", date=dt.date(2023, 2, 8)),
+            TextVersion(code="Chaptered", date=dt.date(2023, 10, 10)),
+        ],
+        sources=sources,
+    )
+
+
+def _state_votes() -> list[Vote]:
+    return [
+        Vote(
+            date=dt.date(2023, 5, 31),
+            chamber="S",
+            result="Senate Third Reading — Passed 30-8",
+            roll_call_url="https://legiscan.com/CA/rollcall/SB362/id/555001",
+        ),
+        Vote(
+            date=dt.date(2023, 9, 12),
+            chamber="A",
+            result="Assembly Third Reading — Passed 60-15",
+            roll_call_url="https://legiscan.com/CA/rollcall/SB362/id/555002",
+        ),
+    ]
+
+
+def test_assemble_state_spine_versions_come_from_bill() -> None:
+    """should source the spine's versions directly from the state bill's text_versions"""
+    bill = _enacted_state_bill()
+    spine = assemble_state_spine(bill, _state_votes())
+    assert [v.code for v in spine.versions] == ["Introduced", "Chaptered"]
+
+
+def test_assemble_state_spine_votes_are_passed_through() -> None:
+    """should carry the parsed roll-call votes into the spine unchanged"""
+    votes = _state_votes()
+    spine = assemble_state_spine(_enacted_state_bill(), votes)
+    assert spine.votes == votes
+
+
+def test_assemble_state_spine_floor_consideration_is_empty() -> None:
+    """should leave floor_consideration empty for state bills (D75 — timeline+votes cover it)"""
+    spine = assemble_state_spine(_enacted_state_bill(), _state_votes())
+    assert spine.floor_consideration == []
+
+
+def test_assemble_state_spine_enactment_signed_date_from_governor_action() -> None:
+    """should set the enactment signed date from the 'Approved by the Governor' action"""
+    spine = assemble_state_spine(_enacted_state_bill(), _state_votes())
+    assert spine.enactment is not None
+    assert spine.enactment.date_signed == dt.date(2023, 10, 8)
+    assert spine.enactment.url == (
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?id=SB362"
+    )
+
+
+def test_assemble_state_spine_enactment_signed_date_falls_back_to_chaptered() -> None:
+    """should fall back to the Chaptered date when there is no governor-approval action"""
+    bill = _enacted_state_bill(
+        actions=[
+            Action(date=dt.date(2023, 2, 8), text="Introduced.", chamber="S"),
+            Action(
+                date=dt.date(2023, 10, 10),
+                text="Chaptered by Secretary of State. Chapter 709.",
+                chamber="S",
+            ),
+        ]
+    )
+    spine = assemble_state_spine(bill, _state_votes())
+    assert spine.enactment is not None
+    assert spine.enactment.date_signed == dt.date(2023, 10, 10)
+
+
+def test_assemble_state_spine_enactment_url_falls_back_to_legiscan() -> None:
+    """should use the LegiScan url for enactment when no State source link is present"""
+    bill = _enacted_state_bill(
+        sources={"LegiScan": "https://legiscan.com/CA/bill/SB362/2023"}
+    )
+    spine = assemble_state_spine(bill, _state_votes())
+    assert spine.enactment is not None
+    assert spine.enactment.url == "https://legiscan.com/CA/bill/SB362/2023"
+
+
+def test_assemble_state_spine_leaves_researcher_and_federal_only_fields_empty() -> None:
+    """should leave committee_reports + researcher fields empty (state has no GovInfo)"""
+    spine = assemble_state_spine(_enacted_state_bill(), _state_votes())
+    assert spine.committee_reports == []
+    assert spine.hearings == []
+    assert spine.statements == []
+    assert spine.related_media == []
+    assert spine.conference is None
+    assert spine.narrative is None
+
+
+def _supplement_media() -> list[RelatedMedia]:
+    return [
+        RelatedMedia(
+            title="Senate Appropriations Fiscal Note",
+            url="https://leginfo.legislature.ca.gov/faces/billAnalysisClient.xhtml?id=SB362",
+            kind="page",
+            date=dt.date(2023, 4, 10),
+            relation="related",
+            note="Fiscal Note",
+        )
+    ]
+
+
+def test_collect_state_leads_core_fields() -> None:
+    """should return the state, citation, sponsors, and id as researcher leads"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    assert leads["id"] == "ca-2023-sb-362"
+    assert leads["state"] == "CA"
+    assert leads["citation"] == "SB 362"
+    assert leads["sponsors"] == ["Josh Becker"]
+    assert leads["related_bills"] == ["Same As: AB1194"]
+
+
+def test_collect_state_leads_supplement_media_as_dicts() -> None:
+    """should serialize supplement media into JSON-ready Tier-2 lead dicts"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    media = leads["supplement_media"]
+    assert isinstance(media, list)
+    assert media[0]["title"] == "Senate Appropriations Fiscal Note"
+    assert media[0]["kind"] == "page"
+
+
+def test_collect_state_leads_enacted_date_is_isoformat() -> None:
+    """should expose the enactment (governor-approval) date as an ISO string lead"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    assert leads["enacted_date"] == "2023-10-08"
+
+
+def test_collect_state_leads_does_not_include_spine_fields() -> None:
+    """leads carry research starting points, not the deterministic spine"""
+    leads = collect_state_leads(_enacted_state_bill(), _supplement_media())
+    assert "votes" not in leads
+    assert "versions" not in leads
+    assert "enactment" not in leads

@@ -1,0 +1,9 @@
+{
+  "status": "OK",
+  "masterlist": {
+    "session": {"session_id": 1624, "session_name": "2019-2020 Session", "year_start": 2019, "year_end": 2020},
+    "0": {"bill_id": 1132030, "number": "AB1", "change_hash": "hashA", "status": 4, "status_date": "2019-07-31", "url": "https://legiscan.com/CA/bill/AB1/2019", "title": "Automated decision systems: artificial intelligence accountability.", "description": "An act to regulate automated decision systems and artificial intelligence."},
+    "1": {"bill_id": 1132099, "number": "AB99", "change_hash": "hashB", "status": 4, "status_date": "2019-09-01", "url": "https://legiscan.com/CA/bill/AB99/2019", "title": "Youth athletics: California Youth Football Act.", "description": "An act to add Article 2.7 to the Health and Safety Code."},
+    "2": {"bill_id": 1132200, "number": "SB200", "change_hash": "hashC", "status": 6, "status_date": "2019-05-01", "url": "https://legiscan.com/CA/bill/SB200/2019", "title": "Consumer privacy: data brokers.", "description": "An act concerning consumer privacy that failed passage."}
+  }
+}

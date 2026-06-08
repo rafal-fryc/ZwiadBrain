@@ -1,0 +1,8 @@
+{
+  "status": "OK",
+  "sessions": [
+    {"session_id": 2016, "year_start": 2023, "year_end": 2024, "special": 0, "session_name": "2023-2024 Session"},
+    {"session_id": 1791, "year_start": 2021, "year_end": 2022, "special": 0, "session_name": "2021-2022 Session"},
+    {"session_id": 1624, "year_start": 2019, "year_end": 2020, "special": 0, "session_name": "2019-2020 Session"}
+  ]
+}

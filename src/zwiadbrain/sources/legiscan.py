@@ -379,6 +379,8 @@ class LegiScanSource:
             sessions.append(
                 Session(
                     session_id=int(sid),
+                    # LegiScan reliably provides year_start/year_end for regular sessions;
+                    # default 0 for any that omit them (won't match a real --year).
                     year_start=int(entry.get("year_start") or 0),
                     year_end=int(entry.get("year_end") or 0),
                     special=bool(entry.get("special")),
@@ -390,11 +392,12 @@ class LegiScanSource:
     def list_session_enacted(
         self, session_id: int, *, limit: int | None = None
     ) -> list[Candidate]:
-        """List a session's ENACTED bills (``status == 4``) as candidates (D84, PHASE-24).
+        """List a session's ENACTED bills as candidates (D84, PHASE-24).
 
-        Uses ``getMasterList`` (NOT ``getMasterListRaw`` — the Raw variant carries only
-        ``bill_id``/``number``/``change_hash``). Each kept row carries ``title`` and the
-        LegiScan ``description`` (onto ``Candidate.summary``) so topic recall is free, plus
+        Keeps only rows with ``status == 4`` (LegiScan "Passed" = enacted; see
+        ``_STATUS_TEXT``). Uses ``getMasterList`` (NOT ``getMasterListRaw`` — the Raw variant
+        carries only ``bill_id``/``number``/``change_hash``). Each kept row carries ``title``
+        and the LegiScan ``description`` (onto ``Candidate.summary``) so topic recall is free, plus
         ``change_hash`` in ``raw`` for the state reject-ledger cursor. The numeric-keyed
         ``masterlist`` container's non-bill ``session`` member is skipped by requiring a
         ``bill_id`` (parity with :meth:`change_hashes`).

@@ -277,3 +277,31 @@ def test_list_session_enacted_respects_limit() -> None:
         _route_by_op(mock, {"getMasterList": _fixture("getMasterList.json")})
         cands = _source().list_session_enacted(1624, limit=1)
     assert [c.native_id for c in cands] == ["1132030"]
+
+
+def test_list_sessions_returns_empty_when_no_sessions() -> None:
+    """should return [] when getSessionList omits the sessions key"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getSessionList": {"status": "OK"}})
+        assert _source().list_sessions() == []
+
+
+def test_list_session_enacted_returns_empty_when_none_passed() -> None:
+    """should return [] when no bill in the masterlist has status==4"""
+    payload = {
+        "status": "OK",
+        "masterlist": {
+            "session": {"session_id": 1624},
+            "0": {
+                "bill_id": 1,
+                "number": "AB9",
+                "change_hash": "h",
+                "status": 6,
+                "title": "x",
+                "description": "y",
+            },
+        },
+    }
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterList": payload})
+        assert _source().list_session_enacted(1624) == []

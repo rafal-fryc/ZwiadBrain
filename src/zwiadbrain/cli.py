@@ -90,6 +90,9 @@ from zwiadbrain.pipeline.refresh import (
 )
 from zwiadbrain.pipeline.rejects import (
     federal_bill_entry,
+    federal_cursor,
+    federal_key,
+    filter_cached_rejects,
     load_reject_ledger,
     state_bill_entry,
     write_reject_ledger,
@@ -264,11 +267,17 @@ def fetch_candidates(
         scanned = source.discover(congress=congress, limit=_SCAN_LIMIT, max_pages=max_pages)
         if skip_existing:
             known = _existing_federal_bill_ids(wiki)
+            ledger = load_reject_ledger(wiki / ".rejects" / "federal.json")
             before = len(scanned)
             scanned = filter_unseen(scanned, known)
+            after_unseen = len(scanned)
+            scanned = filter_cached_rejects(
+                scanned, ledger, key_of=federal_key, cursor_of=federal_cursor
+            )
             typer.echo(
-                f"skip-existing: dropped {before - len(scanned)} already-tracked"
-                f" of {before} scanned ({len(known)} on wiki)"
+                f"skip-existing: dropped {before - after_unseen} already-tracked"
+                f" + {after_unseen - len(scanned)} cached-reject of {before} scanned"
+                f" ({len(known)} on wiki, {len(ledger)} rejects)"
             )
         candidates = recall_filter(
             scanned,

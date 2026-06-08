@@ -20,7 +20,9 @@ from zwiadbrain import __version__
 # raising), which is the whole point of the T10 hardening fix.
 from zwiadbrain.cli import _fetch_url, app  # pyright: ignore[reportPrivateUsage]
 from zwiadbrain.models import Bill, CommitteeReport, Enactment, Hearing, LegHistory, Statement
+from zwiadbrain.pipeline.rejects import RejectEntry, write_reject_ledger
 from zwiadbrain.pipeline.render import write_page
+from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CONGRESS_API_BASE, CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE
@@ -1946,3 +1948,38 @@ def test_record_rejects_rejects_unknown_scope(tmp_path: Path) -> None:
     )
     assert result.exit_code == 1
     assert "scope" in result.output
+
+
+def test_fetch_candidates_skip_existing_drops_cached_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop a federal candidate cached as a reject whose cursor is unchanged (D82)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    wiki = tmp_path / "wiki"
+    write_reject_ledger(
+        wiki / ".rejects" / "federal.json",
+        {"119-hr-9": RejectEntry(cursor="2026-01-01")},
+    )
+
+    def _fake_discover(
+        self: CongressSource, *, congress: int | None = None,
+        since: object = None, limit: int = 20, max_pages: int = 1,
+    ) -> list[Candidate]:
+        return [
+            Candidate(
+                source="congress", native_id="119/hr/9", jurisdiction="US",
+                title="Boring Act", update_date="2026-01-01",
+            )
+        ]
+
+    monkeypatch.setattr(CongressSource, "discover", _fake_discover)
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        ["fetch-candidates", "--congress", "119", "--limit", "5", "--seed", "boring",
+         "--skip-existing", "--wiki", str(wiki), "--out", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads((out / "candidates.json").read_text(encoding="utf-8")) == []
+    assert "cached-reject" in result.output

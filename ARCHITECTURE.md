@@ -40,6 +40,10 @@ slash command (interactive Claude Code session)
 - **`/zwiad-backfill`** — discover federal bills (two-stage recall, D33), fetch,
   classify (disqualify rubric, D17), summarize + explain amendments for in-scope
   bills, render pages. Backed by CLI `fetch-candidates` + `render-classified`.
+  An **enacted-only** discovery half for the prior-years backfill,
+  `fetch-enacted-candidates` (`/law/{congress}/pub` → two-stage recall → enrich),
+  stages *only* bills that became public law; it backs the planned
+  `/zwiad-backfill-enacted` campaign (PHASE-23/D84).
 - **`/zwiad-scan-states`** — discover state bills via LegiScan `getSearchRaw`
   full-text search, enrich via `getBill`, classify, summarize + explain amendments
   for in-scope bills, render pages under `wiki/states/<st>/bills/`. State analog

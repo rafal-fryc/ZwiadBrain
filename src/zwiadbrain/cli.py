@@ -88,6 +88,12 @@ from zwiadbrain.pipeline.refresh import (
     preserve_leg_history,
     summary_hash,
 )
+from zwiadbrain.pipeline.rejects import (
+    federal_bill_entry,
+    load_reject_ledger,
+    state_bill_entry,
+    write_reject_ledger,
+)
 from zwiadbrain.pipeline.render import write_lawbrain_region, write_page
 from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
 from zwiadbrain.pipeline.staging import stage_json, validate_model
@@ -316,6 +322,49 @@ def render_classified(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"rendered {written} page(s) into {wiki}")
+
+
+@app.command(name="record-rejects")
+def record_rejects(
+    input_file: Annotated[Path, typer.Option("--in", help="Out-of-scope bills JSON (Bill list).")],
+    scope: Annotated[str, typer.Option(help="federal or state.")],
+    cache_dir: Annotated[
+        Path, typer.Option(help="Reject-ledger directory.")
+    ] = Path("wiki/.rejects"),
+) -> None:
+    """Record classified-out bills into the committed reject ledger (the negative cache).
+
+    The write half that pairs with ``--skip-existing``: the interactive session hands back the
+    OUT-of-scope ``Bill``s; this derives each one's change cursor and upserts it into
+    ``<cache_dir>/<scope>.json`` so a future sweep skips it until the bill changes (D82).
+    """
+    try:
+        if scope not in {"federal", "state"}:
+            raise ConfigError(f"--scope must be 'federal' or 'state', got {scope!r}")
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read rejects file {input_file}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise ConfigError(f"rejects file must be a JSON list, got {type(raw).__name__}")
+        items: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+        bills = [validate_model(Bill, item, label="reject bill") for item in items]
+        entry_of = federal_bill_entry if scope == "federal" else state_bill_entry
+        path = cache_dir / f"{scope}.json"
+        ledger = load_reject_ledger(path)
+        new = updated = 0
+        for bill in bills:
+            key, entry = entry_of(bill)
+            if key in ledger:
+                updated += 1
+            else:
+                new += 1
+            ledger[key] = entry
+        write_reject_ledger(path, ledger)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"recorded {new} new, {updated} updated reject(s) to {path}")
 
 
 @app.command(name="fetch-state-candidates")

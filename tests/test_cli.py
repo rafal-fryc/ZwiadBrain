@@ -1890,3 +1890,59 @@ def test_fetch_state_refreshable_detects_changed_bill(
     assert len(staged) == 1
     assert staged[0]["bill_id"] == "ca-2023-sb-362"
     assert staged[0]["needs_summarizer"] is True
+
+
+def test_record_rejects_federal_writes_ledger(tmp_path: Path) -> None:
+    """should derive the federal cursor and upsert the bill into federal.json"""
+    rejects = tmp_path / "rejects.json"
+    rejects.write_text(
+        json.dumps([
+            {
+                "id": "119-hr-9", "jurisdiction": "US", "title": "Boring",
+                "bill_number": "H.R. 9", "update_date": "2026-01-01",
+                "update_date_text": "2026-02-02",
+            }
+        ]),
+        encoding="utf-8",
+    )
+    cache = tmp_path / ".rejects"
+    result = runner.invoke(
+        app,
+        ["record-rejects", "--in", str(rejects), "--scope", "federal",
+         "--cache-dir", str(cache)],
+    )
+    assert result.exit_code == 0, result.output
+    led = json.loads((cache / "federal.json").read_text(encoding="utf-8"))
+    assert led == {"119-hr-9": {"cursor": "2026-02-02"}}
+
+
+def test_record_rejects_is_idempotent_byte_identical(tmp_path: Path) -> None:
+    """should produce a byte-identical ledger when the same reject is recorded twice"""
+    rejects = tmp_path / "rejects.json"
+    rejects.write_text(
+        json.dumps([
+            {"id": "119-hr-9", "jurisdiction": "US", "title": "B",
+             "bill_number": "H.R. 9", "update_date": "2026-01-01"}
+        ]),
+        encoding="utf-8",
+    )
+    cache = tmp_path / ".rejects"
+    args = ["record-rejects", "--in", str(rejects), "--scope", "federal",
+            "--cache-dir", str(cache)]
+    runner.invoke(app, args)
+    first = (cache / "federal.json").read_bytes()
+    runner.invoke(app, args)
+    assert (cache / "federal.json").read_bytes() == first
+
+
+def test_record_rejects_rejects_unknown_scope(tmp_path: Path) -> None:
+    """should exit non-zero on an invalid --scope"""
+    rejects = tmp_path / "r.json"
+    rejects.write_text("[]", encoding="utf-8")
+    result = runner.invoke(
+        app,
+        ["record-rejects", "--in", str(rejects), "--scope", "county",
+         "--cache-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 1
+    assert "scope" in result.output

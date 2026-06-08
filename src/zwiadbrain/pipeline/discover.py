@@ -17,14 +17,21 @@ _OVERSAMPLE = 5
 
 
 def keyword_filter(candidates: list[Candidate], seeds: list[str] | None) -> list[Candidate]:
-    """Keep candidates whose title contains any seed (case-insensitive).
+    """Keep candidates whose title OR summary contains any seed (case-insensitive).
 
-    Absent or empty ``seeds`` means "no filter" — every candidate passes.
+    Absent or empty ``seeds`` means "no filter" — every candidate passes. The summary is
+    consulted so state discovery (which carries the LegiScan ``description`` on
+    ``Candidate.summary``) recalls on the bill text; federal candidates have no summary, so
+    matching is title-only for them, unchanged.
     """
     if not seeds:
         return candidates
     lowered = [seed.lower() for seed in seeds]
-    return [c for c in candidates if any(seed in c.title.lower() for seed in lowered)]
+    return [
+        c
+        for c in candidates
+        if any(seed in f"{c.title} {c.summary or ''}".lower() for seed in lowered)
+    ]
 
 
 def filter_unseen(candidates: list[Candidate], known_ids: set[str]) -> list[Candidate]:

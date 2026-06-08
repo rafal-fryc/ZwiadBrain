@@ -63,3 +63,29 @@ def split_by_verdict(
         else:
             rejects.append(bill)
     return classified, rejects, pending
+
+
+def apply_summaries(
+    classified: list[Bill], summaries: dict[str, str]
+) -> tuple[list[Bill], list[str]]:
+    """Set each classified bill's ``summary`` from *summaries*; report the un-summarized tail.
+
+    A bill with an entry in *summaries* gets its ``summary`` replaced; a bill with no entry has
+    its id returned in ``pending_ids``. A summary key matching no classified bill is a
+    :class:`ConfigError` (stale/typo). Order is preserved; every bill is returned (summarized
+    or not), so re-applying the same map is a stable no-op (D20).
+    """
+    by_id = {bill.id for bill in classified}
+    for key in summaries:
+        if key not in by_id:
+            raise ConfigError(f"summary id {key!r} matches no classified bill")
+    updated: list[Bill] = []
+    pending: list[str] = []
+    for bill in classified:
+        summary = summaries.get(bill.id)
+        if summary is None:
+            pending.append(bill.id)
+            updated.append(bill)
+        else:
+            updated.append(bill.model_copy(update={"summary": summary}))
+    return updated, pending

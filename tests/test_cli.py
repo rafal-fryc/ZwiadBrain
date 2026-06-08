@@ -261,6 +261,107 @@ def test_fetch_candidates_recovers_title_miss_via_policy_area(
     assert Bill.model_validate(data[0]).title == "Quarterly Filing Reform Act"
 
 
+def test_fetch_enacted_keeps_only_topical_enacted_laws(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should discover /law/{congress}/pub, recall-filter, and enrich only survivors"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/law/118/pub").respond(json=_fixture("law_list.json"))
+        # S.2073 has no title seed -> Stage-2 probe; reply with a policyArea NOT in the allowlist.
+        mock.get("/bill/118/s/2073").respond(
+            json={"bill": {"policyArea": {"name": "Transportation and Public Works"}}}
+        )
+        _route_backfill(mock)  # enrich routes for the survivor 118/hr/8818
+        result = runner.invoke(
+            app,
+            ["fetch-enacted-candidates", "--congress", "118", "--out", str(out),
+             "--topics", str(_TOPICS)],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert [b["id"] for b in data] == ["118-hr-8818"]
+    bill = Bill.model_validate(data[0])
+    assert bill.enacted is True
+    assert bill.public_law is not None  # public_law populated from enacted laws array
+
+
+def _fake_enrich(source: object, candidate: Candidate) -> Bill:
+    """Stub enrich: build a Bill straight from the candidate (no HTTP)."""
+    cong, btype, num = candidate.native_id.split("/")
+    return Bill(
+        id=f"{cong}-{btype}-{num}",
+        jurisdiction="US",
+        title=candidate.title or "x",
+        bill_number=f"{btype.upper()} {num}",
+        enacted=True,
+    )
+
+
+def test_fetch_enacted_classify_all_skips_recall(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--classify-all stages every enacted law and makes no policyArea probe"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_enrich)
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        law = mock.get("/law/118/pub").respond(json=_fixture("law_list.json"))
+        probe = mock.get("/bill/118/s/2073").respond(json={"bill": {}})
+        result = runner.invoke(
+            app,
+            ["fetch-enacted-candidates", "--congress", "118", "--classify-all", "--out", str(out)],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert [b["id"] for b in data] == ["118-hr-8818", "118-s-2073"]
+    assert law.called and not probe.called  # no Stage-2 probe under --classify-all
+
+
+def test_fetch_enacted_skip_existing_drops_tracked_law(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--skip-existing drops an enacted law that already has a wiki page"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_enrich)
+    wiki = tmp_path / "wiki"
+    write_page(
+        Bill(id="118-hr-8818", jurisdiction="US", title="AI Act", bill_number="H.R. 8818"), wiki
+    )
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/law/118/pub").respond(json=_fixture("law_list.json"))
+        mock.get("/bill/118/s/2073").respond(
+            json={"bill": {"policyArea": {"name": "Transportation and Public Works"}}}
+        )
+        result = runner.invoke(
+            app,
+            [
+                "fetch-enacted-candidates", "--congress", "118",
+                "--skip-existing", "--wiki", str(wiki), "--out", str(out),
+                "--topics", str(_TOPICS),
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert data == []  # the only topical enacted law was already tracked
+
+
+def test_fetch_enacted_errors_without_api_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero with a clear error when CONGRESS_API_KEY is unset"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CONGRESS_API_KEY", raising=False)
+    result = runner.invoke(app, ["fetch-enacted-candidates", "--congress", "118"])
+    assert result.exit_code == 1
+    assert "CONGRESS_API_KEY" in result.output
+
+
 def _classified(tmp_path: Path, bills: list[Bill]) -> Path:
     path = tmp_path / "classified.json"
     path.write_text(

@@ -7,6 +7,8 @@ makes no LLM calls — DECISIONS.md D26/D27). Commands:
 - ``version`` / ``reindex`` — utilities.
 - ``backfill`` — deterministic discover→enrich→render (no classification).
 - ``fetch-candidates`` / ``render-classified`` — the ``/zwiad-backfill`` halves.
+- ``fetch-enacted-candidates`` — enacted-only federal discovery for ``/zwiad-backfill-enacted``
+  (D84).
 - ``fetch-leg-history`` / ``render-leg-history`` — the ``/zwiad-leg-history`` halves.
 - ``fetch-refreshable`` / ``render-refreshed`` — the ``/zwiad-refresh`` halves.
 - ``fetch-state-candidates`` / ``fetch-state-refreshable`` — ``/zwiad-scan-states``.
@@ -323,6 +325,83 @@ def fetch_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"fetched {len(bills)} candidate(s) to {path}")
+
+
+@app.command(name="fetch-enacted-candidates")
+def fetch_enacted_candidates(
+    congress: Annotated[int, typer.Option(min=1, help="Congress number, e.g. 118.")],
+    limit: Annotated[
+        int, typer.Option(min=1, help="Max in-scope candidates to stage (recall output cap).")
+    ] = 250,
+    max_pages: Annotated[
+        int,
+        typer.Option(min=1, help="Pages of the enacted-law list to sweep (covers a full congress)."),  # noqa: E501
+    ] = 5,
+    classify_all: Annotated[
+        bool,
+        typer.Option(
+            "--classify-all/--no-classify-all",
+            help="Skip the recall pre-filter; stage every enacted law for classification.",
+        ),
+    ] = False,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            "--skip-existing/--no-skip-existing",
+            help="Drop enacted laws already tracked or in the reject ledger.",
+        ),
+    ] = False,
+    out: Annotated[Path | None, typer.Option(help="Run directory for candidates.json.")] = None,
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+    wiki: Annotated[Path, typer.Option(help="Wiki root, for --skip-existing.")] = Path("wiki"),
+) -> None:
+    """Fetch a congress's ENACTED public laws and stage the in-scope ones for classification.
+
+    Enacted-first discovery half of ``/zwiad-backfill-enacted`` (D84): ``/law/{congress}/pub``
+    lists only enacted public laws, so non-enacted bills never enter the pipeline. By default
+    the two-stage ``recall_filter`` (title seeds + ``policyArea`` probe over the *whole* enacted
+    set) keeps the topically-relevant laws and the classifier subagent gates the survivors.
+    ``--classify-all`` skips recall and stages every enacted law (zero recall risk, ~6x more
+    enrichment + classifier work).
+    """
+    try:
+        api_key = load_settings().require_congress_api_key()
+        source = CongressSource(api_key)
+        scanned = source.discover_laws(congress, limit=_SCAN_LIMIT, max_pages=max_pages)
+        if skip_existing:
+            known = _existing_federal_bill_ids(wiki)
+            ledger = load_reject_ledger(wiki / ".rejects" / "federal.json")
+            before = len(scanned)
+            scanned = filter_unseen(scanned, known)
+            after_unseen = len(scanned)
+            scanned = filter_cached_rejects(
+                scanned, ledger, key_of=federal_key, cursor_of=federal_cursor
+            )
+            typer.echo(
+                f"skip-existing: dropped {before - after_unseen} already-tracked"
+                f" + {after_unseen - len(scanned)} cached-reject of {before} enacted laws"
+                f" ({len(known)} on wiki, {len(ledger)} rejects)"
+            )
+        if classify_all:
+            candidates = scanned[:limit]
+        else:
+            reference = load_reference(topics)
+            seeds, policy_areas = reference.seeds, reference.policy_areas
+            candidates = recall_filter(
+                scanned,
+                source,
+                seeds=seeds,
+                policy_areas=policy_areas,
+                limit=limit,
+                max_probe=len(scanned),  # probe the WHOLE enacted set — recall not truncated
+            )
+        bills = [enrich(source, candidate) for candidate in candidates]
+        payload = [bill.model_dump(mode="json") for bill in bills]
+        path = stage_json(payload, name="candidates.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"fetched {len(bills)} enacted candidate(s) to {path}")
 
 
 @app.command(name="render-classified")

@@ -194,3 +194,42 @@ def test_state_bill_entry_keys_by_legiscan_id_and_keeps_slug() -> None:
     assert key == "999"
     assert entry.cursor == "h9"
     assert entry.id == "ca-2025-ab-7"
+
+
+# ---------------------------------------------------------------------------
+# Federal cursor granularity: the Congress list endpoint returns a date
+# ("2026-06-06") while the detail endpoint returns a full timestamp
+# ("2026-06-06T08:06:29Z"). Both sides must compare at date granularity.
+# ---------------------------------------------------------------------------
+
+
+def test_record_then_filter_matches_across_endpoint_granularity() -> None:
+    """end-to-end: a reject recorded from a detail-endpoint TIMESTAMP is still skipped when
+    discovery later sees the same bill via the list endpoint's DATE-only cursor (same day)"""
+    bill = Bill(
+        id="119-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1",
+        update_date="2026-06-06T01:00:00Z", update_date_text="2026-06-06T08:06:29Z",
+    )
+    key, entry = federal_bill_entry(bill)
+    ledger = {key: entry}  # ledger now holds a date-only cursor ("2026-06-06")
+    cands = [_fed("119/hr/1", "2026-06-06")]  # list endpoint: date only
+    kept = filter_cached_rejects(cands, ledger, key_of=federal_key, cursor_of=federal_cursor)
+    assert kept == []  # same day -> cached -> dropped despite endpoint granularity difference
+
+
+def test_filter_cached_rejects_keeps_when_date_advanced() -> None:
+    """should re-classify when the list-endpoint date is a later day than the ledger"""
+    cands = [_fed("119/hr/1", "2026-06-08")]
+    ledger = {"119-hr-1": RejectEntry(cursor="2026-06-06T08:06:29Z")}
+    kept = filter_cached_rejects(cands, ledger, key_of=federal_key, cursor_of=federal_cursor)
+    assert [c.native_id for c in kept] == ["119/hr/1"]
+
+
+def test_federal_bill_entry_records_date_granularity_cursor() -> None:
+    """should store the federal cursor truncated to YYYY-MM-DD (matches the list filter)"""
+    bill = Bill(
+        id="119-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1",
+        update_date="2026-06-06T01:00:00Z", update_date_text="2026-06-06T08:06:29Z",
+    )
+    _key, entry = federal_bill_entry(bill)
+    assert entry.cursor == "2026-06-06"

@@ -95,14 +95,27 @@ def filter_by_key(
     return [c for c in candidates if key_of(c) not in known]
 
 
+def _date_only(cursor: str | None) -> str | None:
+    """Truncate a Congress cursor to ``YYYY-MM-DD`` (the granularity the list endpoint gives)."""
+    if cursor is None:
+        return None
+    return cursor.split("T", 1)[0]
+
+
 def federal_key(candidate: Candidate) -> str:
     """Congress native_id "119/hr/9076" -> bill-slug "119-hr-9076" (matches the page id)."""
     return candidate.native_id.replace("/", "-")
 
 
 def federal_cursor(candidate: Candidate) -> str | None:
-    """The federal change cursor (updateDateIncludingText-preferred; see congress.py:369)."""
-    return candidate.update_date
+    """The federal change cursor at DATE granularity.
+
+    Congress.gov's bill *list* endpoint (which discovery reads) returns dates as
+    ``YYYY-MM-DD``, while the *detail* endpoint (which the ledger records from) returns full
+    ``YYYY-MM-DDThh:mm:ssZ`` timestamps. Both sides therefore compare at the coarser date
+    granularity the list provides, or the cache would never hit (see congress.py:369).
+    """
+    return _date_only(candidate.update_date)
 
 
 def state_key(candidate: Candidate) -> str:
@@ -122,8 +135,8 @@ def state_cursor(candidate: Candidate) -> str | None:
 
 
 def federal_bill_entry(bill: Bill) -> tuple[str, RejectEntry]:
-    """(slug, entry) for a federal reject; cursor matches `federal_cursor` (text-inclusive)."""
-    cursor = bill.update_date_text or bill.update_date or ""
+    """(slug, entry) for a federal reject; cursor at DATE granularity to match `federal_cursor`."""
+    cursor = _date_only(bill.update_date_text or bill.update_date) or ""
     return bill.id, RejectEntry(cursor=cursor)
 
 

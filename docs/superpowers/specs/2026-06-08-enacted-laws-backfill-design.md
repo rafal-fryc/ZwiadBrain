@@ -88,23 +88,35 @@ list_session_enacted(session_id: int, *, limit) -> list[Candidate]   # getMaster
 ### 4.3 New CLI fetch halves — `cli.py` (mirror `fetch-candidates`)
 ```
 fetch-enacted-candidates       --congress N [--limit] [--max-pages] [--skip-existing]
-                               [--recall-prefilter] [--out] [--wiki]
+                               [--classify-all] [--out] [--wiki]
 fetch-state-enacted-candidates --state <st> --year <YYYY> [--limit] [--skip-existing]
-                               [--recall-prefilter] [--out] [--wiki]
+                               [--classify-all] [--out] [--wiki]
 ```
-- Each: discover (enacted-first) → optional recall pre-filter → `enrich` → write
+- Each: discover (enacted-first) → recall pre-filter → `enrich` survivors → write
   `candidates.json` under `data/runs/<id>/`. Identical staging contract to
   `fetch-candidates`, so the downstream steps are byte-for-byte the same.
 - `fetch-state-enacted-candidates` resolves `--year` → the session(s) covering that year
   via `list_sessions()`, then unions their enacted candidates.
 
-### 4.4 Recall decision — classifier is the sole topic gate by default
-The enacted universe is already tiny, so we **classify every enacted law** rather than
-keyword-pre-filter — maximizing completeness so no relevant law is dropped for lacking a
-title seed. `--recall-prefilter` is an opt-in cost control (applies `recall_filter` on
-title+description) for unusually large sessions. Cost envelope: federal ≈ 300–500 haiku
-classifier dispatches/Congress × 3; state smaller per session — acceptable under per-unit
-batching (D26 plan-usage model).
+### 4.4 Recall pre-filter is on by default; classifier gates the survivors
+The enacted set per Congress/session is still large (≈300–500 federal public laws; up to
+~1k enacted bills for a big state session), of which ~85% are off-topic. So we recall-filter
+**before** enrichment and let the classifier be the precision gate on survivors (~6× less
+enrichment + classifier spend, near-identical recall):
+
+- **Federal:** `recall_filter` two-stage (D33) over the `/law` candidates — Stage 1 title
+  seeds (free), Stage 2 probes each remaining law's `policyArea` against the
+  `topics.yaml` allowlist (one cheap GET each). `--max-probe` is raised to cover the
+  **whole** enacted set so recall is not truncated.
+- **State:** keyword recall on the masterlist row's **title + description** (both present in
+  `getMasterListRaw`, so **free — no extra call**). This is the state analog of federal's
+  two-stage and is arguably broader (full description vs title only). LegiScan has no
+  `policyArea` probe (`fetch_policy_area` returns `None`, `legiscan.py:308`), so the
+  description text carries the Stage-2 recall instead.
+
+`--classify-all` is an opt-in that **skips** the recall pre-filter and classifies every
+enacted law — for a unit where you want zero recall risk (e.g. a review revealed a missed
+law in a policyArea outside the allowlist). Decision logged as D84.
 
 ## 5. Reused unchanged (no new code)
 
@@ -196,9 +208,12 @@ PHASE-A→C are build (~2–3 focused sessions); PHASE-D is the backfill run its
 ## 12. Decisions to log (`DECISIONS.md`, next is D84)
 
 - **D84 — Enacted-first discovery for the prior-years backfill.** New `/law/{congress}`
-  (federal) + session-masterlist `status==4` (state) discovery; classifier is the sole
-  topic gate by default (completeness over the small enacted set). Alternatives B/C
-  (enrich-then-filter, hybrid) rejected for compromising the completeness goal.
+  (federal) + session-masterlist `status==4` (state) discovery. Recall pre-filter runs
+  **before** enrichment (federal: two-stage `recall_filter` with `max_probe` covering the
+  whole enacted set; state: free title+description keyword match from the masterlist);
+  the classifier gates the survivors. `--classify-all` opt-in skips recall for a unit
+  needing zero recall risk. Alternatives B/C (enrich-then-filter, hybrid) rejected for
+  compromising the completeness goal.
 - **D85 — Per-(jurisdiction × period) unit batching with review gates.** Dedicated
   `/zwiad-backfill-enacted[-state]` commands separate from routine scan; campaign tracked
   in `docs/backfill/enacted-campaign.md`; leg-history deferred to a flagged per-law pass.
@@ -213,8 +228,8 @@ src/zwiadbrain/cli.py                 + fetch-enacted-candidates, fetch-state-en
 .claude/commands/zwiad-backfill-enacted-state.md   (new)
 docs/backfill/enacted-campaign.md     (new — campaign tracker)
 docs/backfill/leg-history-queue.md    (new — flagged follow-ups)
-tests/test_sources_congress.py        + discover_laws cases
-tests/test_sources_legiscan.py        + sessions / enacted-masterlist cases
+tests/test_congress.py                + discover_laws cases
+tests/test_legiscan.py                + sessions / enacted-masterlist + recall cases
 tests/test_cli.py                     + two new fetch commands
 DECISIONS.md                          + D84, D85
 ```
@@ -232,7 +247,8 @@ DECISIONS.md                          + D84, D85
 - **`getMasterListRaw?id=` status reliability** — validated live in PHASE-B; if `status`
   is ever absent/stale for a session, fall back to a bounded post-enrich `enacted` filter
   for that session (logged, never silent).
-- **Classifier volume** — if a Congress's enacted set is larger than expected, enable
-  `--recall-prefilter` for that unit (logged as a cost decision).
+- **Recall gap** — a relevant law with no title seed AND a `policyArea` outside the
+  Stage-2 allowlist (federal) is the only completeness risk; recoverable by re-running
+  that unit with `--classify-all` (logged as a cost decision).
 - **State session granularity** — `getSessionList` may expose special sessions; include
   any session whose year range overlaps 2019–2024.

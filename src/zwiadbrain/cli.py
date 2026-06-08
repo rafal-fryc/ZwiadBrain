@@ -100,7 +100,7 @@ from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
-from zwiadbrain.sources.transcripts import make_gate_fetch
+from zwiadbrain.sources.transcripts import make_gate_fetch, memoize_fetch
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
 
@@ -1968,7 +1968,9 @@ def render_leg_history(
         # caption text (D72 fallback); every other URL uses the normal HTTP fetch. The gate
         # logic (ground_items / ground_related) is unchanged — it just receives caption text
         # for a video source_url. `_fetch_url` is referenced by name so tests can monkeypatch it.
-        gate_fetch = make_gate_fetch(_fetch_url)
+        # PHASE-20: a run-scoped memo wraps it so each distinct url is fetched once across the
+        # statement / hearing / media gates AND the PHASE-19 render retry's static re-fetches.
+        gate_fetch = memoize_fetch(make_gate_fetch(_fetch_url))
 
         result = ground_items(
             statements, hearings, fetch=gate_fetch, verifier_verdicts=verifier_verdicts

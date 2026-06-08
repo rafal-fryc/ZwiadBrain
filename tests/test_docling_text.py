@@ -31,6 +31,10 @@ class _FakeConverter:
     """Records the sources it is asked to convert and returns canned Markdown."""
 
     calls: list[object] = []
+    instances: int = 0  # how many times the converter has been CONSTRUCTED
+
+    def __init__(self) -> None:
+        _FakeConverter.instances += 1
 
     def convert(self, source: object) -> _FakeResult:
         _FakeConverter.calls.append(source)
@@ -39,6 +43,9 @@ class _FakeConverter:
 
 def _install_fake_docling(monkeypatch: pytest.MonkeyPatch) -> None:
     _FakeConverter.calls = []
+    _FakeConverter.instances = 0
+    # Reset the run-scoped converter cache so a prior test's fake converter is not reused.
+    monkeypatch.setattr(docling_text, "_converter", None, raising=False)
     fake_module = types.ModuleType("docling.document_converter")
     fake_module.DocumentConverter = _FakeConverter  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "docling.document_converter", fake_module)
@@ -64,3 +71,16 @@ def test_extract_markdown_accepts_local_path(
 
     assert docling_text.extract_markdown(pdf) == "# Title\n\nBody text."
     assert _FakeConverter.calls == [pdf]
+
+
+def test_extract_markdown_reuses_one_converter_across_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """should build the heavy DocumentConverter once and reuse it for every pdf in a run"""
+    _install_fake_docling(monkeypatch)
+
+    docling_text.extract_markdown("https://example.gov/a.pdf")
+    docling_text.extract_markdown("https://example.gov/b.pdf")
+
+    assert _FakeConverter.instances == 1  # constructed once, reused
+    assert _FakeConverter.calls == ["https://example.gov/a.pdf", "https://example.gov/b.pdf"]

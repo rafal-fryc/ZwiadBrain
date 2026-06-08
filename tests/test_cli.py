@@ -847,6 +847,62 @@ def test_render_leg_history_drops_js_statement_when_playwright_absent(
     assert url_js not in page.read_text(encoding="utf-8")
 
 
+def test_render_leg_history_fetches_each_url_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-20: a url shared by multiple items is fetched once per render (memoized)"""
+    url = "https://www.congress.gov/congressional-record/shared"
+    q1 = "The first distinct quote that appears verbatim on the shared source page here."
+    q2 = "A second distinct quote that also appears verbatim on the same shared page now."
+    page_body = f"<body>{q1} ... {q2}</body>"
+
+    fetch_calls: list[str] = []
+
+    def _counting(u: str) -> tuple[int, str]:
+        fetch_calls.append(u)
+        return (200, page_body) if u == url else (404, "Not Found")
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _counting)
+    monkeypatch.setattr("zwiadbrain.cli.playwright_available", lambda: False)
+
+    bill = Bill(
+        id="118-hr-8888",
+        jurisdiction="US",
+        title="Shared Source Act",
+        bill_number="H.R. 8888",
+        congress="118",
+    )
+    spine = LegHistory()
+    statements = [
+        Statement(
+            speaker="A One", role="member", quote=q1, source_url=url, source_type="CREC"
+        ),
+        Statement(
+            speaker="B Two", role="member", quote=q2, source_url=url, source_type="CREC"
+        ),
+    ]
+    verdicts = [
+        {"index": 0, "verified": True, "speaker": "A One", "quote_prefix": q1[:40]},
+        {"index": 1, "verified": True, "speaker": "B Two", "quote_prefix": q2[:40]},
+    ]
+    payload: dict[str, object] = {
+        "bill": bill.model_dump(mode="json"),
+        "spine": spine.model_dump(mode="json"),
+        "hearings": [],
+        "statements": [s.model_dump(mode="json") for s in statements],
+        "narrative": None,
+        "verdicts": verdicts,
+    }
+    staging = tmp_path / "shared_staging.json"
+    staging.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    assert "2 input / 2 grounded" in result.output
+    assert fetch_calls.count(url) == 1  # fetched once despite two statements sharing the url
+
+
 def test_render_leg_history_is_idempotent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

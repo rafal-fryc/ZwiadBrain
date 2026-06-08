@@ -387,6 +387,24 @@ def test_discover_since_window_uses_the_bill_endpoint() -> None:
     assert "fromDateTime" in str(route.calls.last.request.url)
 
 
+def test_discover_laws_lists_enacted_public_laws_as_candidates() -> None:
+    """should list /law/{congress}/pub entries as congress/type/number candidates"""
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/law/118/pub").respond(json=_fixture("law_list.json"))
+        candidates = _source().discover_laws(118, limit=10)
+    assert [c.native_id for c in candidates] == ["118/hr/8818", "118/s/2073"]
+    assert candidates[0].jurisdiction == "US"
+    assert candidates[0].title == "Artificial Intelligence Accountability Act"
+
+
+def test_discover_laws_respects_limit() -> None:
+    """should return no more candidates than the requested per-page limit"""
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/law/118/pub").respond(json=_fixture("law_list.json"))
+        candidates = _source().discover_laws(118, limit=1)
+    assert len(candidates) == 1
+
+
 # --- recorded_votes ----------------------------------------------------------
 
 # Congress.gov actions payload shape for recorded-vote tests.

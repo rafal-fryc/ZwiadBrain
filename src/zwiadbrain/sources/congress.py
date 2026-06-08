@@ -314,6 +314,21 @@ class CongressSource:
         path = f"/bill/{congress}" if congress is not None else "/bill"
         return self._sweep_candidates(path, since=since, limit=limit, max_pages=max_pages)
 
+    def discover_laws(
+        self, congress: int, *, limit: int = 250, max_pages: int = 1
+    ) -> list[Candidate]:
+        """List a congress's ENACTED public laws as candidates (D84, PHASE-23).
+
+        Hits ``/law/{congress}/pub`` — Congress.gov's enacted public-law list — so the
+        candidate set is enacted-only *by construction*; no non-enacted bill enters the
+        pipeline. Items share the ``/bill`` list shape, so ``_to_candidate`` maps them to the
+        same ``congress/type/number`` ``native_id`` that ``fetch()`` consumes. Pagination,
+        de-dup, and truncation logging match ``discover`` (shared ``_sweep_candidates``).
+        """
+        return self._sweep_candidates(
+            f"/law/{congress}/pub", since=None, limit=limit, max_pages=max_pages
+        )
+
     def _sweep_candidates(
         self,
         path: str,

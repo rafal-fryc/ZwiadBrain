@@ -495,6 +495,10 @@ def apply_summaries_cmd(
     The leaner summary handoff: a batch-summarizer subagent writes summaries.json; this sets
     each in-scope bill's plain-language summary, so a cutoff only loses the un-summarized tail
     (reported as 'pending'). render-classified then renders unchanged.
+
+    The rewrite is in place and non-atomic; if it is interrupted, regenerate classified.json by
+    re-running ``apply-verdicts`` (candidates.json and verdicts.json are still present), then
+    re-apply.
     """
     try:
         classified = [

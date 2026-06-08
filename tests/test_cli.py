@@ -2180,3 +2180,56 @@ def test_apply_summaries_reports_pending(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "1 pending" in result.output
     assert "ca-2025-ab-2" in result.output
+
+
+def test_apply_verdicts_honors_out_override(tmp_path: Path) -> None:
+    """should write classified.json + rejects.json to --out, not the candidates' dir"""
+    run = tmp_path / "run"
+    out = tmp_path / "elsewhere"
+    cands = _write_candidates(
+        run, [Bill(id="ca-2025-ab-1", jurisdiction="US-CA", title="A", bill_number="AB 1")]
+    )
+    (run / "verdicts.json").write_text(
+        json.dumps([{"id": "ca-2025-ab-1", "in_scope": True, "topics": ["ai"]}]),
+        encoding="utf-8",
+    )
+    result = runner.invoke(app, [
+        "apply-verdicts", "--in", str(cands),
+        "--verdicts", str(run / "verdicts.json"), "--out", str(out),
+    ])
+    assert result.exit_code == 0, result.output
+    assert (out / "classified.json").exists()
+    assert (out / "rejects.json").exists()
+    assert not (run / "classified.json").exists()
+
+
+def test_apply_verdicts_non_list_candidates_errors(tmp_path: Path) -> None:
+    """should exit non-zero when candidates.json is not a JSON list"""
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "candidates.json").write_text(json.dumps({"not": "a list"}), encoding="utf-8")
+    (run / "verdicts.json").write_text(json.dumps([]), encoding="utf-8")
+    result = runner.invoke(app, [
+        "apply-verdicts", "--in", str(run / "candidates.json"),
+        "--verdicts", str(run / "verdicts.json"),
+    ])
+    assert result.exit_code == 1
+    assert "error" in result.output.lower()
+
+
+def test_apply_summaries_non_string_value_errors(tmp_path: Path) -> None:
+    """should exit non-zero when a summaries value is not a string"""
+    run = tmp_path / "run"
+    run.mkdir()
+    cpath = run / "classified.json"
+    cpath.write_text(
+        json.dumps([Bill(id="ca-2025-ab-1", jurisdiction="US-CA", title="A",
+                         bill_number="AB 1", topics=["ai"]).model_dump(mode="json")]),
+        encoding="utf-8",
+    )
+    (run / "summaries.json").write_text(json.dumps({"ca-2025-ab-1": 123}), encoding="utf-8")
+    result = runner.invoke(app, [
+        "apply-summaries", "--in", str(cpath), "--summaries", str(run / "summaries.json"),
+    ])
+    assert result.exit_code == 1
+    assert "error" in result.output.lower()

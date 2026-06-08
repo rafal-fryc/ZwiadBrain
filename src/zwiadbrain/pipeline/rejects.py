@@ -11,12 +11,14 @@ keys by LegiScan bill_id + change_hash. Mirrors `filter_unseen` (read) and
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import BaseModel
 
 from zwiadbrain.exceptions import ConfigError
 from zwiadbrain.pipeline.staging import validate_model
+from zwiadbrain.sources.base import Candidate
 
 
 class RejectEntry(BaseModel):
@@ -53,3 +55,61 @@ def write_reject_ledger(path: Path, ledger: RejectLedger) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     obj = {key: ledger[key].model_dump(exclude_none=True) for key in sorted(ledger)}
     path.write_text(json.dumps(obj, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Task 2: cursor-aware filter, filter_by_key, source adapters
+# ---------------------------------------------------------------------------
+
+
+def filter_cached_rejects(
+    candidates: list[Candidate],
+    ledger: RejectLedger,
+    *,
+    key_of: Callable[[Candidate], str],
+    cursor_of: Callable[[Candidate], str | None],
+) -> list[Candidate]:
+    """Drop a candidate iff it is in *ledger* AND its cursor is unchanged.
+
+    A cursor mismatch (the bill changed) or an absent key keeps the candidate so it is
+    re-classified. Order preserved; empty/missing ledger is a no-op. Mirrors `filter_unseen`.
+    """
+    kept: list[Candidate] = []
+    for candidate in candidates:
+        entry = ledger.get(key_of(candidate))
+        if entry is not None and entry.cursor == cursor_of(candidate):
+            continue
+        kept.append(candidate)
+    return kept
+
+
+def filter_by_key(
+    candidates: list[Candidate], known: set[str], *, key_of: Callable[[Candidate], str]
+) -> list[Candidate]:
+    """Drop candidates whose `key_of(c)` is in *known* (state in-scope wiki dedup).
+
+    The state analog of `filter_unseen`: state page ids are slugs unavailable at discovery,
+    so the discovery key is the LegiScan bill_id and *known* is harvested from frontmatter.
+    """
+    return [c for c in candidates if key_of(c) not in known]
+
+
+def federal_key(candidate: Candidate) -> str:
+    """Congress native_id "119/hr/9076" -> bill-slug "119-hr-9076" (matches the page id)."""
+    return candidate.native_id.replace("/", "-")
+
+
+def federal_cursor(candidate: Candidate) -> str | None:
+    """The federal change cursor (updateDateIncludingText-preferred; see congress.py:369)."""
+    return candidate.update_date
+
+
+def state_key(candidate: Candidate) -> str:
+    """The LegiScan bill_id (the candidate's native_id) — the state ledger key."""
+    return candidate.native_id
+
+
+def state_cursor(candidate: Candidate) -> str | None:
+    """The LegiScan change_hash carried on the search-result candidate (raw['change_hash'])."""
+    value = candidate.raw.get("change_hash")
+    return value if isinstance(value, str) else None

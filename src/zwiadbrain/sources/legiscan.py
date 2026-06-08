@@ -206,6 +206,17 @@ def _parse_supplement_media(detail: dict[str, Any]) -> list[RelatedMedia]:
 
 
 @dataclass(frozen=True)
+class Session:
+    """One LegiScan legislative session (from ``getSessionList``)."""
+
+    session_id: int
+    year_start: int
+    year_end: int
+    special: bool
+    session_name: str
+
+
+@dataclass(frozen=True)
 class StateLegHistoryInputs:
     """One getBill's legislative-history inputs (PHASE-16 / D75).
 
@@ -351,6 +362,30 @@ class LegiScanSource:
                 len(candidates), total, self.state,
             )
         return candidates
+
+    def list_sessions(self) -> list[Session]:
+        """List the state's legislative sessions (``getSessionList``) newest-first.
+
+        Maps each entry to a :class:`Session`; the prior-years backfill resolves a target
+        ``--year`` to the session(s) whose ``[year_start, year_end]`` span covers it
+        (PHASE-24/D84).
+        """
+        payload = self._get("getSessionList", state=self.state)
+        sessions: list[Session] = []
+        for entry in _items(payload.get("sessions")):
+            sid = entry.get("session_id")
+            if sid is None:
+                continue
+            sessions.append(
+                Session(
+                    session_id=int(sid),
+                    year_start=int(entry.get("year_start") or 0),
+                    year_end=int(entry.get("year_end") or 0),
+                    special=bool(entry.get("special")),
+                    session_name=str(entry.get("session_name") or ""),
+                )
+            )
+        return sessions
 
     def change_hashes(self) -> dict[int, str]:
         """Return ``{bill_id: change_hash}`` for the state's current session (refresh cursor).

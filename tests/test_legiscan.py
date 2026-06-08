@@ -238,3 +238,18 @@ def test_fetch_leg_history_uses_single_getbill_call() -> None:
         route = mock.get(url=LEGISCAN_API_BASE).respond(200, json=payload)
         _source().fetch_leg_history("1789012")
     assert route.call_count == 1
+
+
+# --- Session dataclass + list_sessions (PHASE-24) ---------------------------
+
+
+def test_list_sessions_maps_getsessionlist_to_sessions() -> None:
+    """should map getSessionList entries to Session records for the state"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getSessionList": _fixture("getSessionList.json")})
+        sessions = _source().list_sessions()
+    assert [s.session_id for s in sessions] == [2016, 1791, 1624]
+    assert sessions[-1].year_start == 2019
+    assert sessions[-1].year_end == 2020
+    assert sessions[-1].special is False
+    assert sessions[-1].session_name == "2019-2020 Session"

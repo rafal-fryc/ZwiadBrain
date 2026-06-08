@@ -588,3 +588,23 @@ standing engineering rules (language/tooling, merge strategy).
 **Why:** D33/D44 fixed v1 as "forward-from-now" — discovery saw only the newest-updated ~250 bills, so a topical bill not recently updated in a historical congress was unreachable. The bounded sweep closes that gap on demand; `--skip-existing` makes a deep re-sweep cheap and idempotent. This supersedes the D44 "offset pagination is the named PHASE-03.1 follow-up" deferral.
 **Trade-offs:** A deep sweep multiplies Congress.gov calls AND (downstream) classifier dispatches — bounded by `max_pages` and the existing `_MAX_PROBE`, and opt-in, so the operator accepts the cost. Within-sweep dedup is by `native_id`; wiki-dedup maps `native_id`→bill-id by `/`→`-` (the established slug). The un-swept remainder is always logged, never silently dropped. `--skip-existing` only sees committed wiki pages, so two sweeps in the same uncommitted session can still re-stage the same bill (acceptable; the downstream layer still de-dups).
 **Revisit if:** Congress.gov changes its `offset`/`pagination` contract, an incremental deep refresh needs `since` + pagination combined, or the per-run classifier cost of large sweeps proves too high (then add a per-run cap on staged candidates with an explicit log).
+
+---
+
+## 2026-06-08 — 82. Reject ledger (committed negative classification cache)
+**Chosen:** Persist classified-out federal and state bills to committed JSON ledgers
+(`wiki/.rejects/federal.json` keyed by bill-slug + Congress `updateDateIncludingText`;
+`wiki/.rejects/state.json` keyed by LegiScan `bill_id` + `change_hash`). A new
+`record-rejects` CLI writes them; `filter_cached_rejects` (folded into `--skip-existing`)
+reads them, dropping a candidate only while its change cursor is unchanged.
+**Alternatives:** (B) one unified ledger keyed by `jurisdiction:native_id` — rejected,
+buys little once key/cursor extraction stays source-specific. (C) SQLite negative cache —
+rejected, gitignored/local contradicts the durability requirement.
+**Why:** Back-catalog sweeps (`--max-pages`) re-classified every out-of-scope bill (~13k
+plan tokens each); the Stage-0 backfill pilot re-classified 9 rejects on one re-sweep.
+Cursor invalidation reuses the refresh "any-change gate", so a bill that later changes is
+re-classified rather than hidden forever. Also adds the missing state wiki-dedup.
+**Trade-offs:** The ledger grows with rejects (small: ~100 bytes/entry) and must be
+committed per batch for `--skip-existing` to see it. No `reason`/timestamp field, to keep
+writes byte-stable.
+**Revisit if:** ledger size becomes unwieldy, or a source needs a non-cursor invalidation.

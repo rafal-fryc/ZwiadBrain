@@ -39,6 +39,17 @@ and `summary`. It reads `reference/topics.yaml` and returns
   (`render-classified` validates topics again, but catching it here avoids a wasted
   summarizer/amendment-explainer dispatch.)
 
+### 3a. Record the rejects (reject ledger — the negative cache)
+Collect the OUT-of-scope bills (the ones the classifier dropped). `Write` them — the
+**full `Bill` JSON objects**, same shape as `candidates.json` — to a `rejects.json` in the
+run directory, then run:
+```
+uv run zwiadbrain record-rejects --in data/runs/<id>/rejects.json --scope federal
+```
+This upserts each rejected bill into `wiki/.rejects/federal.json` keyed by bill id and its
+Congress `updateDateIncludingText` cursor, so a future `--skip-existing` sweep skips it
+until the bill changes (D82). Commit `wiki/.rejects/` alongside the rendered pages.
+
 ### 4. Enrich the in-scope bills (subagents: `summarizer`, `amendment-explainer`)
 For each in-scope bill:
 - Dispatch **summarizer** with the bill data → set the bill's `summary` to the returned prose.
@@ -66,3 +77,4 @@ reasons), and pages rendered. Do not commit — leave the wiki changes for revie
 ## Notes
 - Keep `ANTHROPIC_API_KEY` unset so subagents use your plan session, not the API.
 - Only `topics[]` is persisted; confidence/rationale/criteria fields stay in the transcript.
+- `--skip-existing` now also drops bills already in `wiki/.rejects/federal.json` whose change cursor is unchanged.

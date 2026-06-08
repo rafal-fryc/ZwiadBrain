@@ -1,0 +1,29 @@
+{
+  "bills": [
+    {
+      "congress": 118,
+      "type": "HR",
+      "number": "8818",
+      "title": "Artificial Intelligence Accountability Act",
+      "originChamber": "House",
+      "updateDate": "2024-12-21T03:27:05Z",
+      "updateDateIncludingText": "2024-12-21T03:27:05Z",
+      "laws": [{"number": "118-99", "type": "Public Law"}],
+      "latestAction": {"actionDate": "2024-12-20", "text": "Became Public Law No: 118-99."},
+      "url": "https://api.congress.gov/v3/bill/118/hr/8818?format=json"
+    },
+    {
+      "congress": 118,
+      "type": "S",
+      "number": "2073",
+      "title": "FAA Reauthorization Act of 2024",
+      "originChamber": "Senate",
+      "updateDate": "2024-05-14T08:01:00Z",
+      "updateDateIncludingText": "2024-05-14T08:01:00Z",
+      "laws": [{"number": "118-63", "type": "Public Law"}],
+      "latestAction": {"actionDate": "2024-05-13", "text": "Became Public Law No: 118-63."},
+      "url": "https://api.congress.gov/v3/bill/118/s/2073?format=json"
+    }
+  ],
+  "pagination": {"count": 2}
+}

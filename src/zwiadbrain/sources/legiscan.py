@@ -25,7 +25,15 @@ from tenacity import (
 )
 
 from zwiadbrain.exceptions import ConfigError, RateLimitError, SourceError, SourceFetchError
-from zwiadbrain.models import Action, Amendment, Bill, RelatedMedia, TextVersion, Vote
+from zwiadbrain.models import (
+    Action,
+    Amendment,
+    Bill,
+    CommitteeReport,
+    RelatedMedia,
+    TextVersion,
+    Vote,
+)
 from zwiadbrain.pipeline.ids import build_state_bill_id, format_state_bill_number
 from zwiadbrain.sources._redact import redact_api_key
 from zwiadbrain.sources.base import Candidate
@@ -123,18 +131,57 @@ def _parse_votes(detail: dict[str, Any]) -> list[Vote]:
     return votes
 
 
-def _parse_supplement_media(detail: dict[str, Any]) -> list[RelatedMedia]:
-    """Map a getBill ``supplements`` array to Tier-2 :class:`RelatedMedia` leads (``kind=page``).
+def _supplement_is_analysis(s: dict[str, Any]) -> bool:
+    """True for a LegiScan committee/floor *Analysis* supplement (``type_id`` 2).
 
-    Supplements (fiscal notes, analyses, veto/signing docs) become quote-less Tier-2
-    references (D69/D72): there is nothing to misattribute, so the researcher/verifier treat
-    each as a candidate link, never a quote. ``url`` prefers ``state_link`` then the LegiScan
-    ``url``; a supplement with neither is skipped (RelatedMedia requires a url — the project's
-    "no link, no render" rule). A supplement that fails model validation is skipped rather
-    than aborting the fetch.
+    Falls back to the ``type`` string when ``type_id`` is missing/non-numeric, so a payload
+    that labels the analysis only by name is still recognized.
+    """
+    try:
+        return int(s.get("type_id")) == 2  # pyright: ignore[reportArgumentType]
+    except (TypeError, ValueError):
+        return str(s.get("type") or "").strip().lower() == "analysis"
+
+
+def _parse_committee_analyses(detail: dict[str, Any]) -> list[CommitteeReport]:
+    """Promote LegiScan *Analysis* supplements (``type_id`` 2) to spine committee reports.
+
+    A CA committee/floor analysis is the state analogue of a federal GovInfo committee report
+    (PHASE-21/D80), so it populates the deterministic spine ``committee_reports`` (``citation``
+    = supplement title, ``url`` = ``state_link``/leginfo then the LegiScan mirror) instead of
+    being flattened into a Tier-2 reference link. A url-less analysis is skipped ("no link,
+    no render"); one that fails validation is skipped rather than aborting the fetch.
+    """
+    reports: list[CommitteeReport] = []
+    for s in _items(detail.get("supplements")):
+        if not _supplement_is_analysis(s):
+            continue
+        url = _opt_str(s.get("state_link") or s.get("url"))
+        citation = str(s.get("title") or s.get("type") or "").strip()
+        if not url or not citation:
+            continue
+        try:
+            reports.append(CommitteeReport(citation=citation, url=url))
+        except ValidationError:
+            continue
+    return reports
+
+
+def _parse_supplement_media(detail: dict[str, Any]) -> list[RelatedMedia]:
+    """Map non-analysis getBill ``supplements`` to Tier-2 :class:`RelatedMedia` leads (``page``).
+
+    Supplements (fiscal notes, veto/signing docs, misc) become quote-less Tier-2 references
+    (D69/D72): there is nothing to misattribute, so the researcher/verifier treat each as a
+    candidate link, never a quote. ``url`` prefers ``state_link`` then the LegiScan ``url``; a
+    supplement with neither is skipped (RelatedMedia requires a url — the project's "no link,
+    no render" rule). *Analysis* supplements are EXCLUDED here — they are promoted to the spine
+    ``committee_reports`` by :func:`_parse_committee_analyses` (PHASE-21), so they are not
+    double-listed. A supplement that fails model validation is skipped rather than aborting.
     """
     media: list[RelatedMedia] = []
     for s in _items(detail.get("supplements")):
+        if _supplement_is_analysis(s):
+            continue  # promoted to spine committee_reports, not a Tier-2 lead (PHASE-21)
         url = _opt_str(s.get("state_link") or s.get("url"))
         if not url:
             continue
@@ -170,6 +217,8 @@ class StateLegHistoryInputs:
     bill: Bill
     votes: list[Vote]
     supplement_media: list[RelatedMedia]
+    # Committee/floor analyses promoted to spine committee_reports (PHASE-21/D80).
+    committee_analyses: list[CommitteeReport]
 
 
 class LegiScanSource:
@@ -253,6 +302,7 @@ class LegiScanSource:
             bill=self._to_bill(detail),
             votes=_parse_votes(detail),
             supplement_media=_parse_supplement_media(detail),
+            committee_analyses=_parse_committee_analyses(detail),
         )
 
     def fetch_policy_area(self, native_id: str) -> str | None:

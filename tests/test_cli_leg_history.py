@@ -256,7 +256,12 @@ def test_fetch_state_leg_history_stages_state_spine_and_leads(
     assert staged["spine"]["floor_consideration"] == []
     assert staged["spine"]["enactment"]["date_signed"] == "2023-10-08"
     assert staged["leads"]["state"] == "CA"
-    assert len(staged["leads"]["supplement_media"]) == 2
+    # PHASE-21: the 'Analysis' supplement is promoted to a spine committee report; only the
+    # fiscal note remains a Tier-2 lead (the third supplement is link-less and skipped).
+    assert len(staged["leads"]["supplement_media"]) == 1
+    assert [r["citation"] for r in staged["spine"]["committee_reports"]] == [
+        "Assembly Floor Analysis"
+    ]
 
 
 def test_fetch_state_leg_history_rejects_unenacted_bill(

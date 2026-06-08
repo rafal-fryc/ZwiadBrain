@@ -1602,3 +1602,24 @@ def test_reground_preserves_verdict_index_keying() -> None:
 
     assert recovered == 1
     assert {s.speaker for s in result2.statements} == {"First", "Second"}
+
+
+# ---------------------------------------------------------------------------
+# PHASE-21: state committee analyses populate the spine committee_reports
+# ---------------------------------------------------------------------------
+
+
+def test_assemble_state_spine_populates_committee_reports_from_analyses() -> None:
+    """promoted committee analyses land in the spine committee_reports"""
+    reports = [CommitteeReport(citation="Assembly Floor Analysis", url="https://x.test/a")]
+
+    spine = assemble_state_spine(_enacted_state_bill(), [], committee_reports=reports)
+
+    assert spine.committee_reports == reports
+
+
+def test_assemble_state_spine_defaults_empty_committee_reports() -> None:
+    """omitting committee_reports keeps the prior empty default (backward compatible)"""
+    spine = assemble_state_spine(_enacted_state_bill(), [])
+
+    assert spine.committee_reports == []

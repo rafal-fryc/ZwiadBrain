@@ -480,7 +480,9 @@ def fetch_state_leg_history(
                 f"bill {fetched.id} is not enacted — legislative history is assembled"
                 " only for enacted bills"
             )
-        spine = assemble_state_spine(fetched, inputs.votes)
+        spine = assemble_state_spine(
+            fetched, inputs.votes, committee_reports=inputs.committee_analyses
+        )
         leads = collect_state_leads(fetched, inputs.supplement_media)
         payload = {
             "bill": fetched.model_dump(mode="json"),

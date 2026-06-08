@@ -885,7 +885,11 @@ def collect_leads(
     }
 
 
-def assemble_state_spine(bill: Bill, votes: list[Vote]) -> LegHistory:
+def assemble_state_spine(
+    bill: Bill,
+    votes: list[Vote],
+    committee_reports: list[CommitteeReport] | None = None,
+) -> LegHistory:
     """Build a :class:`LegHistory` spine for an enacted STATE bill (PHASE-16 / D75).
 
     State data arrives in one LegiScan ``getBill`` (no Congress.gov / GovInfo fan-out), so
@@ -893,22 +897,23 @@ def assemble_state_spine(bill: Bill, votes: list[Vote]) -> LegHistory:
 
     * ``versions`` -- from ``bill.text_versions``
     * ``votes`` -- the parsed roll calls (passed through)
+    * ``committee_reports`` -- the bill's committee/floor *analyses*, promoted from LegiScan
+      ``Analysis`` supplements (PHASE-21/D80); ``None`` -> empty (the PHASE-16 default)
     * ``floor_consideration`` -- left EMPTY: a state history action carries no Congressional-
       Record citation or per-action url, the full timeline already renders in the bill body's
       "Status & Timeline", and roll-call passage events render under "Votes"
     * ``enactment`` -- ``date_signed`` from the governor-approval action (fallback: the
       Chaptered action), ``url`` from the State source link (fallback: the LegiScan page)
 
-    ``committee_reports`` and the researcher fields (``hearings``, ``statements``,
-    ``related_media``, ``conference``, ``narrative``) are left at their defaults: there is no
-    deterministic state source for them; the researcher fills the latter.
+    The researcher fields (``hearings``, ``statements``, ``related_media``, ``conference``,
+    ``narrative``) are left at their defaults for the researcher to fill.
     """
     signed = _state_signed_date(bill)
     url = bill.sources.get("State source") or bill.sources.get("LegiScan")
     enactment = Enactment(date_signed=signed, url=url) if (signed or url) else None
     return LegHistory(
         versions=bill.text_versions,
-        committee_reports=[],
+        committee_reports=committee_reports or [],
         votes=votes,
         floor_consideration=[],
         enactment=enactment,

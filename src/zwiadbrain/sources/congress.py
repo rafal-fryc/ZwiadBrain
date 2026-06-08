@@ -309,17 +309,28 @@ class CongressSource:
 
         With ``congress`` set, lists that congress; otherwise lists across congresses.
         ``limit`` (≤ 250) is the per-page size. ``max_pages`` bounds an OPT-IN back-catalog
-        offset sweep (PHASE-22/D81): the default ``1`` preserves the prior single-request
-        behaviour exactly (no ``offset`` param). With ``max_pages > 1`` the same query is
-        re-issued at successive offsets and the candidates are accumulated and de-duplicated
-        by ``native_id``; the sweep stops at ``max_pages``, when the server's reported total
-        is exhausted, or when a short page is returned. Any un-swept remainder is logged
-        (never silently dropped).
+        offset sweep (PHASE-22/D81); the default ``1`` preserves single-request behaviour.
         """
         path = f"/bill/{congress}" if congress is not None else "/bill"
+        return self._sweep_candidates(path, since=since, limit=limit, max_pages=max_pages)
+
+    def _sweep_candidates(
+        self,
+        path: str,
+        *,
+        since: dt.datetime | None,
+        limit: int,
+        max_pages: int,
+    ) -> list[Candidate]:
+        """Offset-paginate ``path`` (a ``{"bills": [...]}`` list endpoint) into candidates.
+
+        Shared by ``discover`` (``/bill``) and ``discover_laws`` (``/law/.../pub``). Default
+        ``max_pages=1`` omits ``offset`` so the single-request behaviour is unchanged; with
+        ``max_pages>1`` successive offsets are accumulated, de-duped by ``native_id``, and a
+        truncated remainder (server total > collected) is logged, never silently dropped.
+        """
         page_size = min(max(limit, 1), 250)
         pages = max(max_pages, 1)
-
         collected: list[Candidate] = []
         seen: set[str] = set()
         total: int | None = None
@@ -346,16 +357,10 @@ class CongressSource:
                 break
             if total is not None and offset >= total:
                 break
-
         if isinstance(total, int) and total > len(collected):
-            # The sweep is bounded (single request by default, or max_pages); surface the
-            # server's reported total so a truncated back-catalog is auditable, never silent.
             _LOGGER.warning(
                 "discovery truncated: returned %d of %d reported bills for %s (max_pages=%d)",
-                len(collected),
-                total,
-                path,
-                pages,
+                len(collected), total, path, pages,
             )
         return collected
 

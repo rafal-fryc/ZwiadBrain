@@ -103,6 +103,7 @@ from zwiadbrain.pipeline.rejects import (
 from zwiadbrain.pipeline.render import write_lawbrain_region, write_page
 from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
 from zwiadbrain.pipeline.staging import stage_json, validate_model
+from zwiadbrain.pipeline.verdicts import Verdict, apply_summaries, split_by_verdict
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CongressSource
@@ -402,6 +403,124 @@ def record_rejects(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"recorded {new} new, {updated} updated reject(s) to {path}")
+
+
+def _read_json_list(path: Path, *, label: str) -> list[object]:
+    """Read a JSON-list staging file (candidates/verdicts) or raise a labelled ConfigError."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError(f"could not read {label} {path}: {exc}") from exc
+    if not isinstance(raw, list):
+        raise ConfigError(f"{label} must be a JSON list, got {type(raw).__name__}")
+    return list(raw)  # pyright: ignore[reportUnknownArgumentType]
+
+
+@app.command(name="apply-verdicts")
+def apply_verdicts(
+    input_file: Annotated[Path, typer.Option("--in", help="candidates.json to split.")],
+    verdicts_file: Annotated[
+        Path, typer.Option("--verdicts", help="verdicts.json from the classifier.")
+    ],
+    out: Annotated[
+        Path | None,
+        typer.Option(help="Output dir for classified.json + rejects.json (default: --in's dir)."),
+    ] = None,
+) -> None:
+    """Split staged candidates into classified (in-scope, topics applied) + rejects.
+
+    The resumable classification step (backfill gap 1): the classifier subagent writes
+    verdicts.json (``[{id, in_scope, topics, reason}]``); this applies them so a rate-limit or
+    context cutoff only loses the unclassified tail (reported as 'pending'). Replaces the
+    ad-hoc ``data/runs/build_*.py`` scripts.
+    """
+    try:
+        candidates = [
+            validate_model(Bill, item, label="candidate bill")
+            for item in _read_json_list(input_file, label="candidates file")
+        ]
+        verdicts = [
+            validate_model(Verdict, item, label="verdict")
+            for item in _read_json_list(verdicts_file, label="verdicts file")
+        ]
+        classified, rejects, pending = split_by_verdict(candidates, verdicts)
+        out_dir = out or input_file.parent
+        classified_path = stage_json(
+            [b.model_dump(mode="json") for b in classified],
+            name="classified.json",
+            out=out_dir,
+        )
+        stage_json(
+            [b.model_dump(mode="json") for b in rejects], name="rejects.json", out=out_dir
+        )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"applied {len(verdicts)} verdict(s): {len(classified)} in-scope,"
+        f" {len(rejects)} reject(s), {len(pending)} pending -> {classified_path.parent}"
+    )
+    if pending:
+        typer.echo(f"  pending (unclassified): {', '.join(pending)}")
+
+
+def _read_summaries(path: Path) -> dict[str, str]:
+    """Read a summaries.json ``{id: summary}`` object; non-object/non-str-value -> ConfigError."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError(f"could not read summaries file {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError(f"summaries file must be a JSON object, got {type(raw).__name__}")
+    raw_dict: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+    result: dict[str, str] = {}
+    for key, value in raw_dict.items():  # pyright: ignore[reportUnknownVariableType]
+        if not isinstance(value, str):
+            raise ConfigError(
+                f"summary for {str(key)!r} must be a string, got {type(value).__name__}"
+            )
+        result[str(key)] = value
+    return result
+
+
+@app.command(name="apply-summaries")
+def apply_summaries_cmd(
+    input_file: Annotated[Path, typer.Option("--in", help="classified.json to enrich in place.")],
+    summaries_file: Annotated[
+        Path, typer.Option("--summaries", help="summaries.json {id: summary} map.")
+    ],
+) -> None:
+    """Merge a ``{id: summary}`` map into the classified bills, in place (backfill gap 2).
+
+    The leaner summary handoff: a batch-summarizer subagent writes summaries.json; this sets
+    each in-scope bill's plain-language summary, so a cutoff only loses the un-summarized tail
+    (reported as 'pending'). render-classified then renders unchanged.
+
+    The rewrite is in place and non-atomic; if it is interrupted, regenerate classified.json by
+    re-running ``apply-verdicts`` (candidates.json and verdicts.json are still present), then
+    re-apply.
+    """
+    try:
+        classified = [
+            validate_model(Bill, item, label="classified bill")
+            for item in _read_json_list(input_file, label="classified file")
+        ]
+        summaries = _read_summaries(summaries_file)
+        updated, pending = apply_summaries(classified, summaries)
+        stage_json(
+            [b.model_dump(mode="json") for b in updated],
+            name=input_file.name,
+            out=input_file.parent,
+        )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"applied {len(summaries)} summary(ies): {len(updated) - len(pending)} set,"
+        f" {len(pending)} pending"
+    )
+    if pending:
+        typer.echo(f"  pending (un-summarized): {', '.join(pending)}")
 
 
 @app.command(name="fetch-state-candidates")

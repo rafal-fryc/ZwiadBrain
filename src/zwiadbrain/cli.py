@@ -103,7 +103,7 @@ from zwiadbrain.pipeline.rejects import (
 from zwiadbrain.pipeline.render import write_lawbrain_region, write_page
 from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
 from zwiadbrain.pipeline.staging import stage_json, validate_model
-from zwiadbrain.pipeline.verdicts import Verdict, split_by_verdict
+from zwiadbrain.pipeline.verdicts import Verdict, apply_summaries, split_by_verdict
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CongressSource
@@ -462,6 +462,61 @@ def apply_verdicts(
     )
     if pending:
         typer.echo(f"  pending (unclassified): {', '.join(pending)}")
+
+
+def _read_summaries(path: Path) -> dict[str, str]:
+    """Read a summaries.json ``{id: summary}`` object; non-object/non-str-value -> ConfigError."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError(f"could not read summaries file {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError(f"summaries file must be a JSON object, got {type(raw).__name__}")
+    raw_dict: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+    result: dict[str, str] = {}
+    for key, value in raw_dict.items():  # pyright: ignore[reportUnknownVariableType]
+        if not isinstance(value, str):
+            raise ConfigError(
+                f"summary for {str(key)!r} must be a string, got {type(value).__name__}"
+            )
+        result[str(key)] = value
+    return result
+
+
+@app.command(name="apply-summaries")
+def apply_summaries_cmd(
+    input_file: Annotated[Path, typer.Option("--in", help="classified.json to enrich in place.")],
+    summaries_file: Annotated[
+        Path, typer.Option("--summaries", help="summaries.json {id: summary} map.")
+    ],
+) -> None:
+    """Merge a ``{id: summary}`` map into the classified bills, in place (backfill gap 2).
+
+    The leaner summary handoff: a batch-summarizer subagent writes summaries.json; this sets
+    each in-scope bill's plain-language summary, so a cutoff only loses the un-summarized tail
+    (reported as 'pending'). render-classified then renders unchanged.
+    """
+    try:
+        classified = [
+            validate_model(Bill, item, label="classified bill")
+            for item in _read_json_list(input_file, label="classified file")
+        ]
+        summaries = _read_summaries(summaries_file)
+        updated, pending = apply_summaries(classified, summaries)
+        stage_json(
+            [b.model_dump(mode="json") for b in updated],
+            name=input_file.name,
+            out=input_file.parent,
+        )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"applied {len(summaries)} summary(ies): {len(updated) - len(pending)} set,"
+        f" {len(pending)} pending"
+    )
+    if pending:
+        typer.echo(f"  pending (un-summarized): {', '.join(pending)}")
 
 
 @app.command(name="fetch-state-candidates")

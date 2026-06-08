@@ -2062,3 +2062,73 @@ def test_fetch_state_candidates_skip_existing_drops_cached_rejects(
     assert result.exit_code == 0, result.output
     assert json.loads((out / "candidates.json").read_text(encoding="utf-8")) == []
     assert "cached-reject" in result.output
+
+
+def _write_candidates(run: Path, bills: list[Bill]) -> Path:
+    run.mkdir(parents=True, exist_ok=True)
+    path = run / "candidates.json"
+    path.write_text(
+        json.dumps([b.model_dump(mode="json") for b in bills]), encoding="utf-8"
+    )
+    return path
+
+
+def test_apply_verdicts_splits_candidates_into_classified_and_rejects(tmp_path: Path) -> None:
+    """should write classified.json (topics applied) + rejects.json from verdicts.json"""
+    run = tmp_path / "run"
+    cands = _write_candidates(run, [
+        Bill(id="ca-2025-ab-1", jurisdiction="US-CA", title="A", bill_number="AB 1"),
+        Bill(id="ca-2025-ab-2", jurisdiction="US-CA", title="B", bill_number="AB 2"),
+    ])
+    (run / "verdicts.json").write_text(
+        json.dumps([
+            {"id": "ca-2025-ab-1", "in_scope": True, "topics": ["ai"], "reason": "r"},
+            {"id": "ca-2025-ab-2", "in_scope": False, "topics": [], "reason": "out"},
+        ]),
+        encoding="utf-8",
+    )
+    result = runner.invoke(
+        app, ["apply-verdicts", "--in", str(cands), "--verdicts", str(run / "verdicts.json")]
+    )
+    assert result.exit_code == 0, result.output
+    classified = json.loads((run / "classified.json").read_text(encoding="utf-8"))
+    rejects = json.loads((run / "rejects.json").read_text(encoding="utf-8"))
+    assert [b["id"] for b in classified] == ["ca-2025-ab-1"]
+    assert classified[0]["topics"] == ["ai"]
+    assert [b["id"] for b in rejects] == ["ca-2025-ab-2"]
+
+
+def test_apply_verdicts_reports_pending_tail(tmp_path: Path) -> None:
+    """should report candidates with no verdict as pending and still exit 0"""
+    run = tmp_path / "run"
+    cands = _write_candidates(run, [
+        Bill(id="ca-2025-ab-1", jurisdiction="US-CA", title="A", bill_number="AB 1"),
+        Bill(id="ca-2025-ab-2", jurisdiction="US-CA", title="B", bill_number="AB 2"),
+    ])
+    (run / "verdicts.json").write_text(
+        json.dumps([{"id": "ca-2025-ab-1", "in_scope": True, "topics": ["ai"]}]),
+        encoding="utf-8",
+    )
+    result = runner.invoke(
+        app, ["apply-verdicts", "--in", str(cands), "--verdicts", str(run / "verdicts.json")]
+    )
+    assert result.exit_code == 0, result.output
+    assert "1 pending" in result.output
+    assert "ca-2025-ab-2" in result.output
+
+
+def test_apply_verdicts_unknown_verdict_id_errors(tmp_path: Path) -> None:
+    """should exit non-zero when a verdict id matches no candidate"""
+    run = tmp_path / "run"
+    cands = _write_candidates(
+        run, [Bill(id="ca-2025-ab-1", jurisdiction="US-CA", title="A", bill_number="AB 1")]
+    )
+    (run / "verdicts.json").write_text(
+        json.dumps([{"id": "ca-2025-zz-9", "in_scope": True, "topics": ["ai"]}]),
+        encoding="utf-8",
+    )
+    result = runner.invoke(
+        app, ["apply-verdicts", "--in", str(cands), "--verdicts", str(run / "verdicts.json")]
+    )
+    assert result.exit_code == 1
+    assert "error" in result.output.lower()

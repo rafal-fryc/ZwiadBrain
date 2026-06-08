@@ -6,13 +6,16 @@ from pathlib import Path
 import pytest
 
 from zwiadbrain.exceptions import ConfigError
+from zwiadbrain.models import Bill
 from zwiadbrain.pipeline.rejects import (
     RejectEntry,
+    federal_bill_entry,
     federal_cursor,
     federal_key,
     filter_by_key,
     filter_cached_rejects,
     load_reject_ledger,
+    state_bill_entry,
     state_cursor,
     state_key,
     write_reject_ledger,
@@ -152,3 +155,42 @@ def test_filter_by_key_drops_known_keys_preserving_order() -> None:
     cands = [_state("777"), _state("888"), _state("999")]
     kept = filter_by_key(cands, {"888"}, key_of=state_key)
     assert [c.native_id for c in kept] == ["777", "999"]
+
+
+# ---------------------------------------------------------------------------
+# Task 3: Bill→entry derivation (record side)
+# ---------------------------------------------------------------------------
+
+
+def test_federal_bill_entry_prefers_text_inclusive_cursor() -> None:
+    """should record update_date_text so the cursor matches the candidate's update_date"""
+    bill = Bill(
+        id="119-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1",
+        update_date="2026-01-01", update_date_text="2026-02-02",
+    )
+    key, entry = federal_bill_entry(bill)
+    assert key == "119-hr-1"
+    assert entry.cursor == "2026-02-02"
+    assert entry.id is None
+
+
+def test_federal_bill_entry_falls_back_to_bare_update_date() -> None:
+    """should fall back to update_date when update_date_text is absent"""
+    bill = Bill(
+        id="119-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1",
+        update_date="2026-01-01",
+    )
+    _key, entry = federal_bill_entry(bill)
+    assert entry.cursor == "2026-01-01"
+
+
+def test_state_bill_entry_keys_by_legiscan_id_and_keeps_slug() -> None:
+    """should key a state reject by LegiScan bill_id and keep the page slug as id"""
+    bill = Bill(
+        id="ca-2025-ab-7", jurisdiction="US-CA", title="t", bill_number="AB 7",
+        legiscan_bill_id=999, change_hash="h9",
+    )
+    key, entry = state_bill_entry(bill)
+    assert key == "999"
+    assert entry.cursor == "h9"
+    assert entry.id == "ca-2025-ab-7"

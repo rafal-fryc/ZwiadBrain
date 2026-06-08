@@ -17,6 +17,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from zwiadbrain.exceptions import ConfigError
+from zwiadbrain.models import Bill
 from zwiadbrain.pipeline.staging import validate_model
 from zwiadbrain.sources.base import Candidate
 
@@ -113,3 +114,19 @@ def state_cursor(candidate: Candidate) -> str | None:
     """The LegiScan change_hash carried on the search-result candidate (raw['change_hash'])."""
     value = candidate.raw.get("change_hash")
     return value if isinstance(value, str) else None
+
+
+# ---------------------------------------------------------------------------
+# Task 3: Bill→entry derivation (record side)
+# ---------------------------------------------------------------------------
+
+
+def federal_bill_entry(bill: Bill) -> tuple[str, RejectEntry]:
+    """(slug, entry) for a federal reject; cursor matches `federal_cursor` (text-inclusive)."""
+    cursor = bill.update_date_text or bill.update_date or ""
+    return bill.id, RejectEntry(cursor=cursor)
+
+
+def state_bill_entry(bill: Bill) -> tuple[str, RejectEntry]:
+    """(bill_id, entry) for a state reject; keeps the page slug as a human anchor."""
+    return str(bill.legiscan_bill_id), RejectEntry(cursor=bill.change_hash or "", id=bill.id)

@@ -28,38 +28,55 @@ fetches each, and writes enriched `Bill`s to a `candidates.json` under
 `Read` the `candidates.json` it wrote. Each entry is a full bill (id, title,
 summary, status, sponsors, actions, amendments).
 
-### 3. Classify each bill (subagent: `classifier`)
-For every candidate, dispatch the **classifier** subagent with the bill's `title`
-and `summary`. It reads `reference/topics.yaml` and returns
+### 3. Classify each bill (subagent: `classifier`) → `verdicts.json`
+For every candidate, dispatch the **classifier** subagent with the bill's `title` and
+`summary`. It reads `reference/topics.yaml` and returns
 `{in_scope, topics, confidence, rationale, positive_criterion, disqualifier_survived, disqualifier_applied}`.
 - Log each decision (id, in_scope, confidence, positive_criterion/disqualifier) to the transcript.
-- **Drop** bills where `in_scope` is false. Keep the returned `topics` for the rest.
 - **Validate topics**: if the classifier returns any topic not in `{ai, privacy, cyber}`,
-  treat it as a classifier error — drop the bill to the transcript and do NOT enrich it.
-  (`render-classified` validates topics again, but catching it here avoids a wasted
-  summarizer/amendment-explainer dispatch.)
+  treat it as a classifier error — record the bill as out-of-scope in the transcript and set
+  `in_scope: false` in its verdict (do not enrich it).
+- Collect one entry per classified bill into `verdicts.json` —
+  `[{ "id", "in_scope", "topics", "reason" }]`, where `reason` is the classifier's rationale —
+  and `Write` it to the run directory.
 
-### 3a. Record the rejects (reject ledger — the negative cache)
-Collect the OUT-of-scope bills (the ones the classifier dropped). `Write` them — the
-**full `Bill` JSON objects**, same shape as `candidates.json` — to a `rejects.json` in the
-run directory, then run:
+`verdicts.json` is the resumable classification record (backfill gap 1): if a plan rate-limit
+or context cutoff interrupts classification, only the *unclassified tail* is lost. Re-run the
+classifier on the remaining ids, append their verdicts, and continue.
+
+### 4. Apply verdicts (Python, deterministic)
+Run:
+```
+uv run zwiadbrain apply-verdicts --in data/runs/<id>/candidates.json --verdicts data/runs/<id>/verdicts.json
+```
+It splits candidates into `classified.json` (in-scope, with `topics` applied) and
+`rejects.json` (out-of-scope), and reports any **pending** candidates that have no verdict
+yet. If pending > 0, classify those, append to `verdicts.json`, and re-run before continuing.
+
+### 4a. Record the rejects (reject ledger — the negative cache)
+Run:
 ```
 uv run zwiadbrain record-rejects --in data/runs/<id>/rejects.json --scope federal
 ```
 This upserts each rejected bill into `wiki/.rejects/federal.json` keyed by bill id and its
-Congress `updateDateIncludingText` cursor, so a future `--skip-existing` sweep skips it
-until the bill changes (D82). Commit `wiki/.rejects/` alongside the rendered pages.
+Congress `updateDateIncludingText` cursor, so a future `--skip-existing` sweep skips it until
+the bill changes (D82). Commit `wiki/.rejects/` alongside the rendered pages.
 
-### 4. Enrich the in-scope bills (subagents: `summarizer`, `amendment-explainer`)
-For each in-scope bill:
-- Dispatch **summarizer** with the bill data → set the bill's `summary` to the returned prose.
-- If the bill has amendments, dispatch **amendment-explainer** with the bill's amendments
-  → set each amendment's `what_changed` from the returned `{number: explanation}` map.
-- Set the bill's `topics` to the classifier's `topics`.
+### 5. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`
+`Read` `classified.json`. Dispatch the **batch-summarizer** subagent ONCE with the full list
+of in-scope bills (each bill's `id`, `title`, `summary`, `status`, sponsors, latest action).
+It returns a single `{id: summary}` JSON map. `Write` it to `summaries.json`, then run:
+```
+uv run zwiadbrain apply-summaries --in data/runs/<id>/classified.json --summaries data/runs/<id>/summaries.json
+```
+This sets each bill's plain-language summary in place, reporting any **pending**
+(un-summarized) bills. The single batch dispatch replaces the old one-summarizer-per-bill
+round-trip (backfill gap 2); a cutoff loses only the un-summarized tail.
 
-### 5. Stage the classified bills
-`Write` the in-scope, enriched bills (same `Bill` JSON shape as `candidates.json`)
-to `classified.json` in the same run directory.
+If an in-scope bill has amendments, dispatch the **amendment-explainer** subagent for that
+bill and set each amendment's `what_changed` by editing `classified.json` directly. This
+touches only the `amendments`, leaving the applied `summary` and `topics` intact (order
+relative to `apply-summaries` does not matter — they update disjoint fields).
 
 ### 6. Render + index (Python, deterministic)
 Run:
@@ -67,8 +84,8 @@ Run:
 uv run zwiadbrain render-classified --in data/runs/<id>/classified.json
 uv run zwiadbrain reindex
 ```
-`render-classified` validates each bill's `topics` against the taxonomy and writes
-the wiki pages; `reindex` rebuilds the FTS5 index from the committed wiki.
+`render-classified` validates each bill's `topics` against the taxonomy and writes the wiki
+pages; `reindex` rebuilds the FTS5 index from the committed wiki.
 
 ### 7. Report
 Summarize: candidates fetched, classified in vs out (with the out-of-scope

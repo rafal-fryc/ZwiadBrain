@@ -2010,6 +2010,26 @@ def test_existing_state_bill_ids_missing_dir_is_empty(tmp_path: Path) -> None:
     assert _existing_state_bill_ids(tmp_path / "wiki", "ny") == set()
 
 
+def test_existing_state_bill_ids_skips_unreadable_pages(tmp_path: Path) -> None:
+    """should skip a malformed page rather than crash the whole sweep"""
+    from zwiadbrain.cli import _existing_state_bill_ids  # pyright: ignore[reportPrivateUsage]
+
+    wiki = tmp_path / "wiki"
+    write_page(
+        Bill(id="ca-2025-ab-7", jurisdiction="US-CA", title="t",
+             bill_number="AB 7", legiscan_bill_id=777),
+        wiki,
+    )
+    # Malformed frontmatter YAML (unclosed flow mapping) -> from_page raises
+    # WikiSchemaError; the sweep must skip this page, not abort the whole state.
+    bad = wiki / "states" / "ca" / "bills" / "ca-2025-ab-bad.md"
+    bad.write_text(
+        "---\nid: ca-2025-ab-bad\njurisdiction: {US-CA\ntype: bill\n---\nbody\n",
+        encoding="utf-8",
+    )
+    assert _existing_state_bill_ids(wiki, "ca") == {"777"}
+
+
 def test_fetch_state_candidates_skip_existing_drops_cached_rejects(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

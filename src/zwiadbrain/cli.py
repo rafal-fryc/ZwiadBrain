@@ -232,7 +232,11 @@ def _existing_state_bill_ids(wiki: Path, state: str) -> set[str]:
     for page in bills_dir.glob("*.md"):
         if page.name.endswith(".text.md"):
             continue
-        item = from_page(page.read_text(encoding="utf-8"))
+        try:
+            item = from_page(page.read_text(encoding="utf-8"))
+        except WikiSchemaError:
+            typer.echo(f"skip-existing: skipping unreadable page {page}", err=True)
+            continue
         if isinstance(item, Bill) and item.legiscan_bill_id is not None:
             known.add(str(item.legiscan_bill_id))
     return known

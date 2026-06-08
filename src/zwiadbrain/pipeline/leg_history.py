@@ -22,7 +22,7 @@ Two entry points:
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
@@ -211,6 +211,104 @@ def _normalize_text(s: str) -> str:
     return " ".join(s.split())
 
 
+# Leading honorifics/titles stripped when normalizing a speaker for near-duplicate
+# dedup. Stored lowercase and period-free (periods are normalized to spaces before
+# matching), so "Gov.", "Gov", and "Governor" all collapse to the same name. Both
+# one- and two-word prefixes are matched (two-word first); a guard always leaves at
+# least one token, so a speaker that IS only a title (e.g. "Governor") is never
+# emptied.
+_SPEAKER_HONORIFICS: frozenset[str] = frozenset(
+    {
+        "gov",
+        "governor",
+        "lt gov",
+        "lt governor",
+        "lieutenant governor",
+        "sen",
+        "senator",
+        "rep",
+        "representative",
+        "congressman",
+        "congresswoman",
+        "assemblymember",
+        "assembly member",
+        "asm",
+        "asw",
+        "dr",
+        "mr",
+        "mrs",
+        "ms",
+        "mx",
+        "hon",
+        "honorable",
+        "president",
+        "vice president",
+        "speaker",
+        "chair",
+        "chairman",
+        "chairwoman",
+        "attorney general",
+        "ag",
+        "secretary",
+        "commissioner",
+        "mayor",
+        "judge",
+        "justice",
+    }
+)
+
+
+def _normalize_speaker(speaker: str) -> str:
+    """Normalize a speaker name for near-duplicate dedup.
+
+    Lowercases, maps curly quotes/apostrophes to ASCII (so "O'Brien" forms match),
+    turns periods into spaces (so "Gov." == "Gov"), collapses whitespace, then strips
+    leading honorific/title prefixes (see :data:`_SPEAKER_HONORIFICS`).  A guard keeps
+    at least one token, so a bare title never normalizes to the empty string.
+
+    This is deliberately conservative: it only removes a curated set of *leading*
+    titles.  It is paired with quote normalization in the dedup key, so two genuinely
+    different officials would have to share BOTH a normalized name and a verbatim 20+
+    char quote to wrongly collapse.
+    """
+    s = speaker.translate(_CURLY_QUOTE_TABLE).lower().replace(".", " ")
+    tokens = s.split()
+    changed = True
+    while changed and tokens:
+        changed = False
+        for n in (2, 1):
+            # Keep at least one token: never strip a prefix that would empty the name.
+            if len(tokens) > n and " ".join(tokens[:n]) in _SPEAKER_HONORIFICS:
+                tokens = tokens[n:]
+                changed = True
+                break
+    return " ".join(tokens)
+
+
+def dedup_statements(statements: Sequence[Statement]) -> list[Statement]:
+    """Collapse near-duplicate statements, keeping the first occurrence.
+
+    Two statements are near-duplicates when their normalized speaker
+    (:func:`_normalize_speaker`) AND normalized quote (:func:`_normalize_text`) are
+    equal — e.g. a press-lane "Gavin Newsom" and a signing-lane "Gov. Gavin Newsom"
+    carrying the same quote.  Order is preserved; the first-seen copy wins.
+
+    This runs POST-grounding (on already-grounded statements), NOT at merge time:
+    merge dedup is first-wins by lane order, and collapsing there could keep an
+    ungroundable copy over a groundable one.  Deduping among grounded statements is
+    regression-safe — every survivor is one that already passed the gate.
+    """
+    seen: set[tuple[str, str]] = set()
+    out: list[Statement] = []
+    for stmt in statements:
+        key = (_normalize_speaker(stmt.speaker), _normalize_text(stmt.quote))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(stmt)
+    return out
+
+
 def _page_text(page: str) -> str:
     """Extract human-visible text from an HTML page for quote-presence comparison.
 
@@ -387,6 +485,71 @@ def ground_items(
         hearings=tuple(kept_hearings),
         dropped=tuple(dropped),
     )
+
+
+# The exact reason string ``ground_items`` records when a 200 page is fetched but the
+# verbatim quote is absent (gate 2). Kept as a constant the JS-render second pass matches
+# against; ``ground_items`` itself still uses the inline literal (byte-unchanged), and the
+# end-to-end reground unit tests fail if the two ever drift apart.
+_QUOTE_NOT_FOUND_REASON = "quote not found on source page"
+
+
+def reground_with_render(
+    statements: list[Statement],
+    hearings: list[Hearing],
+    pass1: GroundingResult,
+    *,
+    static_fetch: Callable[[str], tuple[int, str]],
+    render_html: Callable[[str], str],
+    verifier_verdicts: dict[int, bool],
+) -> tuple[GroundingResult, int]:
+    """Second grounding pass that renders JS for statements ``pass1`` dropped as
+    "quote not found on source page" (Fix 3, PHASE-19).
+
+    A "quote not found" drop means the source returned 200 but the verbatim quote was
+    absent from the STATIC HTML — the signature of a client-side (JS) rendered page.
+    *render_html* maps a url to the post-JS DOM HTML (``""`` when rendering is
+    unavailable or fails); it is the deterministic headless-browser boundary, so the gate
+    stays LLM-free.
+
+    Design (why no verdict remap): only the urls that static-dropped as quote-not-found are
+    rendered; every other url re-uses *static_fetch*, so statically-grounded statements are
+    untouched. The pass re-runs :func:`ground_items` over the FULL original *statements* /
+    *hearings* with the ORIGINAL *verifier_verdicts*, so verdict-by-index keying is preserved
+    automatically — there is no subset to re-key (the project's highest-stakes failure mode).
+    A render that yields ``""`` falls back to the static result, so the item fail-closed drops
+    exactly as before.
+
+    Returns ``(result, js_recovered)`` where *js_recovered* is how many additional statements
+    grounded versus *pass1*. When there is nothing to rescue, returns ``(pass1, 0)`` unchanged
+    (no second pass, *render_html* is never called).
+    """
+    suspect_urls = {
+        s.source_url
+        for s in statements
+        if any(
+            d.kind == "statement"
+            and d.reason == _QUOTE_NOT_FOUND_REASON
+            and d.identifier == _statement_identifier(s)
+            for d in pass1.dropped
+        )
+    }
+    if not suspect_urls:
+        return pass1, 0
+
+    def render_fetch(url: str) -> tuple[int, str]:
+        if url in suspect_urls:
+            rendered = render_html(url)
+            if rendered:
+                return (200, rendered)
+            # Render unavailable/failed -> fall back to the static fetch (fail-closed drop).
+        return static_fetch(url)
+
+    result2 = ground_items(
+        statements, hearings, fetch=render_fetch, verifier_verdicts=verifier_verdicts
+    )
+    recovered = len(result2.statements) - len(pass1.statements)
+    return result2, recovered
 
 
 def ground_related(
@@ -722,7 +885,11 @@ def collect_leads(
     }
 
 
-def assemble_state_spine(bill: Bill, votes: list[Vote]) -> LegHistory:
+def assemble_state_spine(
+    bill: Bill,
+    votes: list[Vote],
+    committee_reports: list[CommitteeReport] | None = None,
+) -> LegHistory:
     """Build a :class:`LegHistory` spine for an enacted STATE bill (PHASE-16 / D75).
 
     State data arrives in one LegiScan ``getBill`` (no Congress.gov / GovInfo fan-out), so
@@ -730,22 +897,23 @@ def assemble_state_spine(bill: Bill, votes: list[Vote]) -> LegHistory:
 
     * ``versions`` -- from ``bill.text_versions``
     * ``votes`` -- the parsed roll calls (passed through)
+    * ``committee_reports`` -- the bill's committee/floor *analyses*, promoted from LegiScan
+      ``Analysis`` supplements (PHASE-21/D80); ``None`` -> empty (the PHASE-16 default)
     * ``floor_consideration`` -- left EMPTY: a state history action carries no Congressional-
       Record citation or per-action url, the full timeline already renders in the bill body's
       "Status & Timeline", and roll-call passage events render under "Votes"
     * ``enactment`` -- ``date_signed`` from the governor-approval action (fallback: the
       Chaptered action), ``url`` from the State source link (fallback: the LegiScan page)
 
-    ``committee_reports`` and the researcher fields (``hearings``, ``statements``,
-    ``related_media``, ``conference``, ``narrative``) are left at their defaults: there is no
-    deterministic state source for them; the researcher fills the latter.
+    The researcher fields (``hearings``, ``statements``, ``related_media``, ``conference``,
+    ``narrative``) are left at their defaults for the researcher to fill.
     """
     signed = _state_signed_date(bill)
     url = bill.sources.get("State source") or bill.sources.get("LegiScan")
     enactment = Enactment(date_signed=signed, url=url) if (signed or url) else None
     return LegHistory(
         versions=bill.text_versions,
-        committee_reports=[],
+        committee_reports=committee_reports or [],
         votes=votes,
         floor_consideration=[],
         enactment=enactment,

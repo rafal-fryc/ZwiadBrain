@@ -121,6 +121,72 @@ def test_fetch_candidates_writes_enriched_bills_to_staging(
     assert bill.last_synced is not None  # enrichment stamped sync time
 
 
+def test_fetch_candidates_skip_existing_drops_already_tracked_bills(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-22: --skip-existing drops candidates that already have a wiki page"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    wiki = tmp_path / "wiki"
+    # Pre-track the only seed-matching bill so the sweep should skip it.
+    write_page(
+        Bill(id="118-hr-8818", jurisdiction="US", title="AI Act", bill_number="H.R. 8818"), wiki
+    )
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        _route_backfill(mock)
+        result = runner.invoke(
+            app,
+            [
+                "fetch-candidates",
+                "--congress", "118",
+                "--limit", "5",
+                "--seed", "artificial intelligence",
+                "--skip-existing",
+                "--wiki", str(wiki),
+                "--out", str(out),
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert data == []  # the only seed-matching bill was already tracked
+
+
+def test_fetch_candidates_threads_max_pages_to_discover(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-22: --max-pages is forwarded to CongressSource.discover (opt-in back-catalog)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    captured: dict[str, int] = {}
+
+    def _fake_discover(
+        self: CongressSource,
+        *,
+        congress: int | None = None,
+        since: object = None,
+        limit: int = 20,
+        max_pages: int = 1,
+    ) -> list[object]:
+        captured["max_pages"] = max_pages
+        return []
+
+    monkeypatch.setattr("zwiadbrain.cli.CongressSource.discover", _fake_discover)
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        [
+            "fetch-candidates",
+            "--congress", "118",
+            "--seed", "ai",
+            "--max-pages", "3",
+            "--out", str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert captured["max_pages"] == 3
+
+
 def test_fetch_candidates_defaults_seeds_from_topics_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -674,6 +740,233 @@ def test_render_leg_history_echo_reports_counts_and_drop_lines(
     # Per-drop line for bad hearing
     assert "dropped hearing" in out
     assert "AI and Data Governance" in out
+
+
+def test_render_leg_history_collapses_grounded_near_duplicate_statements(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should list a quote once when it grounds under two speaker honorific variants
+
+    Regression guard for PHASE-18: dedup runs POST-grounding, so two statements that
+    BOTH ground (same quote, "Gavin Newsom" vs "Gov. Gavin Newsom") collapse to one
+    instead of double-listing — without dropping a groundable copy.
+    """
+    quote = "I am proud to sign this landmark AI transparency bill into law today."
+    url_press = "https://www.congress.gov/congressional-record/newsom-press"
+    url_signing = "https://www.congress.gov/congressional-record/newsom-signing"
+
+    def _fetch(url: str) -> tuple[int, str]:
+        # Both sources carry the SAME verbatim quote, so both pass the quote gate.
+        if url in (url_press, url_signing):
+            return (200, f"Statement: {quote} The speaker continued.")
+        return (404, "Not Found")
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fetch)
+
+    bill = Bill(
+        id="118-hr-9999",
+        jurisdiction="US",
+        title="AI Transparency Act",
+        bill_number="H.R. 9999",
+        congress="118",
+    )
+    spine = LegHistory()
+    statements = [
+        Statement(
+            speaker="Gavin Newsom",
+            role="other",
+            quote=quote,
+            source_url=url_press,
+            source_type="press",
+            verified=False,
+        ),
+        Statement(
+            speaker="Gov. Gavin Newsom",
+            role="other",
+            quote=quote,
+            source_url=url_signing,
+            source_type="signing",
+            verified=False,
+        ),
+    ]
+    verdicts = [
+        {"index": 0, "verified": True, "speaker": "Gavin Newsom", "quote_prefix": quote[:40]},
+        {"index": 1, "verified": True, "speaker": "Gov. Gavin Newsom", "quote_prefix": quote[:40]},
+    ]
+    payload: dict[str, object] = {
+        "bill": bill.model_dump(mode="json"),
+        "spine": spine.model_dump(mode="json"),
+        "hearings": [],
+        "statements": [s.model_dump(mode="json") for s in statements],
+        "narrative": None,
+        "verdicts": verdicts,
+    }
+    staging = tmp_path / "neardup_staging.json"
+    staging.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    # Both grounded, but the near-dup collapses: 1 final grounded, 1 near-dup, 0 ground-drop.
+    assert "2 input / 1 grounded" in result.output
+    assert "1 near-dup" in result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-9999.md"
+    content = page.read_text(encoding="utf-8")
+    # First-wins: the press-lane copy survives; the signing-lane near-dup's url is gone.
+    assert url_press in content
+    assert url_signing not in content
+
+
+def _make_js_staging(tmp_path: Path, quote: str, url_js: str) -> Path:
+    """Staging with a single statement whose quote is JS-injected (absent from static HTML)."""
+    bill = Bill(
+        id="118-hr-7777",
+        jurisdiction="US",
+        title="AI Disclosure Act",
+        bill_number="H.R. 7777",
+        congress="118",
+    )
+    spine = LegHistory()
+    statements = [
+        Statement(
+            speaker="Jane Roe",
+            role="other",
+            quote=quote,
+            source_url=url_js,
+            source_type="news",
+            verified=False,
+        )
+    ]
+    verdicts = [{"index": 0, "verified": True, "speaker": "Jane Roe", "quote_prefix": quote[:40]}]
+    payload: dict[str, object] = {
+        "bill": bill.model_dump(mode="json"),
+        "spine": spine.model_dump(mode="json"),
+        "hearings": [],
+        "statements": [s.model_dump(mode="json") for s in statements],
+        "narrative": None,
+        "verdicts": verdicts,
+    }
+    staging = tmp_path / "js_staging.json"
+    staging.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return staging
+
+
+def test_render_leg_history_recovers_js_rendered_statement_via_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-19: a quote-not-found statement re-grounds when the render pass shows the quote"""
+    quote = "This statement is injected into the page by JavaScript after the load event."
+    url_js = "https://news.test/js-article"
+
+    def _static(url: str) -> tuple[int, str]:
+        # Static HTML lacks the quote -> pass 1 drops it as "quote not found on source page".
+        if url == url_js:
+            return (200, "<body><div id='app'>Loading...</div></body>")
+        return (404, "Not Found")
+
+    def _render(url: str) -> str:
+        return f"<body><p>{quote}</p></body>" if url == url_js else ""
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _static)
+    monkeypatch.setattr("zwiadbrain.cli.playwright_available", lambda: True)
+    monkeypatch.setattr("zwiadbrain.cli.render_page_html", _render)
+
+    staging = _make_js_staging(tmp_path, quote, url_js)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    # The render pass recovered the JS-injected quote.
+    assert "1 input / 1 grounded" in result.output
+    assert "1 js-recovered" in result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-7777.md"
+    assert url_js in page.read_text(encoding="utf-8")
+
+
+def test_render_leg_history_drops_js_statement_when_playwright_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-19: with Playwright absent, the JS statement stays a fail-closed drop (unchanged)"""
+    quote = "This statement is injected into the page by JavaScript after the load event."
+    url_js = "https://news.test/js-article"
+
+    def _static(url: str) -> tuple[int, str]:
+        if url == url_js:
+            return (200, "<body><div id='app'>Loading...</div></body>")
+        return (404, "Not Found")
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _static)
+    monkeypatch.setattr("zwiadbrain.cli.playwright_available", lambda: False)
+
+    staging = _make_js_staging(tmp_path, quote, url_js)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    # No render pass: the statement drops exactly as it did before PHASE-19.
+    assert "1 input / 0 grounded" in result.output
+    assert "0 js-recovered" in result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-7777.md"
+    assert url_js not in page.read_text(encoding="utf-8")
+
+
+def test_render_leg_history_fetches_each_url_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-20: a url shared by multiple items is fetched once per render (memoized)"""
+    url = "https://www.congress.gov/congressional-record/shared"
+    q1 = "The first distinct quote that appears verbatim on the shared source page here."
+    q2 = "A second distinct quote that also appears verbatim on the same shared page now."
+    page_body = f"<body>{q1} ... {q2}</body>"
+
+    fetch_calls: list[str] = []
+
+    def _counting(u: str) -> tuple[int, str]:
+        fetch_calls.append(u)
+        return (200, page_body) if u == url else (404, "Not Found")
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _counting)
+    monkeypatch.setattr("zwiadbrain.cli.playwright_available", lambda: False)
+
+    bill = Bill(
+        id="118-hr-8888",
+        jurisdiction="US",
+        title="Shared Source Act",
+        bill_number="H.R. 8888",
+        congress="118",
+    )
+    spine = LegHistory()
+    statements = [
+        Statement(
+            speaker="A One", role="member", quote=q1, source_url=url, source_type="CREC"
+        ),
+        Statement(
+            speaker="B Two", role="member", quote=q2, source_url=url, source_type="CREC"
+        ),
+    ]
+    verdicts = [
+        {"index": 0, "verified": True, "speaker": "A One", "quote_prefix": q1[:40]},
+        {"index": 1, "verified": True, "speaker": "B Two", "quote_prefix": q2[:40]},
+    ]
+    payload: dict[str, object] = {
+        "bill": bill.model_dump(mode="json"),
+        "spine": spine.model_dump(mode="json"),
+        "hearings": [],
+        "statements": [s.model_dump(mode="json") for s in statements],
+        "narrative": None,
+        "verdicts": verdicts,
+    }
+    staging = tmp_path / "shared_staging.json"
+    staging.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    assert "2 input / 2 grounded" in result.output
+    assert fetch_calls.count(url) == 1  # fetched once despite two statements sharing the url
 
 
 def test_render_leg_history_is_idempotent(

@@ -112,3 +112,26 @@ def make_gate_fetch(
         return http_fetch(url)
 
     return _fetch
+
+
+def memoize_fetch(
+    fetch: Callable[[str], tuple[int, str]],
+) -> Callable[[str], tuple[int, str]]:
+    """Wrap *fetch* so each distinct url is fetched at most once per wrapper instance.
+
+    The grounding gates for statements, hearings, and media all share one wrapper within a
+    single render, and the PHASE-19 render-retry's static re-fetches hit this cache instead
+    of re-downloading. Result tuples — including ``(0, "")`` failures — are cached as-is, so
+    a url is attempted once per run.
+
+    RUN-SCOPED: build a NEW wrapper per render (the cache is closed over this call), so a
+    fetched page never leaks across renders/bills where the same url could have changed.
+    """
+    cache: dict[str, tuple[int, str]] = {}
+
+    def _fetch(url: str) -> tuple[int, str]:
+        if url not in cache:
+            cache[url] = fetch(url)
+        return cache[url]
+
+    return _fetch

@@ -14,7 +14,7 @@ import pytest
 import respx
 
 from zwiadbrain.exceptions import ConfigError, RateLimitError, SourceFetchError
-from zwiadbrain.models import Bill
+from zwiadbrain.models import Bill, CommitteeReport
 from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE, LegiScanSource
 
 _FIX = Path(__file__).parent / "fixtures" / "legiscan"
@@ -180,16 +180,46 @@ def test_fetch_leg_history_parses_votes() -> None:
 
 
 def test_fetch_leg_history_maps_supplements_to_tier2_media() -> None:
-    """should map url-bearing supplements to Tier-2 RelatedMedia leads, skipping url-less ones"""
+    """should map url-bearing NON-analysis supplements to Tier-2 leads, skipping url-less ones
+
+    PHASE-21: 'Analysis' supplements are promoted to spine committee_reports, so the only
+    Tier-2 lead from this fixture is the fiscal note (the analysis moved out; the third
+    supplement is link-less and skipped).
+    """
     with respx.mock(assert_all_called=False) as mock:
         _route_by_op(mock, {"getBill": _fixture("getBill_leghistory.json")})
         inputs = _source().fetch_leg_history("1789012")
-    # Two url-bearing supplements map; the link-less third is skipped.
-    assert [m.kind for m in inputs.supplement_media] == ["page", "page"]
+    assert [m.kind for m in inputs.supplement_media] == ["page"]
     assert inputs.supplement_media[0].title == "Senate Appropriations Fiscal Note"
     assert inputs.supplement_media[0].note == "Fiscal Note"
     assert inputs.supplement_media[0].relation == "related"
     assert all(m.url for m in inputs.supplement_media)
+    # The analysis is no longer a Tier-2 reference link.
+    assert all("Analysis" not in m.title for m in inputs.supplement_media)
+
+
+def test_fetch_leg_history_promotes_analyses_to_committee_reports() -> None:
+    """PHASE-21: a 'Analysis' supplement becomes a spine CommitteeReport, not a Tier-2 lead"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill_leghistory.json")})
+        inputs = _source().fetch_leg_history("1789012")
+
+    assert [r.citation for r in inputs.committee_analyses] == ["Assembly Floor Analysis"]
+    report = inputs.committee_analyses[0]
+    assert isinstance(report, CommitteeReport)
+    # state_link is empty on this supplement, so it falls back to the LegiScan mirror url.
+    assert report.url == "https://legiscan.com/CA/supplement/SB362/id/88002"
+
+
+def test_committee_analyses_exclude_fiscal_notes_and_misc() -> None:
+    """only type=Analysis supplements are promoted; fiscal notes / misc stay out"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getBill": _fixture("getBill_leghistory.json")})
+        inputs = _source().fetch_leg_history("1789012")
+
+    titles = [r.citation for r in inputs.committee_analyses]
+    assert "Senate Appropriations Fiscal Note" not in titles  # fiscal note
+    assert "Link-less supplement" not in titles  # misc, and url-less anyway
 
 
 def test_fetch_leg_history_returns_enacted_bill() -> None:

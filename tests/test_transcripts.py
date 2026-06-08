@@ -10,6 +10,7 @@ from __future__ import annotations
 from zwiadbrain.sources.transcripts import (
     fetch_captions,
     make_gate_fetch,
+    memoize_fetch,
     youtube_video_id,
 )
 
@@ -130,3 +131,70 @@ def test_make_gate_fetch_routes_non_youtube_to_http_fetch() -> None:
     gate_fetch = make_gate_fetch(http_fetch, caption_fetch=caption_fetch)
     result = gate_fetch("https://www.congress.gov/crec/x")
     assert result == (200, "<html>official transcript</html>")
+
+
+# ---------------------------------------------------------------------------
+# memoize_fetch — per-run fetch cache (PHASE-20)
+# ---------------------------------------------------------------------------
+
+
+def test_memoize_fetch_calls_inner_once_per_url() -> None:
+    """should fetch a repeated url only once and serve the cached result thereafter"""
+    calls: list[str] = []
+
+    def inner(url: str) -> tuple[int, str]:
+        calls.append(url)
+        return (200, f"body for {url}")
+
+    fetch = memoize_fetch(inner)
+    first = fetch("https://a.test/x")
+    second = fetch("https://a.test/x")
+
+    assert calls == ["https://a.test/x"]  # inner hit exactly once
+    assert first == second == (200, "body for https://a.test/x")
+
+
+def test_memoize_fetch_fetches_each_distinct_url() -> None:
+    """should call inner once per DISTINCT url"""
+    calls: list[str] = []
+
+    def inner(url: str) -> tuple[int, str]:
+        calls.append(url)
+        return (200, url)
+
+    fetch = memoize_fetch(inner)
+    fetch("https://a.test/1")
+    fetch("https://a.test/2")
+    fetch("https://a.test/1")
+
+    assert calls == ["https://a.test/1", "https://a.test/2"]
+
+
+def test_memoize_fetch_instances_have_independent_caches() -> None:
+    """each wrapper is run-scoped: two wrappers do not share a cache"""
+    calls: list[str] = []
+
+    def inner(url: str) -> tuple[int, str]:
+        calls.append(url)
+        return (200, "x")
+
+    fetch_a = memoize_fetch(inner)
+    fetch_b = memoize_fetch(inner)
+    fetch_a("https://a.test/x")
+    fetch_b("https://a.test/x")
+
+    assert calls == ["https://a.test/x", "https://a.test/x"]  # not shared
+
+
+def test_memoize_fetch_caches_error_tuple_too() -> None:
+    """a (0, '') failure is cached like any other result — one attempt per url per run"""
+    calls: list[str] = []
+
+    def inner(url: str) -> tuple[int, str]:
+        calls.append(url)
+        return (0, "")
+
+    fetch = memoize_fetch(inner)
+    assert fetch("https://down.test/x") == (0, "")
+    assert fetch("https://down.test/x") == (0, "")
+    assert calls == ["https://down.test/x"]

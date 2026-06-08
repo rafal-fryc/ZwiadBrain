@@ -303,31 +303,61 @@ class CongressSource:
         congress: int | None = None,
         since: dt.datetime | None = None,
         limit: int = 20,
+        max_pages: int = 1,
     ) -> list[Candidate]:
         """List bills (newest-updated first) as candidates.
 
-        With ``congress`` set, lists that congress; otherwise lists across
-        congresses. Per D33 this is a single request (``limit`` ≤ 250 maps to one
-        page); a larger window is truncated and the discarded total is logged.
+        With ``congress`` set, lists that congress; otherwise lists across congresses.
+        ``limit`` (≤ 250) is the per-page size. ``max_pages`` bounds an OPT-IN back-catalog
+        offset sweep (PHASE-22/D81): the default ``1`` preserves the prior single-request
+        behaviour exactly (no ``offset`` param). With ``max_pages > 1`` the same query is
+        re-issued at successive offsets and the candidates are accumulated and de-duplicated
+        by ``native_id``; the sweep stops at ``max_pages``, when the server's reported total
+        is exhausted, or when a short page is returned. Any un-swept remainder is logged
+        (never silently dropped).
         """
         path = f"/bill/{congress}" if congress is not None else "/bill"
-        params: dict[str, str | int] = {"sort": "updateDate desc", "limit": min(max(limit, 1), 250)}
-        if since is not None:
-            params["fromDateTime"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
-        payload = self._get_json(path, **params)
-        bills = _items(payload.get("bills"))
-        candidates = [self._to_candidate(bill) for bill in bills][:limit]
-        total = _obj(payload.get("pagination")).get("count")
-        if isinstance(total, int) and total > len(candidates):
-            # D33: discovery is a single request (no pagination-following yet); a larger
-            # window is silently truncated, so surface the server's reported total.
+        page_size = min(max(limit, 1), 250)
+        pages = max(max_pages, 1)
+
+        collected: list[Candidate] = []
+        seen: set[str] = set()
+        total: int | None = None
+        offset = 0
+        for _ in range(pages):
+            params: dict[str, str | int] = {"sort": "updateDate desc", "limit": page_size}
+            if offset:  # omit offset on the first page so the single-page request is unchanged
+                params["offset"] = offset
+            if since is not None:
+                params["fromDateTime"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+            payload = self._get_json(path, **params)
+            bills = _items(payload.get("bills"))[:page_size]
+            if total is None:
+                count = _obj(payload.get("pagination")).get("count")
+                total = count if isinstance(count, int) else None
+            for bill in bills:
+                candidate = self._to_candidate(bill)
+                if candidate.native_id in seen:
+                    continue
+                seen.add(candidate.native_id)
+                collected.append(candidate)
+            offset += page_size
+            if not bills or len(bills) < page_size:
+                break
+            if total is not None and offset >= total:
+                break
+
+        if isinstance(total, int) and total > len(collected):
+            # The sweep is bounded (single request by default, or max_pages); surface the
+            # server's reported total so a truncated back-catalog is auditable, never silent.
             _LOGGER.warning(
-                "discovery truncated: returned %d of %d reported bills for %s",
-                len(candidates),
+                "discovery truncated: returned %d of %d reported bills for %s (max_pages=%d)",
+                len(collected),
                 total,
                 path,
+                pages,
             )
-        return candidates
+        return collected
 
     def _to_candidate(self, raw: dict[str, Any]) -> Candidate:
         bill_type = str(raw.get("type") or "")

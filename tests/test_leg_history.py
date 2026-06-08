@@ -27,13 +27,16 @@ from zwiadbrain.pipeline.leg_history import (
     _MIN_QUOTE_CHARS,  # pyright: ignore[reportPrivateUsage]
     GroundingResult,
     RelatedGroundingResult,
+    _normalize_speaker,  # pyright: ignore[reportPrivateUsage]
     _quote_present,  # pyright: ignore[reportPrivateUsage]
     assemble_spine,
     assemble_state_spine,
     collect_leads,
     collect_state_leads,
+    dedup_statements,
     ground_items,
     ground_related,
+    reground_with_render,
 )
 
 # ---------------------------------------------------------------------------
@@ -1346,3 +1349,277 @@ def test_collect_state_leads_does_not_include_spine_fields() -> None:
     assert "votes" not in leads
     assert "versions" not in leads
     assert "enactment" not in leads
+
+
+# ---------------------------------------------------------------------------
+# PHASE-18: speaker-normalized near-duplicate statement dedup
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_speaker_strips_single_word_honorific() -> None:
+    """should strip a leading title so 'Gov. X' and 'X' normalize equal"""
+    assert _normalize_speaker("Gov. Gavin Newsom") == _normalize_speaker("Gavin Newsom")
+    assert _normalize_speaker("Gov. Gavin Newsom") == "gavin newsom"
+
+
+def test_normalize_speaker_strips_spelled_out_and_multiword_titles() -> None:
+    """should strip 'Senator' and the two-word 'Attorney General' prefixes"""
+    assert _normalize_speaker("Senator Scott Wiener") == "scott wiener"
+    assert _normalize_speaker("Attorney General Rob Bonta") == "rob bonta"
+
+
+def test_normalize_speaker_never_strips_the_whole_name() -> None:
+    """a bare title token must not normalize to empty — the name is preserved"""
+    # Only one non-title-looking token: nothing to strip past it.
+    assert _normalize_speaker("Newsom") == "newsom"
+    # A name that happens to equal a title token is still kept (guard leaves >=1 token).
+    assert _normalize_speaker("Governor") == "governor"
+
+
+def test_dedup_collapses_honorific_speaker_variant() -> None:
+    """should collapse 'Gavin Newsom' and 'Gov. Gavin Newsom' with the same quote"""
+    quote = "I am proud to sign this landmark transparency bill into law today."
+    press = _make_statement(speaker="Gavin Newsom", quote=quote, source_url="https://a.test/p")
+    signing = _make_statement(
+        speaker="Gov. Gavin Newsom", quote=quote, source_url="https://b.test/s"
+    )
+
+    deduped = dedup_statements([press, signing])
+
+    assert len(deduped) == 1
+    assert deduped[0].source_url == "https://a.test/p"  # first wins
+
+
+def test_dedup_collapses_typographic_quote_variant() -> None:
+    """should collapse the same speaker+quote differing only by curly vs straight quotes"""
+    straight = _make_statement(quote='He called it "a milestone" for the state.')
+    curly = _make_statement(quote='He called it “a milestone” for the state.')
+
+    deduped = dedup_statements([straight, curly])
+
+    assert len(deduped) == 1
+
+
+def test_dedup_keeps_distinct_speakers() -> None:
+    """different speakers with the same quote are NEVER collapsed"""
+    quote = "This bill protects Californians from real and present harms."
+    a = _make_statement(speaker="Scott Wiener", quote=quote)
+    b = _make_statement(speaker="Rebecca Bauer-Kahan", quote=quote)
+
+    deduped = dedup_statements([a, b])
+
+    assert len(deduped) == 2
+
+
+def test_dedup_keeps_distinct_quotes() -> None:
+    """the same speaker with different quotes is NEVER collapsed"""
+    a = _make_statement(speaker="Scott Wiener", quote="The first thing this bill does is X.")
+    b = _make_statement(speaker="Scott Wiener", quote="The second thing this bill does is Y.")
+
+    deduped = dedup_statements([a, b])
+
+    assert len(deduped) == 2
+
+
+def test_dedup_preserves_input_order() -> None:
+    """surviving statements keep their first-seen order"""
+    a = _make_statement(speaker="A. One", quote="Quote number one is long enough here.")
+    b = _make_statement(speaker="B. Two", quote="Quote number two is long enough here.")
+    c = _make_statement(speaker="C. Three", quote="Quote number three is long enough now.")
+
+    deduped = dedup_statements([a, b, c])
+
+    assert [s.speaker for s in deduped] == ["A. One", "B. Two", "C. Three"]
+
+
+# ---------------------------------------------------------------------------
+# PHASE-19: JS-render second pass (reground_with_render)
+# ---------------------------------------------------------------------------
+
+
+def test_reground_recovers_quote_not_found_via_render() -> None:
+    """a statement that static-drops as quote-not-found re-grounds when render shows it"""
+    quote = "This page renders its quotes with JavaScript after load completes today."
+    url = "https://news.test/article"
+    statements = [_make_statement(speaker="Jane Roe", quote=quote, source_url=url)]
+    static_fetch = _fake_fetch({url: (200, "Loading... <div id='app'></div>")})  # no quote
+    verdicts = {0: True}
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+    assert len(pass1.statements) == 0  # static drop (quote not found)
+
+    rendered = {url: f"<body><p>{quote}</p></body>"}
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=lambda u: rendered.get(u, ""),
+        verifier_verdicts=verdicts,
+    )
+
+    assert recovered == 1
+    assert len(result2.statements) == 1
+    assert result2.statements[0].source_url == url
+    assert result2.statements[0].verified is True
+
+
+def test_reground_does_not_render_statically_grounded_urls() -> None:
+    """only urls that static-dropped as quote-not-found are rendered; grounded ones are not"""
+    quote_ok = "This statically grounded quote is present in the raw HTML body right here."
+    quote_js = "This javascript injected quote only appears after the page renders itself now."
+    url_ok, url_js = "https://ok.test/a", "https://js.test/b"
+    statements = [
+        _make_statement(speaker="A One", quote=quote_ok, source_url=url_ok),
+        _make_statement(speaker="B Two", quote=quote_js, source_url=url_js),
+    ]
+    static_fetch = _fake_fetch(
+        {url_ok: (200, f"<body>{quote_ok}</body>"), url_js: (200, "<body>loading</body>")}
+    )
+    verdicts = {0: True, 1: True}
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+    assert len(pass1.statements) == 1  # only url_ok grounded statically
+
+    rendered_calls: list[str] = []
+
+    def render_html(u: str) -> str:
+        rendered_calls.append(u)
+        return f"<body>{quote_js}</body>" if u == url_js else ""
+
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=render_html,
+        verifier_verdicts=verdicts,
+    )
+
+    assert rendered_calls == [url_js]  # ONLY the suspect url was rendered
+    assert recovered == 1
+    assert {s.source_url for s in result2.statements} == {url_ok, url_js}
+
+
+def test_reground_no_suspects_is_a_noop() -> None:
+    """when pass1 has no quote-not-found drops, render is never called and pass1 is returned"""
+    quote = "This quote is present statically so there is nothing at all to rescue here."
+    url = "https://ok.test/a"
+    statements = [_make_statement(quote=quote, source_url=url)]
+    static_fetch = _fake_fetch({url: (200, f"<body>{quote}</body>")})
+    verdicts = {0: True}
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+    assert len(pass1.statements) == 1
+
+    calls: list[str] = []
+
+    def render_html(u: str) -> str:
+        calls.append(u)
+        return ""
+
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=render_html,
+        verifier_verdicts=verdicts,
+    )
+
+    assert recovered == 0
+    assert calls == []  # render never called when there is nothing to rescue
+    assert result2 is pass1  # unchanged result object
+
+
+def test_reground_render_empty_keeps_the_drop_fail_closed() -> None:
+    """a suspect whose render yields '' (tool absent/failed) stays dropped — fail-closed"""
+    quote = "This javascript injected quote never renders because the tool is absent now."
+    url = "https://js.test/b"
+    statements = [_make_statement(quote=quote, source_url=url)]
+    static_fetch = _fake_fetch({url: (200, "<body>loading</body>")})
+    verdicts = {0: True}
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+    assert len(pass1.statements) == 0
+
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=lambda u: "",
+        verifier_verdicts=verdicts,
+    )
+
+    assert recovered == 0
+    assert len(result2.statements) == 0
+
+
+def test_reground_respects_verifier_verdict_after_render() -> None:
+    """render makes the quote present, but an unconfirmed verifier verdict still drops it"""
+    quote = "This javascript injected quote appears after render but is unverified today."
+    url = "https://js.test/b"
+    statements = [_make_statement(quote=quote, source_url=url)]
+    static_fetch = _fake_fetch({url: (200, "<body>loading</body>")})
+    verdicts = {0: False}  # verifier did NOT confirm
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+    assert len(pass1.statements) == 0
+
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=lambda u: f"<body>{quote}</body>",
+        verifier_verdicts=verdicts,
+    )
+
+    assert recovered == 0  # quote now present, but verifier-false -> still dropped
+    assert len(result2.statements) == 0
+
+
+def test_reground_preserves_verdict_index_keying() -> None:
+    """the rescued statement uses its OWN verdict; re-running over the full list keeps keying"""
+    q0 = "The first statement grounds statically with its quote in the raw html right here."
+    q1 = "The second statement is javascript rendered and must use its own verdict value now."
+    url0, url1 = "https://ok.test/0", "https://js.test/1"
+    statements = [
+        _make_statement(speaker="First", quote=q0, source_url=url0),
+        _make_statement(speaker="Second", quote=q1, source_url=url1),
+    ]
+    static_fetch = _fake_fetch(
+        {url0: (200, f"<body>{q0}</body>"), url1: (200, "<body>x</body>")}
+    )
+    verdicts = {0: True, 1: True}
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+    assert len(pass1.statements) == 1  # only the static one
+
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=lambda u: f"<body>{q1}</body>" if u == url1 else "",
+        verifier_verdicts=verdicts,
+    )
+
+    assert recovered == 1
+    assert {s.speaker for s in result2.statements} == {"First", "Second"}
+
+
+# ---------------------------------------------------------------------------
+# PHASE-21: state committee analyses populate the spine committee_reports
+# ---------------------------------------------------------------------------
+
+
+def test_assemble_state_spine_populates_committee_reports_from_analyses() -> None:
+    """promoted committee analyses land in the spine committee_reports"""
+    reports = [CommitteeReport(citation="Assembly Floor Analysis", url="https://x.test/a")]
+
+    spine = assemble_state_spine(_enacted_state_bill(), [], committee_reports=reports)
+
+    assert spine.committee_reports == reports
+
+
+def test_assemble_state_spine_defaults_empty_committee_reports() -> None:
+    """omitting committee_reports keeps the prior empty default (backward compatible)"""
+    spine = assemble_state_spine(_enacted_state_bill(), [])
+
+    assert spine.committee_reports == []

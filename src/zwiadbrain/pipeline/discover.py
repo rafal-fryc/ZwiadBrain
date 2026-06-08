@@ -27,6 +27,18 @@ def keyword_filter(candidates: list[Candidate], seeds: list[str] | None) -> list
     return [c for c in candidates if any(seed in c.title.lower() for seed in lowered)]
 
 
+def filter_unseen(candidates: list[Candidate], known_ids: set[str]) -> list[Candidate]:
+    """Drop candidates already on the wiki (PHASE-22).
+
+    A candidate's ``native_id`` (``"congress/type/number"``) maps to a bill-id slug
+    (``"congress-type-number"``) by swapping ``/`` for ``-``; a candidate whose slug is in
+    *known_ids* (the existing wiki bill ids) is dropped so a re-run of a back-catalog sweep
+    does not re-stage and re-classify bills that are already tracked. Order is preserved.
+    Empty *known_ids* is a no-op (every candidate is unseen).
+    """
+    return [c for c in candidates if c.native_id.replace("/", "-") not in known_ids]
+
+
 def discover_candidates(
     source: Source,
     *,

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from typing import Any  # Docling's DocumentConverter is untyped (optional, unlocked) — see pragma
 
 from zwiadbrain.exceptions import ExtractionError
 
@@ -32,19 +33,37 @@ def docling_available() -> bool:
     return importlib.util.find_spec("docling.document_converter") is not None
 
 
+# Cached DocumentConverter. A converter holds no per-document state, so one instance is
+# safely reused across every PDF in a run (and the process) — avoiding a fresh heavyweight
+# construction (and model load) per PDF (PHASE-20/D79). Reset in unit tests via the fake-
+# docling installer; the CLI is a fresh process per render, so this is effectively run-scoped.
+_converter: Any = None
+
+
+def _get_converter() -> Any:
+    """Return the cached Docling ``DocumentConverter``, constructing it on first use.
+
+    Raises :class:`ExtractionError` with an install hint when Docling is absent.
+    """
+    global _converter
+    if _converter is None:
+        try:
+            from docling.document_converter import DocumentConverter  # lazy: heavy ML import
+        except ImportError as exc:
+            raise ExtractionError(_INSTALL_HINT) from exc
+        _converter = DocumentConverter()
+    return _converter
+
+
 def extract_markdown(source: str | Path) -> str:
     """Convert a document (PDF/HTML/... by URL or local path) to Markdown text.
 
     Docling fetches a URL to a temporary file itself and parses it, so the caller
-    keeps only the returned Markdown — no source PDF is persisted. Raises
-    :class:`ExtractionError` with an install hint when Docling is absent.
+    keeps only the returned Markdown — no source PDF is persisted. Reuses one cached
+    converter (see :func:`_get_converter`). Raises :class:`ExtractionError` with an
+    install hint when Docling is absent.
     """
-    try:
-        from docling.document_converter import DocumentConverter  # lazy: heavy ML import
-    except ImportError as exc:
-        raise ExtractionError(_INSTALL_HINT) from exc
-
-    converter = DocumentConverter()
+    converter = _get_converter()
     result = converter.convert(source)
     markdown: str = result.document.export_to_markdown()
     return markdown

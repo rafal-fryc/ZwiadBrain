@@ -41,7 +41,7 @@ from zwiadbrain.models import (
     RelatedMedia,
     Statement,
 )
-from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
+from zwiadbrain.pipeline.discover import filter_unseen, keyword_filter, recall_filter
 from zwiadbrain.pipeline.docling_text import docling_available, extract_markdown
 from zwiadbrain.pipeline.enforcement import (
     MatterRef,
@@ -73,10 +73,13 @@ from zwiadbrain.pipeline.leg_history import (
     assemble_state_spine,
     collect_leads,
     collect_state_leads,
+    dedup_statements,
     ground_items,
     ground_related,
     merge_lanes,
+    reground_with_render,
 )
+from zwiadbrain.pipeline.playwright_render import playwright_available, render_page_html
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
     clear_flip,
@@ -97,7 +100,7 @@ from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
 from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
-from zwiadbrain.sources.transcripts import make_gate_fetch
+from zwiadbrain.sources.transcripts import make_gate_fetch, memoize_fetch
 from zwiadbrain.store import Store
 from zwiadbrain.wiki.schema import from_page
 
@@ -189,6 +192,19 @@ def backfill(
     typer.echo(f"backfilled {written} federal bill(s) into {wiki}")
 
 
+def _existing_federal_bill_ids(wiki: Path) -> set[str]:
+    """Bill-id slugs already tracked under ``wiki/federal/bills`` (PHASE-22, --skip-existing).
+
+    Each federal bill page is named ``<bill-id>.md`` (e.g. ``118-hr-2670.md``), so the file
+    stems are exactly the bill ids :func:`filter_unseen` compares against. Missing directory
+    -> empty set (nothing tracked yet).
+    """
+    bills_dir = wiki / "federal" / "bills"
+    if not bills_dir.exists():
+        return set()
+    return {p.stem for p in bills_dir.glob("*.md")}
+
+
 @app.command(name="fetch-candidates")
 def fetch_candidates(
     congress: Annotated[int, typer.Option(min=1, help="Congress number, e.g. 118.")],
@@ -201,12 +217,33 @@ def fetch_candidates(
         Path | None, typer.Option(help="Run directory for candidates.json.")
     ] = None,
     topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+    max_pages: Annotated[
+        int,
+        typer.Option(
+            min=1,
+            help="Opt-in back-catalog sweep: max offset pages to scan (default 1 = newest only).",
+        ),
+    ] = 1,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            "--skip-existing/--no-skip-existing",
+            help="Drop candidates that already have a wiki page (idempotent re-runs).",
+        ),
+    ] = False,
+    wiki: Annotated[
+        Path, typer.Option(help="Wiki root, for --skip-existing.")
+    ] = Path("wiki"),
 ) -> None:
     """Fetch keyword-matched federal candidates and stage them for classification.
 
     The deterministic first half of the LLM pipeline: discover -> keyword recall
     filter -> enrich, writing fully-fetched ``Bill``s to ``candidates.json`` for
     the interactive session's classifier/summarizer subagents to consume.
+
+    ``--max-pages`` opts into a bounded back-catalog offset sweep past the newest page
+    (PHASE-22); ``--skip-existing`` drops bills already tracked in ``--wiki`` so a re-run
+    does not re-stage them. Both default off, leaving the standard single-page behaviour.
     """
     try:
         # Explicit --seed is a targeted search (no taxonomy load, no Stage-2 probe);
@@ -218,7 +255,15 @@ def fetch_candidates(
             seeds, policy_areas = reference.seeds, reference.policy_areas
         api_key = load_settings().require_congress_api_key()
         source = CongressSource(api_key)
-        scanned = source.discover(congress=congress, limit=_SCAN_LIMIT)
+        scanned = source.discover(congress=congress, limit=_SCAN_LIMIT, max_pages=max_pages)
+        if skip_existing:
+            known = _existing_federal_bill_ids(wiki)
+            before = len(scanned)
+            scanned = filter_unseen(scanned, known)
+            typer.echo(
+                f"skip-existing: dropped {before - len(scanned)} already-tracked"
+                f" of {before} scanned ({len(known)} on wiki)"
+            )
         candidates = recall_filter(
             scanned,
             source,
@@ -477,7 +522,9 @@ def fetch_state_leg_history(
                 f"bill {fetched.id} is not enacted — legislative history is assembled"
                 " only for enacted bills"
             )
-        spine = assemble_state_spine(fetched, inputs.votes)
+        spine = assemble_state_spine(
+            fetched, inputs.votes, committee_reports=inputs.committee_analyses
+        )
         leads = collect_state_leads(fetched, inputs.supplement_media)
         payload = {
             "bill": fetched.model_dump(mode="json"),
@@ -1965,19 +2012,46 @@ def render_leg_history(
         # caption text (D72 fallback); every other URL uses the normal HTTP fetch. The gate
         # logic (ground_items / ground_related) is unchanged — it just receives caption text
         # for a video source_url. `_fetch_url` is referenced by name so tests can monkeypatch it.
-        gate_fetch = make_gate_fetch(_fetch_url)
+        # PHASE-20: a run-scoped memo wraps it so each distinct url is fetched once across the
+        # statement / hearing / media gates AND the PHASE-19 render retry's static re-fetches.
+        gate_fetch = memoize_fetch(make_gate_fetch(_fetch_url))
 
         result = ground_items(
             statements, hearings, fetch=gate_fetch, verifier_verdicts=verifier_verdicts
         )
+
+        # PHASE-19 (Fix 3): second pass re-grounds statements that dropped as
+        # "quote not found" by rendering ONLY those urls through headless Chromium (the
+        # JS-injected-quote signature). Optional/fail-closed: skipped entirely when
+        # Playwright is absent, so behaviour is identical to the static gate without it.
+        # Re-runs the FULL gate with the ORIGINAL verdicts, so verdict-by-index keying is
+        # preserved (no subset to re-key — the highest-stakes failure mode).
+        js_recovered = 0
+        if playwright_available():
+            result, js_recovered = reground_with_render(
+                statements,
+                hearings,
+                result,
+                static_fetch=gate_fetch,
+                render_html=render_page_html,
+                verifier_verdicts=verifier_verdicts,
+            )
+
         media_result = ground_related(
             related_media, fetch=gate_fetch, verifier_verdicts=media_verifier_verdicts
         )
 
+        # Collapse near-duplicate statements that BOTH grounded (e.g. a press-lane
+        # "Gavin Newsom" and a signing-lane "Gov. Gavin Newsom" with the same quote).
+        # Done POST-grounding so a groundable copy is never dropped for an ungroundable
+        # near-dup (merge dedup is first-wins by lane order, so it cannot do this safely).
+        grounded_statements = dedup_statements(result.statements)
+        stmt_near_dup_drops = len(result.statements) - len(grounded_statements)
+
         final = spine.model_copy(
             update={
                 "hearings": list(result.hearings),
-                "statements": list(result.statements),
+                "statements": grounded_statements,
                 "related_media": list(media_result.media),
                 "narrative": narrative,
             }
@@ -2004,9 +2078,13 @@ def render_leg_history(
         # Counts reconcile against ALL input items: parse-dropped items never reach
         # the grounding gate, so they are tracked separately from ground-drops.
         stmt_parse_drops = len(parse_dropped_statements)
-        stmt_grounded = len(result.statements)
-        stmt_ground_drops = len(statements) - stmt_grounded
-        stmt_input = stmt_grounded + stmt_ground_drops + stmt_parse_drops
+        stmt_grounded = len(grounded_statements)
+        # Gate ground-drops are measured against the pre-dedup grounded set; near-dup
+        # collapses are reported separately so the reconciliation stays exact.
+        stmt_ground_drops = len(statements) - len(result.statements)
+        stmt_input = (
+            stmt_grounded + stmt_near_dup_drops + stmt_ground_drops + stmt_parse_drops
+        )
 
         hearing_parse_drops = len(parse_dropped_hearings)
         hearing_kept = len(result.hearings)
@@ -2022,7 +2100,8 @@ def render_leg_history(
         typer.echo(
             f"{bill.id}: {spine_summary} | "
             f"statements: {stmt_input} input / {stmt_grounded} grounded"
-            f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop | "
+            f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop"
+            f" / {stmt_near_dup_drops} near-dup / {js_recovered} js-recovered | "
             f"hearings: {hearing_input} input / {hearing_kept} grounded"
             f" / {hearing_parse_drops} parse-drop / {hearing_ground_drops} ground-drop | "
             f"media: {media_input} input / {media_kept} grounded"

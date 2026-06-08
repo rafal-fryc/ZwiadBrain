@@ -20,6 +20,7 @@ class _FakeSource:
         congress: int | None = None,
         since: dt.datetime | None = None,
         limit: int = 20,
+        max_pages: int = 1,
     ) -> list[Candidate]:
         return []
 

@@ -60,6 +60,108 @@ def test_discover_respects_limit() -> None:
     assert len(candidates) == 1
 
 
+# --- discovery: back-catalog offset pagination (PHASE-22) ------------------
+
+
+def _page(number: int, *, count: int) -> dict[str, Any]:
+    """A one-bill list payload for HR <number>, reporting a server total of *count*."""
+    return {
+        "bills": [
+            {
+                "congress": 118,
+                "type": "HR",
+                "number": str(number),
+                "title": f"Bill {number}",
+                "updateDate": "2024-01-01T00:00:00Z",
+            }
+        ],
+        "pagination": {"count": count},
+    }
+
+
+def test_discover_single_page_makes_one_request_by_default() -> None:
+    """default max_pages=1 keeps the prior single-request behaviour (no offset param)"""
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        route = mock.get("/bill/118").respond(json=_fixture("list.json"))
+        _source().discover(congress=118, limit=10)
+    assert route.call_count == 1
+    assert "offset" not in str(route.calls.last.request.url)
+
+
+def test_discover_follows_offset_pagination_when_max_pages_gt_1() -> None:
+    """should fetch successive offset pages and accumulate their candidates"""
+    def handler(request: httpx.Request) -> httpx.Response:
+        offset = request.url.params.get("offset")
+        return httpx.Response(200, json=_page(2, count=2) if offset == "1" else _page(1, count=2))
+
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118").mock(side_effect=handler)
+        candidates = _source().discover(congress=118, limit=1, max_pages=2)
+
+    assert [c.native_id for c in candidates] == ["118/hr/1", "118/hr/2"]
+
+
+def test_discover_dedups_candidates_repeated_across_pages() -> None:
+    """a bill returned on two pages is kept once (within-sweep dedup by native_id)"""
+    def _full(*numbers: int, count: int) -> dict[str, Any]:
+        return {
+            "bills": [
+                {"congress": 118, "type": "HR", "number": str(n), "title": f"Bill {n}"}
+                for n in numbers
+            ],
+            "pagination": {"count": count},
+        }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        offset = request.url.params.get("offset")
+        # page 1 = [HR1, HR2]; page 2 (offset=2) repeats HR2 and adds HR3.
+        payload = _full(2, 3, count=4) if offset == "2" else _full(1, 2, count=4)
+        return httpx.Response(200, json=payload)
+
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118").mock(side_effect=handler)
+        candidates = _source().discover(congress=118, limit=2, max_pages=2)
+
+    assert [c.native_id for c in candidates] == ["118/hr/1", "118/hr/2", "118/hr/3"]
+
+
+def test_discover_stops_at_max_pages_and_warns_about_remainder(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """should cap the sweep at max_pages and warn about the un-swept remainder"""
+    import logging
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        offset = request.url.params.get("offset") or "0"
+        return httpx.Response(200, json=_page(int(offset) + 1, count=100))
+
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        route = mock.get("/bill/118").mock(side_effect=handler)
+        with caplog.at_level(logging.WARNING, logger="zwiadbrain.sources.congress"):
+            candidates = _source().discover(congress=118, limit=1, max_pages=2)
+
+    assert route.call_count == 2  # capped at max_pages, not all 100
+    assert len(candidates) == 2
+    assert any("100" in rec.getMessage() for rec in caplog.records)
+
+
+def test_discover_stops_early_when_total_exhausted() -> None:
+    """should stop before max_pages once the server's reported total is consumed"""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        offset = request.url.params.get("offset") or "0"
+        return httpx.Response(200, json=_page(int(offset) + 1, count=2))
+
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118").mock(side_effect=handler)
+        candidates = _source().discover(congress=118, limit=1, max_pages=10)
+
+    assert calls["n"] == 2  # count=2 with page size 1 -> exactly 2 pages, not 10
+    assert len(candidates) == 2
+
+
 # --- enrichment mapping ---------------------------------------------------
 
 

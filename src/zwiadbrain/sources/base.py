@@ -41,11 +41,14 @@ class Source(Protocol):
         congress: int | None = None,
         since: dt.datetime | None = None,
         limit: int = 20,
+        max_pages: int = 1,
     ) -> list[Candidate]:
         """Surface up to ``limit`` candidates changed since ``since`` (newest first).
 
         ``congress`` is optional: Congress.gov scopes discovery to a single
         congress, while a future source with no congress concept simply ignores it.
+        ``max_pages`` (PHASE-22) bounds an opt-in back-catalog offset sweep; the default
+        ``1`` is the standard single page, and a source that does not paginate ignores it.
         """
         ...
 

@@ -92,9 +92,12 @@ from zwiadbrain.pipeline.rejects import (
     federal_bill_entry,
     federal_cursor,
     federal_key,
+    filter_by_key,
     filter_cached_rejects,
     load_reject_ledger,
     state_bill_entry,
+    state_cursor,
+    state_key,
     write_reject_ledger,
 )
 from zwiadbrain.pipeline.render import write_lawbrain_region, write_page
@@ -118,6 +121,7 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_TOPICS = Path("reference/topics.yaml")
 _SCAN_LIMIT = 250  # bills to scan per fetch-candidates run (Congress list single-request max)
 _MAX_PROBE = 250  # max Stage-2 policyArea probes per run (PHASE-03.1)
+_STATE_OVERSAMPLE = 5  # over-fetch factor so --skip-existing still yields up to `limit` fresh bills
 
 app = typer.Typer(
     name="zwiadbrain",
@@ -212,6 +216,26 @@ def _existing_federal_bill_ids(wiki: Path) -> set[str]:
     if not bills_dir.exists():
         return set()
     return {p.stem for p in bills_dir.glob("*.md")}
+
+
+def _existing_state_bill_ids(wiki: Path, state: str) -> set[str]:
+    """LegiScan bill ids already tracked under ``wiki/states/<st>/bills`` (--skip-existing).
+
+    State page filenames are slugs (``ca-2025-ab-1064``), not LegiScan ids, so the
+    discovery-time key (the LegiScan ``bill_id``) is read from each page's frontmatter via
+    :func:`from_page`. ``.text.md`` sidecars are skipped; a missing directory -> empty set.
+    """
+    bills_dir = wiki / "states" / state / "bills"
+    if not bills_dir.exists():
+        return set()
+    known: set[str] = set()
+    for page in bills_dir.glob("*.md"):
+        if page.name.endswith(".text.md"):
+            continue
+        item = from_page(page.read_text(encoding="utf-8"))
+        if isinstance(item, Bill) and item.legiscan_bill_id is not None:
+            known.add(str(item.legiscan_bill_id))
+    return known
 
 
 @app.command(name="fetch-candidates")
@@ -386,12 +410,23 @@ def fetch_state_candidates(
     ] = None,
     out: Annotated[Path | None, typer.Option(help="Run directory for candidates.json.")] = None,
     topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            "--skip-existing/--no-skip-existing",
+            help="Drop already-tracked and cached-reject bills (idempotent re-runs).",
+        ),
+    ] = False,
+    wiki: Annotated[Path, typer.Option(help="Wiki root, for --skip-existing.")] = Path("wiki"),
 ) -> None:
     """Search a state via LegiScan and stage enriched candidate bills for classification.
 
     The deterministic first half of ``/zwiad-scan-states``: getSearchRaw recall →
     getBill enrich → ``candidates.json`` for the interactive classifier/summarizer
     subagents. The search query is the recall stage (D50), so no title pre-filter runs.
+
+    ``--skip-existing`` drops bills already tracked in ``--wiki`` and bills cached in the
+    reject ledger so a re-run does not re-stage them (D82). Defaults off.
     """
     try:
         if query:
@@ -403,7 +438,23 @@ def fetch_state_candidates(
             search_query = " OR ".join(terms)
         api_key = load_settings().require_legiscan_api_key()
         source = LegiScanSource(api_key, state, query=search_query)
-        candidates = source.discover(limit=limit)
+        fetch_limit = limit * _STATE_OVERSAMPLE if skip_existing else limit
+        candidates = source.discover(limit=fetch_limit)
+        if skip_existing:
+            known = _existing_state_bill_ids(wiki, state)
+            ledger = load_reject_ledger(wiki / ".rejects" / "state.json")
+            before = len(candidates)
+            candidates = filter_by_key(candidates, known, key_of=state_key)
+            after_unseen = len(candidates)
+            candidates = filter_cached_rejects(
+                candidates, ledger, key_of=state_key, cursor_of=state_cursor
+            )
+            typer.echo(
+                f"skip-existing: dropped {before - after_unseen} already-tracked"
+                f" + {after_unseen - len(candidates)} cached-reject of {before} scanned"
+                f" ({len(known)} on wiki, {len(ledger)} rejects)"
+            )
+        candidates = candidates[:limit]
         bills = [enrich(source, candidate) for candidate in candidates]
         payload = [bill.model_dump(mode="json") for bill in bills]
         path = stage_json(payload, name="candidates.json", out=out)

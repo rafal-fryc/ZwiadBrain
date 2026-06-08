@@ -25,7 +25,7 @@ from zwiadbrain.pipeline.render import write_page
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CONGRESS_API_BASE, CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
-from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE
+from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE, LegiScanSource
 
 runner = CliRunner()
 
@@ -1978,6 +1978,65 @@ def test_fetch_candidates_skip_existing_drops_cached_rejects(
     result = runner.invoke(
         app,
         ["fetch-candidates", "--congress", "119", "--limit", "5", "--seed", "boring",
+         "--skip-existing", "--wiki", str(wiki), "--out", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads((out / "candidates.json").read_text(encoding="utf-8")) == []
+    assert "cached-reject" in result.output
+
+
+def test_existing_state_bill_ids_reads_legiscan_id_from_frontmatter(tmp_path: Path) -> None:
+    """should harvest tracked state bills' LegiScan ids from frontmatter, skipping sidecars"""
+    from zwiadbrain.cli import _existing_state_bill_ids  # pyright: ignore[reportPrivateUsage]
+
+    wiki = tmp_path / "wiki"
+    write_page(
+        Bill(
+            id="ca-2025-ab-7", jurisdiction="US-CA", title="t",
+            bill_number="AB 7", legiscan_bill_id=777,
+        ),
+        wiki,
+    )
+    (wiki / "states" / "ca" / "bills" / "ca-2025-ab-7.text.md").write_text(
+        "sidecar", encoding="utf-8"
+    )
+    assert _existing_state_bill_ids(wiki, "ca") == {"777"}
+
+
+def test_existing_state_bill_ids_missing_dir_is_empty(tmp_path: Path) -> None:
+    """should return an empty set when the state has no bills directory yet"""
+    from zwiadbrain.cli import _existing_state_bill_ids  # pyright: ignore[reportPrivateUsage]
+
+    assert _existing_state_bill_ids(tmp_path / "wiki", "ny") == set()
+
+
+def test_fetch_state_candidates_skip_existing_drops_cached_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop a state candidate whose LegiScan change_hash is cached as a reject (D82)"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    wiki = tmp_path / "wiki"
+    write_reject_ledger(
+        wiki / ".rejects" / "state.json",
+        {"777": RejectEntry(cursor="hash-1", id="ca-2025-ab-7")},
+    )
+
+    def _fake_discover(
+        self: LegiScanSource, *, congress: int | None = None,
+        since: object = None, limit: int = 20, max_pages: int = 1,
+    ) -> list[Candidate]:
+        return [
+            Candidate(
+                source="legiscan", native_id="777", jurisdiction="US-CA",
+                title="", raw={"change_hash": "hash-1"},
+            )
+        ]
+
+    monkeypatch.setattr(LegiScanSource, "discover", _fake_discover)
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        ["fetch-state-candidates", "--state", "ca", "--limit", "5", "--query", "privacy",
          "--skip-existing", "--wiki", str(wiki), "--out", str(out)],
     )
     assert result.exit_code == 0, result.output

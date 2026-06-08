@@ -608,3 +608,31 @@ re-classified rather than hidden forever. Also adds the missing state wiki-dedup
 committed per batch for `--skip-existing` to see it. No `reason`/timestamp field, to keep
 writes byte-stable.
 **Revisit if:** ledger size becomes unwieldy, or a source needs a non-cursor invalidation.
+
+---
+
+## 2026-06-08 — 83. Verdict persistence + two apply-CLIs for resumable backfill
+**Chosen:** Persist classifier verdicts (`verdicts.json` = `[{id, in_scope, topics, reason}]`)
+and summaries (`summaries.json` = `{id: summary}`) to the run directory, applied by two
+symmetric CLIs backed by pure functions in `pipeline/verdicts.py`. `apply-verdicts` splits
+`candidates.json` into `classified.json` (topics applied) + `rejects.json`; `apply-summaries`
+merges the summary map into `classified.json` in place. A `batch-summarizer` subagent produces
+the whole summary map in one dispatch.
+**Alternatives:** (B) Fold the summary into `verdicts.json` so one apply step does everything —
+rejected, it couples the classifier and summarizer subagents (a classifier rerun would need
+summaries to exist). (C) A `render-classified --summaries` flag merging at render time —
+rejected, the merged result is not persisted/inspectable. (D) Keep the ad-hoc
+`data/runs/build_*.py` scripts — rejected, not resumable, not tested.
+**Why:** Classification (8 of 16 classifiers died to a rate limit this session) and
+summarization both lived only in interactive context; a cutoff lost the work. Separate
+persisted files keep the two subagents decoupled and make each step's cutoff lose only its own
+unprocessed *tail* (reported as "pending"); a rerun resumes from the JSON. Two small CLIs
+mirror the existing fetch/render symmetry and the `rejects.py`/`record-rejects` split, and are
+unit-tested. Implements gaps 1 and 2 of `docs/backfill-scaling.md`.
+**Trade-offs:** Two more pipeline files and two more run-dir artifacts per backfill. The
+`apply-summaries` in-place rewrite is non-atomic (recoverable by re-running `apply-verdicts`).
+The batch-summarizer prompt is markdown, not unit-tested, so summary quality at batch scale
+relies on review. Gap 3 (push/merge cadence) stays convention-only; gap 4 (LegiScan quota) is
+unaddressed (no clean API hook).
+**Revisit if:** summary quality degrades at large batch sizes (chunk the batch-summarizer), or
+a third persisted-then-applied stage appears (factor a shared apply harness).

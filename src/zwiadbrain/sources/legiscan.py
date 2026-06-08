@@ -315,6 +315,7 @@ class LegiScanSource:
         congress: int | None = None,  # noqa: ARG002  — federal-only; LegiScan ignores it
         since: dt.datetime | None = None,  # noqa: ARG002 — v1 uses year=2 (current)
         limit: int = 20,
+        max_pages: int = 1,  # noqa: ARG002 — getSearchRaw is single-page (D50); protocol parity
     ) -> list[Candidate]:
         """Search the state's current session for ``self.query`` → relevance-ranked candidates.
 

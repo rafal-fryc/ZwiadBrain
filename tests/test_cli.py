@@ -121,6 +121,72 @@ def test_fetch_candidates_writes_enriched_bills_to_staging(
     assert bill.last_synced is not None  # enrichment stamped sync time
 
 
+def test_fetch_candidates_skip_existing_drops_already_tracked_bills(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-22: --skip-existing drops candidates that already have a wiki page"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    wiki = tmp_path / "wiki"
+    # Pre-track the only seed-matching bill so the sweep should skip it.
+    write_page(
+        Bill(id="118-hr-8818", jurisdiction="US", title="AI Act", bill_number="H.R. 8818"), wiki
+    )
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        _route_backfill(mock)
+        result = runner.invoke(
+            app,
+            [
+                "fetch-candidates",
+                "--congress", "118",
+                "--limit", "5",
+                "--seed", "artificial intelligence",
+                "--skip-existing",
+                "--wiki", str(wiki),
+                "--out", str(out),
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert data == []  # the only seed-matching bill was already tracked
+
+
+def test_fetch_candidates_threads_max_pages_to_discover(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-22: --max-pages is forwarded to CongressSource.discover (opt-in back-catalog)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    captured: dict[str, int] = {}
+
+    def _fake_discover(
+        self: CongressSource,
+        *,
+        congress: int | None = None,
+        since: object = None,
+        limit: int = 20,
+        max_pages: int = 1,
+    ) -> list[object]:
+        captured["max_pages"] = max_pages
+        return []
+
+    monkeypatch.setattr("zwiadbrain.cli.CongressSource.discover", _fake_discover)
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        [
+            "fetch-candidates",
+            "--congress", "118",
+            "--seed", "ai",
+            "--max-pages", "3",
+            "--out", str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert captured["max_pages"] == 3
+
+
 def test_fetch_candidates_defaults_seeds_from_topics_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

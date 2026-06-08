@@ -3,12 +3,21 @@
 import datetime as dt
 
 from zwiadbrain.models import Bill
-from zwiadbrain.pipeline.discover import discover_candidates, keyword_filter, recall_filter
+from zwiadbrain.pipeline.discover import (
+    discover_candidates,
+    filter_unseen,
+    keyword_filter,
+    recall_filter,
+)
 from zwiadbrain.sources.base import Candidate
 
 
 def _candidate(title: str) -> Candidate:
     return Candidate(source="fake", native_id=title, jurisdiction="US", title=title)
+
+
+def _fed_candidate(native_id: str) -> Candidate:
+    return Candidate(source="congress", native_id=native_id, jurisdiction="US", title=native_id)
 
 
 class _FakeSource:
@@ -24,6 +33,7 @@ class _FakeSource:
         congress: int | None = None,
         since: dt.datetime | None = None,
         limit: int = 20,
+        max_pages: int = 1,
     ) -> list[Candidate]:
         self.calls.append((since, limit))
         return self._candidates[:limit]
@@ -92,6 +102,7 @@ class _PolicySource:
         congress: int | None = None,
         since: dt.datetime | None = None,
         limit: int = 20,
+        max_pages: int = 1,
     ) -> list[Candidate]:
         return []
 
@@ -141,3 +152,25 @@ def test_recall_filter_caps_to_limit_without_probing() -> None:
     )
     assert len(kept) == 2
     assert source.probed == []
+
+
+# --- filter_unseen: drop candidates already on the wiki (PHASE-22) ----------
+
+
+def test_filter_unseen_drops_candidates_already_on_the_wiki() -> None:
+    """should drop a candidate whose bill id is in known_ids, keep the rest"""
+    cands = [_fed_candidate("118/hr/1"), _fed_candidate("118/hr/2")]
+    kept = filter_unseen(cands, {"118-hr-1"})
+    assert [c.native_id for c in kept] == ["118/hr/2"]
+
+
+def test_filter_unseen_maps_native_id_slashes_to_bill_id_dashes() -> None:
+    """should compare candidates by their bill-id form (slashes -> dashes)"""
+    cands = [_fed_candidate("118/hr/2670")]
+    assert filter_unseen(cands, {"118-hr-2670"}) == []
+
+
+def test_filter_unseen_empty_known_keeps_everything() -> None:
+    """should be a no-op when nothing is known yet"""
+    cands = [_fed_candidate("118/hr/1"), _fed_candidate("118/s/2")]
+    assert filter_unseen(cands, set()) == cands

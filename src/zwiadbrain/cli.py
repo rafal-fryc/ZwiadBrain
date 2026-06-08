@@ -41,7 +41,7 @@ from zwiadbrain.models import (
     RelatedMedia,
     Statement,
 )
-from zwiadbrain.pipeline.discover import keyword_filter, recall_filter
+from zwiadbrain.pipeline.discover import filter_unseen, keyword_filter, recall_filter
 from zwiadbrain.pipeline.docling_text import docling_available, extract_markdown
 from zwiadbrain.pipeline.enforcement import (
     MatterRef,
@@ -192,6 +192,19 @@ def backfill(
     typer.echo(f"backfilled {written} federal bill(s) into {wiki}")
 
 
+def _existing_federal_bill_ids(wiki: Path) -> set[str]:
+    """Bill-id slugs already tracked under ``wiki/federal/bills`` (PHASE-22, --skip-existing).
+
+    Each federal bill page is named ``<bill-id>.md`` (e.g. ``118-hr-2670.md``), so the file
+    stems are exactly the bill ids :func:`filter_unseen` compares against. Missing directory
+    -> empty set (nothing tracked yet).
+    """
+    bills_dir = wiki / "federal" / "bills"
+    if not bills_dir.exists():
+        return set()
+    return {p.stem for p in bills_dir.glob("*.md")}
+
+
 @app.command(name="fetch-candidates")
 def fetch_candidates(
     congress: Annotated[int, typer.Option(min=1, help="Congress number, e.g. 118.")],
@@ -204,12 +217,33 @@ def fetch_candidates(
         Path | None, typer.Option(help="Run directory for candidates.json.")
     ] = None,
     topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+    max_pages: Annotated[
+        int,
+        typer.Option(
+            min=1,
+            help="Opt-in back-catalog sweep: max offset pages to scan (default 1 = newest only).",
+        ),
+    ] = 1,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            "--skip-existing/--no-skip-existing",
+            help="Drop candidates that already have a wiki page (idempotent re-runs).",
+        ),
+    ] = False,
+    wiki: Annotated[
+        Path, typer.Option(help="Wiki root, for --skip-existing.")
+    ] = Path("wiki"),
 ) -> None:
     """Fetch keyword-matched federal candidates and stage them for classification.
 
     The deterministic first half of the LLM pipeline: discover -> keyword recall
     filter -> enrich, writing fully-fetched ``Bill``s to ``candidates.json`` for
     the interactive session's classifier/summarizer subagents to consume.
+
+    ``--max-pages`` opts into a bounded back-catalog offset sweep past the newest page
+    (PHASE-22); ``--skip-existing`` drops bills already tracked in ``--wiki`` so a re-run
+    does not re-stage them. Both default off, leaving the standard single-page behaviour.
     """
     try:
         # Explicit --seed is a targeted search (no taxonomy load, no Stage-2 probe);
@@ -221,7 +255,15 @@ def fetch_candidates(
             seeds, policy_areas = reference.seeds, reference.policy_areas
         api_key = load_settings().require_congress_api_key()
         source = CongressSource(api_key)
-        scanned = source.discover(congress=congress, limit=_SCAN_LIMIT)
+        scanned = source.discover(congress=congress, limit=_SCAN_LIMIT, max_pages=max_pages)
+        if skip_existing:
+            known = _existing_federal_bill_ids(wiki)
+            before = len(scanned)
+            scanned = filter_unseen(scanned, known)
+            typer.echo(
+                f"skip-existing: dropped {before - len(scanned)} already-tracked"
+                f" of {before} scanned ({len(known)} on wiki)"
+            )
         candidates = recall_filter(
             scanned,
             source,

@@ -752,6 +752,101 @@ def test_render_leg_history_collapses_grounded_near_duplicate_statements(
     assert url_signing not in content
 
 
+def _make_js_staging(tmp_path: Path, quote: str, url_js: str) -> Path:
+    """Staging with a single statement whose quote is JS-injected (absent from static HTML)."""
+    bill = Bill(
+        id="118-hr-7777",
+        jurisdiction="US",
+        title="AI Disclosure Act",
+        bill_number="H.R. 7777",
+        congress="118",
+    )
+    spine = LegHistory()
+    statements = [
+        Statement(
+            speaker="Jane Roe",
+            role="other",
+            quote=quote,
+            source_url=url_js,
+            source_type="news",
+            verified=False,
+        )
+    ]
+    verdicts = [{"index": 0, "verified": True, "speaker": "Jane Roe", "quote_prefix": quote[:40]}]
+    payload: dict[str, object] = {
+        "bill": bill.model_dump(mode="json"),
+        "spine": spine.model_dump(mode="json"),
+        "hearings": [],
+        "statements": [s.model_dump(mode="json") for s in statements],
+        "narrative": None,
+        "verdicts": verdicts,
+    }
+    staging = tmp_path / "js_staging.json"
+    staging.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return staging
+
+
+def test_render_leg_history_recovers_js_rendered_statement_via_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-19: a quote-not-found statement re-grounds when the render pass shows the quote"""
+    quote = "This statement is injected into the page by JavaScript after the load event."
+    url_js = "https://news.test/js-article"
+
+    def _static(url: str) -> tuple[int, str]:
+        # Static HTML lacks the quote -> pass 1 drops it as "quote not found on source page".
+        if url == url_js:
+            return (200, "<body><div id='app'>Loading...</div></body>")
+        return (404, "Not Found")
+
+    def _render(url: str) -> str:
+        return f"<body><p>{quote}</p></body>" if url == url_js else ""
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _static)
+    monkeypatch.setattr("zwiadbrain.cli.playwright_available", lambda: True)
+    monkeypatch.setattr("zwiadbrain.cli.render_page_html", _render)
+
+    staging = _make_js_staging(tmp_path, quote, url_js)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    # The render pass recovered the JS-injected quote.
+    assert "1 input / 1 grounded" in result.output
+    assert "1 js-recovered" in result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-7777.md"
+    assert url_js in page.read_text(encoding="utf-8")
+
+
+def test_render_leg_history_drops_js_statement_when_playwright_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE-19: with Playwright absent, the JS statement stays a fail-closed drop (unchanged)"""
+    quote = "This statement is injected into the page by JavaScript after the load event."
+    url_js = "https://news.test/js-article"
+
+    def _static(url: str) -> tuple[int, str]:
+        if url == url_js:
+            return (200, "<body><div id='app'>Loading...</div></body>")
+        return (404, "Not Found")
+
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _static)
+    monkeypatch.setattr("zwiadbrain.cli.playwright_available", lambda: False)
+
+    staging = _make_js_staging(tmp_path, quote, url_js)
+    wiki = tmp_path / "wiki"
+    result = runner.invoke(app, ["render-leg-history", "--in", str(staging), "--wiki", str(wiki)])
+    assert result.exit_code == 0, result.output
+
+    # No render pass: the statement drops exactly as it did before PHASE-19.
+    assert "1 input / 0 grounded" in result.output
+    assert "0 js-recovered" in result.output
+
+    page = wiki / "federal" / "bills" / "118-hr-7777.md"
+    assert url_js not in page.read_text(encoding="utf-8")
+
+
 def test_render_leg_history_is_idempotent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

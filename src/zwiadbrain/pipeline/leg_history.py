@@ -487,6 +487,71 @@ def ground_items(
     )
 
 
+# The exact reason string ``ground_items`` records when a 200 page is fetched but the
+# verbatim quote is absent (gate 2). Kept as a constant the JS-render second pass matches
+# against; ``ground_items`` itself still uses the inline literal (byte-unchanged), and the
+# end-to-end reground unit tests fail if the two ever drift apart.
+_QUOTE_NOT_FOUND_REASON = "quote not found on source page"
+
+
+def reground_with_render(
+    statements: list[Statement],
+    hearings: list[Hearing],
+    pass1: GroundingResult,
+    *,
+    static_fetch: Callable[[str], tuple[int, str]],
+    render_html: Callable[[str], str],
+    verifier_verdicts: dict[int, bool],
+) -> tuple[GroundingResult, int]:
+    """Second grounding pass that renders JS for statements ``pass1`` dropped as
+    "quote not found on source page" (Fix 3, PHASE-19).
+
+    A "quote not found" drop means the source returned 200 but the verbatim quote was
+    absent from the STATIC HTML — the signature of a client-side (JS) rendered page.
+    *render_html* maps a url to the post-JS DOM HTML (``""`` when rendering is
+    unavailable or fails); it is the deterministic headless-browser boundary, so the gate
+    stays LLM-free.
+
+    Design (why no verdict remap): only the urls that static-dropped as quote-not-found are
+    rendered; every other url re-uses *static_fetch*, so statically-grounded statements are
+    untouched. The pass re-runs :func:`ground_items` over the FULL original *statements* /
+    *hearings* with the ORIGINAL *verifier_verdicts*, so verdict-by-index keying is preserved
+    automatically — there is no subset to re-key (the project's highest-stakes failure mode).
+    A render that yields ``""`` falls back to the static result, so the item fail-closed drops
+    exactly as before.
+
+    Returns ``(result, js_recovered)`` where *js_recovered* is how many additional statements
+    grounded versus *pass1*. When there is nothing to rescue, returns ``(pass1, 0)`` unchanged
+    (no second pass, *render_html* is never called).
+    """
+    suspect_urls = {
+        s.source_url
+        for s in statements
+        if any(
+            d.kind == "statement"
+            and d.reason == _QUOTE_NOT_FOUND_REASON
+            and d.identifier == _statement_identifier(s)
+            for d in pass1.dropped
+        )
+    }
+    if not suspect_urls:
+        return pass1, 0
+
+    def render_fetch(url: str) -> tuple[int, str]:
+        if url in suspect_urls:
+            rendered = render_html(url)
+            if rendered:
+                return (200, rendered)
+            # Render unavailable/failed -> fall back to the static fetch (fail-closed drop).
+        return static_fetch(url)
+
+    result2 = ground_items(
+        statements, hearings, fetch=render_fetch, verifier_verdicts=verifier_verdicts
+    )
+    recovered = len(result2.statements) - len(pass1.statements)
+    return result2, recovered
+
+
 def ground_related(
     related_media: list[RelatedMedia],
     *,

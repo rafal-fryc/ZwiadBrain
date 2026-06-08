@@ -28,6 +28,14 @@ dependencies = [
   "youtube-transcript-api>=1.2,<2",
 ]
 
+[project.optional-dependencies]
+# Fix 3 (PHASE-19/D78): headless-Chromium rendering so the grounding gate can read
+# JS-injected quotes. Optional — the gate fail-closed drops when it is absent. Playwright
+# resolves clean (no typer<0.22 conflict, unlike Docling/D68), so it is declarable; it is
+# kept OUT of the default deps because it is render-only and needs a separate browser
+# download: `uv pip install 'zwiadbrain[render]'` then `playwright install chromium`.
+render = ["playwright>=1.40"]
+
 [project.scripts]
 zwiadbrain = "zwiadbrain.cli:main"
 

@@ -77,7 +77,9 @@ from zwiadbrain.pipeline.leg_history import (
     ground_items,
     ground_related,
     merge_lanes,
+    reground_with_render,
 )
+from zwiadbrain.pipeline.playwright_render import playwright_available, render_page_html
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
     clear_flip,
@@ -1971,6 +1973,24 @@ def render_leg_history(
         result = ground_items(
             statements, hearings, fetch=gate_fetch, verifier_verdicts=verifier_verdicts
         )
+
+        # PHASE-19 (Fix 3): second pass re-grounds statements that dropped as
+        # "quote not found" by rendering ONLY those urls through headless Chromium (the
+        # JS-injected-quote signature). Optional/fail-closed: skipped entirely when
+        # Playwright is absent, so behaviour is identical to the static gate without it.
+        # Re-runs the FULL gate with the ORIGINAL verdicts, so verdict-by-index keying is
+        # preserved (no subset to re-key — the highest-stakes failure mode).
+        js_recovered = 0
+        if playwright_available():
+            result, js_recovered = reground_with_render(
+                statements,
+                hearings,
+                result,
+                static_fetch=gate_fetch,
+                render_html=render_page_html,
+                verifier_verdicts=verifier_verdicts,
+            )
+
         media_result = ground_related(
             related_media, fetch=gate_fetch, verifier_verdicts=media_verifier_verdicts
         )
@@ -2035,7 +2055,7 @@ def render_leg_history(
             f"{bill.id}: {spine_summary} | "
             f"statements: {stmt_input} input / {stmt_grounded} grounded"
             f" / {stmt_parse_drops} parse-drop / {stmt_ground_drops} ground-drop"
-            f" / {stmt_near_dup_drops} near-dup | "
+            f" / {stmt_near_dup_drops} near-dup / {js_recovered} js-recovered | "
             f"hearings: {hearing_input} input / {hearing_kept} grounded"
             f" / {hearing_parse_drops} parse-drop / {hearing_ground_drops} ground-drop | "
             f"media: {media_input} input / {media_kept} grounded"

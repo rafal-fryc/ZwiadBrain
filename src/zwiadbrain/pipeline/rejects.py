@@ -13,9 +13,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from zwiadbrain.exceptions import ConfigError
+from zwiadbrain.pipeline.staging import validate_model
 
 
 class RejectEntry(BaseModel):
@@ -38,13 +39,12 @@ def load_reject_ledger(path: Path) -> RejectLedger:
         raise ConfigError(f"could not read reject ledger {path}: {exc}") from exc
     if not isinstance(raw, dict):
         raise ConfigError(f"reject ledger {path} must be a JSON object")
-    entries: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+    raw_dict: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
     ledger: RejectLedger = {}
-    for key, value in entries.items():
-        try:
-            ledger[str(key)] = RejectEntry.model_validate(value)
-        except ValidationError as exc:
-            raise ConfigError(f"reject ledger {path} entry {key!r} invalid: {exc}") from exc
+    for key, value in raw_dict.items():
+        ledger[str(key)] = validate_model(
+            RejectEntry, value, label=f"reject ledger {path} entry {key!r}"
+        )
     return ledger
 
 

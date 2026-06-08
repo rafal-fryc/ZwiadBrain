@@ -18,6 +18,20 @@ def test_load_reject_ledger_missing_file_returns_empty(tmp_path: Path) -> None:
     assert load_reject_ledger(tmp_path / "federal.json") == {}
 
 
+def test_load_reject_ledger_round_trips_field_values(tmp_path: Path) -> None:
+    """should load each entry's cursor and id back to their written values"""
+    path = tmp_path / "state.json"
+    write_reject_ledger(
+        path,
+        {"119-hr-1": RejectEntry(cursor="c1"), "777": RejectEntry(cursor="h", id="ca-2025-ab-7")},
+    )
+    loaded = load_reject_ledger(path)
+    assert loaded["119-hr-1"].cursor == "c1"
+    assert loaded["119-hr-1"].id is None
+    assert loaded["777"].cursor == "h"
+    assert loaded["777"].id == "ca-2025-ab-7"
+
+
 def test_load_reject_ledger_malformed_json_raises(tmp_path: Path) -> None:
     """should fail loud on a malformed ledger file"""
     path = tmp_path / "federal.json"

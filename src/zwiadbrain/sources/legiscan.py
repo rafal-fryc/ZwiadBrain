@@ -387,6 +387,40 @@ class LegiScanSource:
             )
         return sessions
 
+    def list_session_enacted(
+        self, session_id: int, *, limit: int | None = None
+    ) -> list[Candidate]:
+        """List a session's ENACTED bills (``status == 4``) as candidates (D84, PHASE-24).
+
+        Uses ``getMasterList`` (NOT ``getMasterListRaw`` — the Raw variant carries only
+        ``bill_id``/``number``/``change_hash``). Each kept row carries ``title`` and the
+        LegiScan ``description`` (onto ``Candidate.summary``) so topic recall is free, plus
+        ``change_hash`` in ``raw`` for the state reject-ledger cursor. The numeric-keyed
+        ``masterlist`` container's non-bill ``session`` member is skipped by requiring a
+        ``bill_id`` (parity with :meth:`change_hashes`).
+        """
+        masterlist = _obj(self._get("getMasterList", id=session_id).get("masterlist"))
+        candidates: list[Candidate] = []
+        for entry in masterlist.values():
+            row = _obj(entry)
+            bill_id = row.get("bill_id")
+            if bill_id is None:
+                continue
+            if int(row.get("status") or 0) != _PASSED_STATUS:
+                continue
+            candidates.append(
+                Candidate(
+                    source=self.name,
+                    native_id=str(bill_id),
+                    jurisdiction=f"US-{self.state.upper()}",
+                    title=str(row.get("title") or ""),
+                    summary=_opt_str(row.get("description")),
+                    update_date=_opt_str(row.get("status_date")),
+                    raw={"change_hash": row.get("change_hash"), "status": row.get("status")},
+                )
+            )
+        return candidates[:limit] if limit is not None else candidates
+
     def change_hashes(self) -> dict[int, str]:
         """Return ``{bill_id: change_hash}`` for the state's current session (refresh cursor).
 

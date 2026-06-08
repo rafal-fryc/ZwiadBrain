@@ -253,3 +253,27 @@ def test_list_sessions_maps_getsessionlist_to_sessions() -> None:
     assert sessions[-1].year_end == 2020
     assert sessions[-1].special is False
     assert sessions[-1].session_name == "2019-2020 Session"
+
+
+# --- list_session_enacted (PHASE-24) ----------------------------------------
+
+
+def test_list_session_enacted_keeps_only_passed_bills() -> None:
+    """should keep status==4 rows, carry title+description, skip the session member"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterList": _fixture("getMasterList.json")})
+        cands = _source().list_session_enacted(1624)
+    assert [c.native_id for c in cands] == ["1132030", "1132099"]
+    ab1 = cands[0]
+    assert ab1.jurisdiction == "US-CA"
+    assert "artificial intelligence" in (ab1.title.lower() + " " + (ab1.summary or "").lower())
+    assert ab1.summary is not None
+    assert ab1.raw.get("change_hash") == "hashA"
+
+
+def test_list_session_enacted_respects_limit() -> None:
+    """should cap the returned enacted candidates at limit"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterList": _fixture("getMasterList.json")})
+        cands = _source().list_session_enacted(1624, limit=1)
+    assert [c.native_id for c in cands] == ["1132030"]

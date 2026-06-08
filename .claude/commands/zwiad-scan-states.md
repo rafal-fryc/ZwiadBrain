@@ -56,6 +56,16 @@ and `summary`. It reads `reference/topics.yaml` and returns
   (`render-classified` validates topics again, but catching it here avoids a wasted
   summarizer/amendment-explainer dispatch.)
 
+### 3a. Record the rejects (reject ledger — the negative cache)
+
+`Write` the OUT-of-scope bills (full `Bill` JSON objects) to `rejects.json`, then run:
+```
+uv run zwiadbrain record-rejects --in data/runs/<id>/rejects.json --scope state
+```
+This upserts each into `wiki/.rejects/state.json` keyed by LegiScan `bill_id` and its
+`change_hash` cursor. Pass `--skip-existing --wiki wiki` to `fetch-state-candidates` on
+later runs to skip already-tracked and cached-reject bills (D82). Commit `wiki/.rejects/`.
+
 ### 4. Enrich the in-scope bills (subagents: `summarizer`, `amendment-explainer`)
 
 For each in-scope bill:

@@ -20,10 +20,12 @@ from zwiadbrain import __version__
 # raising), which is the whole point of the T10 hardening fix.
 from zwiadbrain.cli import _fetch_url, app  # pyright: ignore[reportPrivateUsage]
 from zwiadbrain.models import Bill, CommitteeReport, Enactment, Hearing, LegHistory, Statement
+from zwiadbrain.pipeline.rejects import RejectEntry, write_reject_ledger
 from zwiadbrain.pipeline.render import write_page
+from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.congress import CONGRESS_API_BASE, CongressSource
 from zwiadbrain.sources.govinfo import GovInfoSource
-from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE
+from zwiadbrain.sources.legiscan import LEGISCAN_API_BASE, LegiScanSource
 
 runner = CliRunner()
 
@@ -1890,3 +1892,173 @@ def test_fetch_state_refreshable_detects_changed_bill(
     assert len(staged) == 1
     assert staged[0]["bill_id"] == "ca-2023-sb-362"
     assert staged[0]["needs_summarizer"] is True
+
+
+def test_record_rejects_federal_writes_ledger(tmp_path: Path) -> None:
+    """should derive the federal cursor and upsert the bill into federal.json"""
+    rejects = tmp_path / "rejects.json"
+    rejects.write_text(
+        json.dumps([
+            {
+                "id": "119-hr-9", "jurisdiction": "US", "title": "Boring",
+                "bill_number": "H.R. 9", "update_date": "2026-01-01",
+                "update_date_text": "2026-02-02",
+            }
+        ]),
+        encoding="utf-8",
+    )
+    cache = tmp_path / ".rejects"
+    result = runner.invoke(
+        app,
+        ["record-rejects", "--in", str(rejects), "--scope", "federal",
+         "--cache-dir", str(cache)],
+    )
+    assert result.exit_code == 0, result.output
+    led = json.loads((cache / "federal.json").read_text(encoding="utf-8"))
+    assert led == {"119-hr-9": {"cursor": "2026-02-02"}}
+
+
+def test_record_rejects_is_idempotent_byte_identical(tmp_path: Path) -> None:
+    """should produce a byte-identical ledger when the same reject is recorded twice"""
+    rejects = tmp_path / "rejects.json"
+    rejects.write_text(
+        json.dumps([
+            {"id": "119-hr-9", "jurisdiction": "US", "title": "B",
+             "bill_number": "H.R. 9", "update_date": "2026-01-01"}
+        ]),
+        encoding="utf-8",
+    )
+    cache = tmp_path / ".rejects"
+    args = ["record-rejects", "--in", str(rejects), "--scope", "federal",
+            "--cache-dir", str(cache)]
+    runner.invoke(app, args)
+    first = (cache / "federal.json").read_bytes()
+    runner.invoke(app, args)
+    assert (cache / "federal.json").read_bytes() == first
+
+
+def test_record_rejects_rejects_unknown_scope(tmp_path: Path) -> None:
+    """should exit non-zero on an invalid --scope"""
+    rejects = tmp_path / "r.json"
+    rejects.write_text("[]", encoding="utf-8")
+    result = runner.invoke(
+        app,
+        ["record-rejects", "--in", str(rejects), "--scope", "county",
+         "--cache-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 1
+    assert "scope" in result.output
+
+
+def test_fetch_candidates_skip_existing_drops_cached_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop a federal candidate cached as a reject whose cursor is unchanged (D82)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    wiki = tmp_path / "wiki"
+    write_reject_ledger(
+        wiki / ".rejects" / "federal.json",
+        {"119-hr-9": RejectEntry(cursor="2026-01-01")},
+    )
+
+    def _fake_discover(
+        self: CongressSource, *, congress: int | None = None,
+        since: object = None, limit: int = 20, max_pages: int = 1,
+    ) -> list[Candidate]:
+        return [
+            Candidate(
+                source="congress", native_id="119/hr/9", jurisdiction="US",
+                title="Boring Act", update_date="2026-01-01",
+            )
+        ]
+
+    monkeypatch.setattr(CongressSource, "discover", _fake_discover)
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        ["fetch-candidates", "--congress", "119", "--limit", "5", "--seed", "boring",
+         "--skip-existing", "--wiki", str(wiki), "--out", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads((out / "candidates.json").read_text(encoding="utf-8")) == []
+    assert "cached-reject" in result.output
+
+
+def test_existing_state_bill_ids_reads_legiscan_id_from_frontmatter(tmp_path: Path) -> None:
+    """should harvest tracked state bills' LegiScan ids from frontmatter, skipping sidecars"""
+    from zwiadbrain.cli import _existing_state_bill_ids  # pyright: ignore[reportPrivateUsage]
+
+    wiki = tmp_path / "wiki"
+    write_page(
+        Bill(
+            id="ca-2025-ab-7", jurisdiction="US-CA", title="t",
+            bill_number="AB 7", legiscan_bill_id=777,
+        ),
+        wiki,
+    )
+    (wiki / "states" / "ca" / "bills" / "ca-2025-ab-7.text.md").write_text(
+        "sidecar", encoding="utf-8"
+    )
+    assert _existing_state_bill_ids(wiki, "ca") == {"777"}
+
+
+def test_existing_state_bill_ids_missing_dir_is_empty(tmp_path: Path) -> None:
+    """should return an empty set when the state has no bills directory yet"""
+    from zwiadbrain.cli import _existing_state_bill_ids  # pyright: ignore[reportPrivateUsage]
+
+    assert _existing_state_bill_ids(tmp_path / "wiki", "ny") == set()
+
+
+def test_existing_state_bill_ids_skips_unreadable_pages(tmp_path: Path) -> None:
+    """should skip a malformed page rather than crash the whole sweep"""
+    from zwiadbrain.cli import _existing_state_bill_ids  # pyright: ignore[reportPrivateUsage]
+
+    wiki = tmp_path / "wiki"
+    write_page(
+        Bill(id="ca-2025-ab-7", jurisdiction="US-CA", title="t",
+             bill_number="AB 7", legiscan_bill_id=777),
+        wiki,
+    )
+    # Malformed frontmatter YAML (unclosed flow mapping) -> from_page raises
+    # WikiSchemaError; the sweep must skip this page, not abort the whole state.
+    bad = wiki / "states" / "ca" / "bills" / "ca-2025-ab-bad.md"
+    bad.write_text(
+        "---\nid: ca-2025-ab-bad\njurisdiction: {US-CA\ntype: bill\n---\nbody\n",
+        encoding="utf-8",
+    )
+    assert _existing_state_bill_ids(wiki, "ca") == {"777"}
+
+
+def test_fetch_state_candidates_skip_existing_drops_cached_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop a state candidate whose LegiScan change_hash is cached as a reject (D82)"""
+    monkeypatch.setenv("LEGISCAN_API_KEY", "lk-test")
+    wiki = tmp_path / "wiki"
+    write_reject_ledger(
+        wiki / ".rejects" / "state.json",
+        {"777": RejectEntry(cursor="hash-1", id="ca-2025-ab-7")},
+    )
+
+    def _fake_discover(
+        self: LegiScanSource, *, congress: int | None = None,
+        since: object = None, limit: int = 20, max_pages: int = 1,
+    ) -> list[Candidate]:
+        return [
+            Candidate(
+                source="legiscan", native_id="777", jurisdiction="US-CA",
+                title="", raw={"change_hash": "hash-1"},
+            )
+        ]
+
+    monkeypatch.setattr(LegiScanSource, "discover", _fake_discover)
+    out = tmp_path / "run"
+    result = runner.invoke(
+        app,
+        ["fetch-state-candidates", "--state", "ca", "--limit", "5", "--query", "privacy",
+         "--skip-existing", "--wiki", str(wiki), "--out", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads((out / "candidates.json").read_text(encoding="utf-8")) == []
+    assert "cached-reject" in result.output

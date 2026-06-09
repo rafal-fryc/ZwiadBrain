@@ -911,7 +911,7 @@ beyond data-protection to operator-facing critical-infra cyber duties. A bill se
 OWN systems/infrastructure stays OUT (D86). User decision.
 **Trade-offs:** terse state metadata can blur "private operator vs government system" — read the bill
 text when unclear.
-**Follow-up (QUEUED — do on resume):** flip the 3 NY bills excluded before this rule —
+**Follow-up (DONE 2026-06-09 — via D96 `stale-rejects --key ... --clear` + re-classify):** flip the 3 NY bills excluded before this rule —
 `ny-2021-a-3904`, `ny-2023-a-2896`, `ny-2023-a-7364` — to in-scope (`cyber`): summarize + render pages,
 remove them from `wiki/.rejects/state.json` (keyed by bill_id + change_hash), and bump the tracker
 counts (ny/2021-22 -> 1 in; ny/2023-24 -> 4 in).

@@ -900,3 +900,19 @@ zero classifier cost, where classify-all on a big-state session (~1,100-1,500) i
 lexicon is still missed. Mitigation: per-session yield review + classify-all; the seed list is now a
 maintained recall asset (each confirmed miss adds a seed + a DECISIONS note).
 **Revisit if:** recurring misses make per-session classify-all the better default for big states.
+
+---
+
+## 2026-06-09 — 95. Critical-infrastructure cybersecurity mandates on private operators are IN scope
+**Chosen:** A law imposing cybersecurity/security requirements on **private critical-infrastructure
+operators** (energy, water, telecom, aviation, pipelines, hazardous storage, etc.) is IN scope
+(`cyber`; positive criterion #3, critical-infrastructure protection). Extends D88's company-facing line
+beyond data-protection to operator-facing critical-infra cyber duties. A bill securing the GOVERNMENT's
+OWN systems/infrastructure stays OUT (D86). User decision.
+**Trade-offs:** terse state metadata can blur "private operator vs government system" — read the bill
+text when unclear.
+**Follow-up (QUEUED — do on resume):** flip the 3 NY bills excluded before this rule —
+`ny-2021-a-3904`, `ny-2023-a-2896`, `ny-2023-a-7364` — to in-scope (`cyber`): summarize + render pages,
+remove them from `wiki/.rejects/state.json` (keyed by bill_id + change_hash), and bump the tracker
+counts (ny/2021-22 -> 1 in; ny/2023-24 -> 4 in).
+**Revisit if:** critical-infra bills prove mostly government-facing on inspection.

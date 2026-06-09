@@ -812,3 +812,29 @@ suspiciously few in-scope, re-run that unit with `--classify-all`. The federal c
 (D87) is unchanged.
 **Revisit if:** a state unit's recall yield looks too low (re-run that session classify-all), or a
 missed state law surfaces later.
+
+---
+
+## 2026-06-09 — 90. Autonomous per-unit commits for the state backfill; human gate only at borderlines
+**Chosen:** After the first 6 units (3 federal + 2 CA) validated the settled methodology, the
+remaining **state** backfill units run autonomously: each unit's recall→classify→summarize→render→
+tracker flow runs and **commits without a per-unit human approval**, PROVIDED the unit has no judgment
+calls. The interactive session **stops for human input only at a genuine borderline** — e.g. a
+government-use surveillance law (like CA AB 1215), an omnibus-rider call, or a new scope-precedent
+category the established rules (D86/D88/D89) don't cleanly resolve. A short per-unit summary is
+reported; the user can interrupt anytime. This relaxes D85's per-unit human gate for the state half.
+**Alternatives:** (B) keep D85's strict per-unit gate for all ~21 units — rejected by the user as too
+slow now that the method is settled. (C) fully unattended, no stops — rejected: borderlines still need
+human judgment, and silent edge-case handling is the failure D85 guards against. (D) batch-by-state
+gating — offered; user chose finer-grained autonomous-with-borderline-stops.
+**Why:** the scope rules (D86 company-facing, D88 data-broker throughline, D89 state recall) are stable
+and produced consistent, well-reasoned classifier output across 6 units. The per-unit gate's value now
+concentrates entirely at borderlines; gating clean units adds latency without catching errors. A hard
+stop at borderlines preserves D85's core protection (no bulk bad/edge data lands unreviewed) while
+removing routine overhead.
+**Trade-offs:** a high-confidence-but-wrong classification could be committed without human review.
+Mitigation: reject ledger + git history make every unit reversible; the per-unit summary lets the user
+catch issues post-hoc; confabulation-prone cases (unreadable mega-summaries, terse summaries) are still
+verified against source data before ingest. Applies to the state half only — federal is complete.
+**Revisit if:** an autonomously-committed unit is found to contain a misclassification (re-introduce
+gating), or the user asks to resume per-unit approval.

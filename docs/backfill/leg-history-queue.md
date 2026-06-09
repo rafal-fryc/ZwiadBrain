@@ -25,6 +25,7 @@ interpretation a sourced legislative history materially helps.
 | ca-2023-ab-2013 | AB 2013 (Ch. 817, 2024) — Generative AI training-data transparency (Civ. Code Title 15.2) | US-CA | first-of-its-kind GenAI training-data disclosure mandate | flagged | /zwiad-leg-history ca/ab-2013 |
 | ca-2023-sb-1223 | SB 1223 (Ch. 887, 2024) — neural data added to CCPA sensitive personal information | US-CA | novel neural-data privacy first; high salience | flagged | /zwiad-leg-history ca/sb-1223 |
 | ca-2023-ab-2655 | AB 2655 (Ch. 261, 2024) — Defending Democracy from Deepfake Deception Act (platform duties) | US-CA | named AI-election Act; platform-facing; notable litigation | flagged | /zwiad-leg-history ca/ab-2655 |
+| ny-2019-a-5635 | A 5635 (Ch. 117, 2019) — NY SHIELD Act (breach notification + data-security safeguards on businesses) | US-NY | landmark state data-security statute; high salience | flagged | /zwiad-leg-history ny/a-5635 |
 
 <!--
 Example rows (delete once real entries land):

@@ -96,6 +96,11 @@
     "cursor": "0e139aa1044782d8a623ebf1e88f0972",
     "id": "ny-2019-a-9508"
   },
+  "1382403": {
+    "cursor": "cafd3ce8d1b1af706f96083e79012666",
+    "id": "tx-2021-sb-56",
+    "scope_version": "D95"
+  },
   "1385518": {
     "cursor": "fb539a880f02e2eba44d754db93d0b71",
     "id": "ca-2021-ab-12"
@@ -115,6 +120,36 @@
   "1393714": {
     "cursor": "70de60670430eef73843b66cd8719bea",
     "id": "ny-2021-s-876"
+  },
+  "1405157": {
+    "cursor": "ec1eaffc9d0c37af6db9c322027212bf",
+    "id": "tx-2021-hb-1082",
+    "scope_version": "D95"
+  },
+  "1406326": {
+    "cursor": "750d8e45063a6157de0d4b3a79996a39",
+    "id": "tx-2021-hb-1118",
+    "scope_version": "D95"
+  },
+  "1467643": {
+    "cursor": "80bb663c6cd3d95cadc5a0580df7fbcb",
+    "id": "tx-2021-sb-841",
+    "scope_version": "D95"
+  },
+  "1468054": {
+    "cursor": "a2f78d5687fb52dbd9361df961d74aa5",
+    "id": "tx-2021-sb-851",
+    "scope_version": "D95"
+  },
+  "1476610": {
+    "cursor": "8fec1a5f0fd7e046dbdec2b12fdbd0b7",
+    "id": "tx-2021-hb-3390",
+    "scope_version": "D95"
+  },
+  "1480272": {
+    "cursor": "85ea58da8a473f9e22b6e88f092f3656",
+    "id": "tx-2021-sb-1696",
+    "scope_version": "D95"
   },
   "1511797": {
     "cursor": "1a6b6e8fbb1c7bf79ead37ca462c1642",

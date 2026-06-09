@@ -45,6 +45,11 @@ slash command (interactive Claude Code session)
   for in-scope bills, render pages under `wiki/states/<st>/bills/`. State analog
   of `/zwiad-backfill`; loops over `[states].enabled`, each capped by `--limit`
   (D49). Backed by CLI `fetch-state-candidates` + `render-classified` (reused).
+  An **enacted-only** discovery half for the prior-years backfill,
+  `fetch-state-enacted-candidates` (`getSessionList` → `getMasterList(id=session)` →
+  keep `status==4` → free title+description recall), stages *only* bills that became
+  law; it backs the planned `/zwiad-backfill-enacted-state` (PHASE-24/D84), distinct
+  from the routine `fetch-state-candidates`.
 - **`/zwiad-leg-history <congress/type/number>`** — assemble a source-linked
   legislative history for one enacted bill: deterministic spine + researched,
   grounded, cross-verified hearings/statements + narrative (D34–D37). On-demand,

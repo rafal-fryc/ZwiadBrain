@@ -1712,6 +1712,51 @@ def test_fetch_state_enacted_errors_without_key(
     assert "LEGISCAN_API_KEY" in result.output
 
 
+def test_fetch_state_enacted_skip_existing_drops_cached_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--skip-existing drops a recall-kept enacted bill cached as a reject (D82)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LEGISCAN_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_state_enrich)
+    wiki = tmp_path / "wiki"
+    # AB1 (bill_id 1132030, change_hash hashA) is the only recall survivor; cache it
+    # as a reject with its unchanged cursor so skip-existing drops it.
+    write_reject_ledger(
+        wiki / ".rejects" / "state.json",
+        {"1132030": RejectEntry(cursor="hashA", id="ca-2019-1132030")},
+    )
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        _route_legiscan(mock, {
+            "getSessionList": _legiscan_fixture("getSessionList.json"),
+            "getMasterList": _legiscan_fixture("getMasterList.json"),
+        })
+        result = runner.invoke(
+            app,
+            ["fetch-state-enacted-candidates", "--state", "ca", "--year", "2019",
+             "--skip-existing", "--wiki", str(wiki), "--topics", str(_TOPICS), "--out", str(out)],
+        )
+    assert result.exit_code == 0, result.output
+    assert json.loads((out / "candidates.json").read_text(encoding="utf-8")) == []
+    assert "cached-reject" in result.output
+
+
+def test_fetch_state_enacted_errors_when_no_session_covers_year(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero when no session covers the requested year"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LEGISCAN_API_KEY", "test-key")
+    with respx.mock(assert_all_called=False) as mock:
+        _route_legiscan(mock, {"getSessionList": _legiscan_fixture("getSessionList.json")})
+        result = runner.invoke(
+            app, ["fetch-state-enacted-candidates", "--state", "ca", "--year", "1990"]
+        )
+    assert result.exit_code == 1
+    assert "no ca session" in result.output
+
+
 def test_fetch_bill_stages_federal_bill_when_no_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

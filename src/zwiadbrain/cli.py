@@ -593,6 +593,8 @@ def fetch_state_candidates(
 def fetch_state_enacted_candidates(
     state: Annotated[str, typer.Option(help="Two-letter state, e.g. ca.")],
     year: Annotated[int, typer.Option(help="Target year; resolves to the session(s) covering it.")],
+    # Default high (vs fetch_state_candidates's 5): backfill enumerates most of a
+    # session's enacted laws, not just a handful of newest search hits.
     limit: Annotated[
         int, typer.Option(min=1, help="Max in-scope candidates to stage (recall output cap).")
     ] = 250,
@@ -629,9 +631,17 @@ def fetch_state_enacted_candidates(
         sessions = [s for s in source.list_sessions() if s.year_start <= year <= s.year_end]
         if not sessions:
             raise ConfigError(f"no {state} session covers year {year}")
+        # Dedup across sessions by native_id (preserving order): a special session can
+        # overlap a regular session's year span, so --year may match >1 session and
+        # surface the same bill twice — staging it once avoids a double enrich.
         enacted: list[Candidate] = []
+        seen_ids: set[str] = set()
         for session in sessions:
-            enacted.extend(source.list_session_enacted(session.session_id))
+            for cand in source.list_session_enacted(session.session_id):
+                if cand.native_id in seen_ids:
+                    continue
+                seen_ids.add(cand.native_id)
+                enacted.append(cand)
         if classify_all:
             candidates = enacted
         else:

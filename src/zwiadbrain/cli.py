@@ -110,7 +110,7 @@ from zwiadbrain.pipeline.rejects import (
     state_key,
     write_reject_ledger,
 )
-from zwiadbrain.pipeline.render import write_lawbrain_region, write_page
+from zwiadbrain.pipeline.render import sidecar_path, write_lawbrain_region, write_page
 from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
 from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.pipeline.verdicts import Verdict, apply_summaries, split_by_verdict
@@ -2710,6 +2710,130 @@ def extract_text(
 
     verb = "would extract" if dry_run else "extracted"
     typer.echo(f"extract-text: {verb} {done} item(s), {len(dropped)} skipped")
+    for ident, reason in dropped:
+        typer.echo(f"  - skipped {ident}: {reason}", err=True)
+
+
+@app.command(name="extract-tracked")
+def extract_tracked(
+    wiki: Annotated[Path, typer.Option(help="Wiki root holding the pages + sidecars.")] = Path(
+        "wiki"
+    ),
+    limit: Annotated[
+        int | None, typer.Option(min=1, help="Max items to extract this run (resume-friendly).")
+    ] = None,
+    force: Annotated[
+        bool, typer.Option("--force", help="Re-extract even when a sidecar already exists.")
+    ] = False,
+    skip: Annotated[
+        list[str] | None,
+        typer.Option("--skip", help="Page id to exclude (repeatable; e.g. omnibus carriers)."),
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="List planned extractions; no network, no writes.")
+    ] = False,
+) -> None:
+    """Extract full text for every tracked wiki page that lacks a ``<id>.text.md`` sidecar.
+
+    The batch backfill counterpart of ``extract-text``: walks the committed wiki instead
+    of a staged ``classified.json``. Bill pages do not persist ``text_versions`` (body-only
+    field), so each due bill is re-fetched from its source — Congress.gov for federal,
+    LegiScan for state — while enforcement pages extract straight from frontmatter with no
+    re-fetch. Sources are constructed lazily, so a run with nothing due for a source never
+    demands its API key. Skip-if-sidecar (without ``--force``) makes chunked ``--limit``
+    runs resumable; ``--limit`` is applied after the skip filters so every run makes
+    progress. Per-item isolation: one failing fetch/extraction never aborts the batch.
+    """
+    # Fail fast (real runs only): Docling is an optional, unlocked extra. Dry-run
+    # never invokes it (and never fetches), so it works without Docling installed.
+    if not dry_run and not docling_available():
+        typer.echo(
+            "error: Docling is not installed. Install it to run extract-tracked:\n"
+            "  uv pip install docling\n"
+            "then re-run with `uv run --no-sync zwiadbrain extract-tracked ...`.\n"
+            "(Use --dry-run to preview planned extractions without Docling.)",
+            err=True,
+        )
+        raise typer.Exit(1)
+    try:
+        settings = load_settings()
+        skip_ids = set(skip or [])
+        due: list[Bill | EnforcementAction] = []
+        already = excluded = 0
+        for path in sorted(wiki.rglob("*.md")):
+            if path.name.endswith(".text.md"):
+                continue
+            try:
+                item = from_page(path.read_text(encoding="utf-8"))
+            except WikiSchemaError:
+                continue  # not a tracked-item page (README, index, etc.)
+            if not item.tracking:
+                continue
+            if item.id in skip_ids:
+                excluded += 1
+                continue
+            if not force and sidecar_path(item, wiki).exists():
+                already += 1
+                continue
+            due.append(item)
+        if limit is not None:
+            due = due[:limit]
+
+        congress_source: CongressSource | None = None
+        state_sources: dict[str, LegiScanSource] = {}
+        done = 0
+        dropped: list[tuple[str, str]] = []
+        for item in due:
+            try:
+                if dry_run:
+                    if isinstance(item, Bill):
+                        # The operative URL needs a source fetch; stay network-free here.
+                        typer.echo(
+                            f"would fetch+extract {item.id} -> {sidecar_path(item, wiki)}"
+                        )
+                    else:
+                        plan = plan_extraction(item, wiki)
+                        if plan is None:
+                            dropped.append((item.id, "no fetchable document"))
+                            continue
+                        plan_sidecar, urls = plan
+                        typer.echo(
+                            f"would extract {item.id}: {len(urls)} doc(s) -> {plan_sidecar}"
+                        )
+                    done += 1
+                    continue
+                target: Bill | EnforcementAction
+                if isinstance(item, EnforcementAction):
+                    # Enforcement frontmatter persists sources + developments: no re-fetch.
+                    target = item
+                elif item.jurisdiction == "US":
+                    if congress_source is None:
+                        congress_source = CongressSource(settings.require_congress_api_key())
+                    target = congress_source.fetch(item.id.replace("-", "/"))
+                else:
+                    if item.legiscan_bill_id is None:
+                        dropped.append((item.id, "state bill has no legiscan_bill_id"))
+                        continue
+                    state = item.jurisdiction.split("-", 1)[-1].lower()
+                    if state not in state_sources:
+                        state_sources[state] = LegiScanSource(
+                            settings.require_legiscan_api_key(), state
+                        )
+                    target = state_sources[state].fetch(str(item.legiscan_bill_id))
+                if extract_item(target, wiki) is None:
+                    dropped.append((item.id, "no committed page or no fetchable document"))
+                    continue
+                done += 1
+            except Exception as exc:  # noqa: BLE001 - per-item isolation: one bad item never aborts the batch
+                dropped.append((item.id, str(exc)))
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    verb = "would extract" if dry_run else "extracted"
+    typer.echo(
+        f"extract-tracked: {verb} {done} item(s), {len(dropped)} skipped"
+        f" ({already} sidecar already present, {excluded} excluded via --skip)"
+    )
     for ident, reason in dropped:
         typer.echo(f"  - skipped {ident}: {reason}", err=True)
 

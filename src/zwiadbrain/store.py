@@ -22,6 +22,12 @@ from zwiadbrain.exceptions import StoreError, WikiSchemaError
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.wiki.schema import from_page
 
+# Bump when the derived items/items_fts shape changes: CREATE ... IF NOT EXISTS never
+# migrates an existing table, so a version mismatch drops and recreates those two tables
+# (they rebuild from frontmatter via reindex). lawbrain_pages is KEPT across migrations —
+# it is a sync cache that is expensive to re-derive, and its shape is stable.
+_SCHEMA_VERSION = 2  # v2: items_fts gained extracted_text (sidecar full text, PR-B)
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS items (
     id          TEXT PRIMARY KEY,
@@ -41,7 +47,8 @@ CREATE TABLE IF NOT EXISTS items (
     path        TEXT NOT NULL
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
-    id UNINDEXED, title, jurisdiction, status, bill_number, topics, agency, docket
+    id UNINDEXED, title, jurisdiction, status, bill_number, topics, agency, docket,
+    extracted_text
 );
 CREATE TABLE IF NOT EXISTS lawbrain_pages (
     slug         TEXT PRIMARY KEY,
@@ -74,6 +81,7 @@ class Store:
         try:
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
+            self._migrate(conn)
             conn.executescript(_SCHEMA)
             return conn
         except sqlite3.DatabaseError:
@@ -89,6 +97,7 @@ class Store:
             try:
                 conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
+                self._migrate(conn)
                 conn.executescript(_SCHEMA)
                 return conn
             except (sqlite3.Error, OSError) as exc:
@@ -96,6 +105,23 @@ class Store:
         except OSError as exc:
             # e.g. PermissionError on Windows when db_path is an existing directory.
             raise StoreError(f"could not initialize index at {db_path}: {exc}") from exc
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """Drop the derived items tables when the on-disk schema version is outdated.
+
+        ``CREATE ... IF NOT EXISTS`` never alters an existing table, so a shape change
+        (e.g. the v2 ``extracted_text`` FTS column) needs the old tables gone before
+        ``_SCHEMA`` runs. The dropped tables are derived (rebuilt by :meth:`reindex`);
+        ``lawbrain_pages`` is deliberately kept — see ``_SCHEMA_VERSION``.
+        """
+        row = conn.execute("PRAGMA user_version").fetchone()
+        if int(row[0]) == _SCHEMA_VERSION:
+            return
+        conn.execute("DROP TABLE IF EXISTS items")
+        conn.execute("DROP TABLE IF EXISTS items_fts")
+        conn.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
+        conn.commit()
 
     def __enter__(self) -> Store:
         return self
@@ -135,13 +161,23 @@ class Store:
                         item = from_page(text)
                     except WikiSchemaError:
                         continue  # not a tracked-item page (README, index, etc.)
-                    self._index_item(item, path.relative_to(wiki_root).as_posix())
+                    # The <id>.text.md sidecar (extract-text/extract-tracked) carries the
+                    # item's full extracted document text; index it for retrieval.
+                    sidecar = path.with_name(f"{path.stem}.text.md")
+                    extracted = (
+                        sidecar.read_text(encoding="utf-8") if sidecar.exists() else ""
+                    )
+                    self._index_item(
+                        item, path.relative_to(wiki_root).as_posix(), extracted_text=extracted
+                    )
                     count += 1
             return count
         except sqlite3.Error as exc:
             raise StoreError(f"reindex failed for {wiki_root}: {exc}") from exc
 
-    def _index_item(self, item: Bill | EnforcementAction, rel_path: str) -> None:
+    def _index_item(
+        self, item: Bill | EnforcementAction, rel_path: str, *, extracted_text: str = ""
+    ) -> None:
         is_bill = isinstance(item, Bill)
         bill_number = item.bill_number if isinstance(item, Bill) else None
         enacted = int(item.enacted) if isinstance(item, Bill) else 0
@@ -177,8 +213,9 @@ class Store:
         self.conn.execute("DELETE FROM items_fts WHERE id = ?", (item.id,))
         self.conn.execute(
             "INSERT INTO items_fts"
-            " (id, title, jurisdiction, status, bill_number, topics, agency, docket)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            " (id, title, jurisdiction, status, bill_number, topics, agency, docket,"
+            "  extracted_text)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 item.id,
                 item.title,
@@ -188,6 +225,7 @@ class Store:
                 topics_joined,
                 agency or "",
                 docket or "",
+                extracted_text,
             ),
         )
 

@@ -84,6 +84,20 @@ uv run zwiadbrain render-classified --in data/runs/<id>/classified.json
 uv run zwiadbrain reindex
 ```
 
+### 6a. Extract full text (optional — skip, never fail)
+If Docling is installed (`uv pip install docling`; a deliberately unlocked heavy extra — D68):
+```
+uv run --no-sync zwiadbrain extract-text --in data/runs/<id>/classified.json
+uv run zwiadbrain reindex
+```
+This writes `<id>.text.md` sidecars next to the new pages, links them from each page, and
+re-indexes so the full statutory text is searchable. If Docling is NOT installed, note
+"extraction deferred" in the unit report and continue — do NOT fail the unit. Deferred sidecars
+are backfilled later with `uv run --no-sync zwiadbrain extract-tracked` (skip-if-sidecar makes it
+resumable). Beware omnibus carriers (e.g. a full NDAA): their enrolled PDFs are thousands of
+pages — defer those via `extract-tracked --skip <id>` rather than extracting inline. Commit
+sidecars with the unit.
+
 ### 7. Flag significant laws for legislative history
 For each rendered in-scope law that is **significant** (a named Act, or otherwise high-salience —
 major rewrite, broad scope), append a row to `docs/backfill/leg-history-queue.md` (see its

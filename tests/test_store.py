@@ -154,11 +154,11 @@ def test_reindex_rolls_back_on_mid_loop_failure(tmp_path: Path) -> None:
         calls = {"n": 0}
         original = store._index_item  # pyright: ignore[reportPrivateUsage]
 
-        def exploding(item: object, rel_path: str) -> None:
+        def exploding(item: object, rel_path: str, *, extracted_text: str = "") -> None:
             calls["n"] += 1
             if calls["n"] == 3:
                 raise sqlite3.OperationalError("disk I/O error")
-            original(item, rel_path)  # type: ignore[arg-type]
+            original(item, rel_path, extracted_text=extracted_text)  # type: ignore[arg-type]
 
         store._index_item = exploding  # type: ignore[assignment, method-assign]
         with pytest.raises(StoreError):
@@ -168,4 +168,82 @@ def test_reindex_rolls_back_on_mid_loop_failure(tmp_path: Path) -> None:
 
     # A brand-new connection sees the committed, pre-failure index — not a half-rebuilt one.
     with Store(tmp_path / "index.sqlite") as store2:
+        assert store2.count() == 3
+
+
+# ---------------------------------------------------------------------------
+# Extracted-text sidecar indexing + schema-version migration (PR-B)
+# ---------------------------------------------------------------------------
+
+
+def test_reindex_indexes_sidecar_text_for_search(tmp_path: Path) -> None:
+    """should make a page findable by a phrase that appears only in its .text.md sidecar"""
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    _seed_wiki(wiki)
+    page = wiki / "states" / "ca" / "bills" / "us-ca-sb-362.md"
+    page.with_name("us-ca-sb-362.text.md").write_text(
+        "# Extracted text\n\nA covered business shall register as a frontier developer.\n",
+        encoding="utf-8",
+    )
+    with Store(tmp_path / "index.sqlite") as store:
+        assert store.reindex(wiki) == 3  # the sidecar itself is not an indexed page
+        assert store.search("frontier developer") == ["us-ca-sb-362"]
+
+
+def test_reindex_without_sidecar_indexes_empty_text(tmp_path: Path) -> None:
+    """should index no extracted text (search miss) when a page has no sidecar"""
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    _seed_wiki(wiki)
+    with Store(tmp_path / "index.sqlite") as store:
+        store.reindex(wiki)
+        assert store.search("frontier developer") == []
+
+
+def test_outdated_schema_version_migrates_keeping_lawbrain_cache(tmp_path: Path) -> None:
+    """should drop+recreate the derived tables on a version mismatch but keep lawbrain_pages"""
+    db_path = tmp_path / "index.sqlite"
+    # Pre-create a v1-shaped database: old items_fts without extracted_text, user_version 0,
+    # plus a lawbrain_pages row that must survive the migration.
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE items (id TEXT PRIMARY KEY, type TEXT NOT NULL);
+        CREATE VIRTUAL TABLE items_fts USING fts5(
+            id UNINDEXED, title, jurisdiction, status, bill_number, topics, agency, docket
+        );
+        CREATE TABLE lawbrain_pages (
+            slug TEXT PRIMARY KEY, content_hash TEXT NOT NULL, updated TEXT, last_seen TEXT
+        );
+        INSERT INTO lawbrain_pages VALUES ('regulation-x', 'hash1', NULL, NULL);
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    _seed_wiki(wiki)
+    with Store(db_path) as store:
+        # opens cleanly, the v2 schema is queryable, and extracted-text search works
+        store.reindex(wiki)
+        page = wiki / "states" / "ca" / "bills" / "us-ca-sb-362.md"
+        page.with_name("us-ca-sb-362.text.md").write_text("frontier developer", encoding="utf-8")
+        store.reindex(wiki)
+        assert store.search("frontier developer") == ["us-ca-sb-362"]
+        # the law-brain sync cache survived the migration
+        assert store.lawbrain_hashes() == {"regulation-x": "hash1"}
+
+
+def test_current_schema_version_is_not_remigrated(tmp_path: Path) -> None:
+    """should keep indexed rows across reopens once the schema version matches"""
+    db_path = tmp_path / "index.sqlite"
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    _seed_wiki(wiki)
+    with Store(db_path) as store:
+        store.reindex(wiki)
+    with Store(db_path) as store2:
+        # a reopen at the current version must not drop the derived tables
         assert store2.count() == 3

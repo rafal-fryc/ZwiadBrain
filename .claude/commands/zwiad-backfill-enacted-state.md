@@ -80,6 +80,18 @@ uv run zwiadbrain reindex
 ```
 Pages render under `wiki/states/$1/bills/`.
 
+### 6a. Extract full text (optional — skip, never fail)
+If Docling is installed (`uv pip install docling`; a deliberately unlocked heavy extra — D68):
+```
+uv run --no-sync zwiadbrain extract-text --in data/runs/<id>/classified.json
+uv run zwiadbrain reindex
+```
+This writes `<id>.text.md` sidecars next to the new pages, links them from each page, and
+re-indexes so the full statutory text is searchable. If Docling is NOT installed, note
+"extraction deferred" in the unit report and continue — do NOT fail the unit. Deferred sidecars
+are backfilled later with `uv run --no-sync zwiadbrain extract-tracked` (skip-if-sidecar makes it
+resumable). Commit sidecars with the unit.
+
 ### 7. Flag significant laws for legislative history
 Append any **significant** enacted laws (named Act / high-salience) to
 `docs/backfill/leg-history-queue.md`. Leg-history is a **separate, per-law-approved**

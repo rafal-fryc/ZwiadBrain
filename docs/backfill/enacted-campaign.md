@@ -16,7 +16,9 @@ pages rendered; `flagged` = laws added to `leg-history-queue.md`.
 > pre-filter dropped ~80% of enacted laws and silently hid PL 118-50 (PADFAA + TikTok divestiture).
 > **Scope = company-facing obligations only (D86):** government-use surveillance/operations and
 > omnibus appropriations/authorizations are OUT unless they carry a discrete company-facing
-> AI/privacy/cyber provision. Inject this scope rule into the classifier prompt each run.
+> AI/privacy/cyber provision. This rule is now encoded in `topics.yaml` (SCOPE preamble + criterion
+> #4 + a government-operations disqualifier; commit 0639515), so the classifier applies it natively —
+> no per-run prompt override needed.
 
 ## Federal (Congress.gov `/law/{congress}/pub`)
 

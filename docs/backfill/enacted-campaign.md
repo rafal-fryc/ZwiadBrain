@@ -47,7 +47,7 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 | ny / 2019-20 | 2019 | done | 4 | 1 | 3 | 1 | 1 | After PHASE-27 fix (resolutions dropped, A/S deduped, recall broadened): recall→4. 1 in: **A 5635 NY SHIELD Act** (Ch.117/2019 — breach-notification + data-security on businesses; recall had missed it pre-fix). Out: AI study commission (a-1746), education biometric study/school ban (a-6787), budget Article VII (a-9508) — all govt. |
 | ny / 2021-22 | 2021 | done | 6 | 1 | 5 | 1 | 0 | recall→6. 1 in (D95 flip): **A 3904** critical-energy-infrastructure security (cyber; private-operator mandate — initially excluded as borderline, flipped via `stale-rejects` + re-classify under D95/D96). Rest govt/edge: OITS biometric study, DFS literacy site, DEC/parking physical infra, 24h breach-notice-to-state-agencies. |
 | ny / 2023-24 | 2023 | done | 10 | 4 | 6 | 4 | 1 | recall→10. 4 in: **S 2659** (business 30-day data-breach notification), **S 7695 NY Child Data Protection Act**, + D95 flips **A 2896** (Ch.67 — critical-energy-infra security) and **A 7364** (Ch.417 — critical-infra cyber incl. aviation/pipelines/hazardous storage). 2 borderlines remain excluded: a-8805/a-8808 (budget Article-VII omnibus; confabulation risk). Out: a-2833 (govt procurement), a-6146 (govt records), s-5890 (insurer wellness incidental), s-7543 (LOADinG Act — govt ADS). |
-| tx / 2019-20 | 2019 | pending | – | – | – | – | – | confirm session cadence |
+| tx / 2019-20 | 2019 | done | 14 | 1 | 13 | 1 | 0 | 86th Leg (biennial). Recall→14. 1 in: **SB 936** (ERCOT/PUC cybersecurity monitor for electric utilities — private critical-infra cyber, D95). 13 out, all D86 govt: election-system cyber (hb-1421), state-agency IT (sb-64, hb-3834), school-district cyber (sb-820), public-records confidentiality carve-outs (hb-2910/3175/3913, sb-73/489/662/1494/2390), critical-infra trespass/penal law hb-3557 (liability on intruders, no operator duty — not D95). First unit with D96 scope-stamped rejects + inline text extraction (6a). |
 | tx / 2021-22 | 2021 | pending | – | – | – | – | – | confirm session cadence |
 | tx / 2023-24 | 2023 | pending | – | – | – | – | – | confirm session cadence |
 | co / 2019-20 | 2019 | pending | – | – | – | – | – | confirm session cadence |
@@ -66,7 +66,8 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 ## Progress
 
 - Federal: **3 / 3 units done** (118: HR 815 / PADFAA+TikTok; 117: HR 7776 / Daniel Anderl Act; 116: HR 7898 / HIPAA Safe Harbor). ~980 enacted laws classified, 3 in-scope.
-- States: 6 / 21 units done (PHASE-27 hardened big-state discovery). Method: **recall** per D89; **autonomous per-unit commits, stop only at borderlines** per D90.
+- States: 7 / 21 units done (PHASE-27 hardened big-state discovery). Method: **recall** per D89; **autonomous per-unit commits, stop only at borderlines** per D90.
+  - tx/2019-20: 1 in-scope (SB 936 ERCOT cybersecurity monitor, D95).
   - ny/2019-20: 1 in-scope (A 5635 NY SHIELD Act). ny/2021-22: 1 in-scope (A 3904 critical-energy-infra, D95 flip). ny/2023-24: 4 in-scope (S 2659, S 7695, + D95 flips A 2896 / A 7364). **NY complete (6 in-scope across 3 sessions).**
   - ca/2019-20: 9 in-scope (CCPA cluster + AB 1202 data-broker registry).
   - ca/2021-22: 3 in-scope (AB 2273 AADC + AB 825 genetic-breach + AB 335 CCPA-vessel).

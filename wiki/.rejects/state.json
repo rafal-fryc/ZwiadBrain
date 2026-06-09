@@ -1,7 +1,37 @@
 {
+  "1129186": {
+    "cursor": "77a8ea1de25f773b3609b388893194f4",
+    "id": "tx-2019-sb-73",
+    "scope_version": "D95"
+  },
+  "1129222": {
+    "cursor": "f460013bfefa0dec5724287c70d2b64b",
+    "id": "tx-2019-sb-64",
+    "scope_version": "D95"
+  },
   "1155659": {
     "cursor": "759ffb528abae273b46df46edf61fed4",
     "id": "ny-2019-a-1746"
+  },
+  "1176482": {
+    "cursor": "5048658ae80030686b123f8e338c7f7d",
+    "id": "tx-2019-sb-489",
+    "scope_version": "D95"
+  },
+  "1190813": {
+    "cursor": "19d38b7be3b6b477d3f2fd1a2c476381",
+    "id": "tx-2019-sb-662",
+    "scope_version": "D95"
+  },
+  "1191797": {
+    "cursor": "a2892d1ba621c1d4b5d0827b3ffe8d58",
+    "id": "tx-2019-hb-1421",
+    "scope_version": "D95"
+  },
+  "1202424": {
+    "cursor": "7ee5855ccbbc7fd5ef81712ee31ed446",
+    "id": "tx-2019-sb-820",
+    "scope_version": "D95"
   },
   "1203135": {
     "cursor": "3e975a907426a153e277a8b786131aed",
@@ -14,6 +44,41 @@
   "1214398": {
     "cursor": "3a8bae1419fc81f1894f0ca52ecc1f46",
     "id": "ca-2019-ab-1215"
+  },
+  "1228171": {
+    "cursor": "ee9d649bb462d29fd058a822bcba3586",
+    "id": "tx-2019-hb-2910",
+    "scope_version": "D95"
+  },
+  "1229906": {
+    "cursor": "712bab455c964c93b390c19fadad4721",
+    "id": "tx-2019-sb-1494",
+    "scope_version": "D95"
+  },
+  "1230033": {
+    "cursor": "8034213d0b786dbdc03d533c09a04249",
+    "id": "tx-2019-hb-3175",
+    "scope_version": "D95"
+  },
+  "1232109": {
+    "cursor": "a84d47b016e021640f7b498ed2191b5c",
+    "id": "tx-2019-hb-3557",
+    "scope_version": "D95"
+  },
+  "1233317": {
+    "cursor": "2bd584969a7521bb750f31b97dff20f7",
+    "id": "tx-2019-hb-3913",
+    "scope_version": "D95"
+  },
+  "1233840": {
+    "cursor": "1e81d0ae919c70489c6c6bc5ee6de2ca",
+    "id": "tx-2019-hb-3834",
+    "scope_version": "D95"
+  },
+  "1235943": {
+    "cursor": "cc13cb7a3fe95ae9ccb25141aa6525c2",
+    "id": "tx-2019-sb-2390",
+    "scope_version": "D95"
   },
   "1237237": {
     "cursor": "a00998f4941413f985bdc59694e7f611",

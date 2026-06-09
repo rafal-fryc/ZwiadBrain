@@ -60,8 +60,10 @@ Splits into `classified.json` (in-scope, topics applied) + `rejects.json`, repor
 ```
 uv run zwiadbrain record-rejects --in data/runs/<id>/rejects.json --scope federal
 ```
-Upserts each into `wiki/.rejects/federal.json` keyed by bill id + `updateDateIncludingText` (D82).
-Commit `wiki/.rejects/` alongside the rendered pages.
+Upserts each into `wiki/.rejects/federal.json` keyed by bill id + `updateDateIncludingText` (D82),
+stamped with the taxonomy's current `scope_version` (D96). Commit `wiki/.rejects/` alongside the
+rendered pages. After any scope-rule change (a `topics.yaml` `scope_version` bump), run
+`uv run zwiadbrain stale-rejects --scope federal` to review rejects recorded under the old rules.
 
 ### 5. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`
 `Read` `classified.json`. Dispatch the **batch-summarizer** ONCE with the full list of in-scope

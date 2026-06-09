@@ -104,6 +104,7 @@ from zwiadbrain.pipeline.rejects import (
     filter_by_key,
     filter_cached_rejects,
     load_reject_ledger,
+    split_stale_rejects,
     state_bill_entry,
     state_cursor,
     state_key,
@@ -455,16 +456,20 @@ def record_rejects(
     cache_dir: Annotated[
         Path, typer.Option(help="Reject-ledger directory.")
     ] = Path("wiki/.rejects"),
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
 ) -> None:
     """Record classified-out bills into the committed reject ledger (the negative cache).
 
     The write half that pairs with ``--skip-existing``: the interactive session hands back the
     OUT-of-scope ``Bill``s; this derives each one's change cursor and upserts it into
     ``<cache_dir>/<scope>.json`` so a future sweep skips it until the bill changes (D82).
+    Each entry is stamped with the taxonomy's current ``scope_version`` so a later scope-rule
+    change can surface it via ``stale-rejects`` (D96).
     """
     try:
         if scope not in {"federal", "state"}:
             raise ConfigError(f"--scope must be 'federal' or 'state', got {scope!r}")
+        scope_version = load_reference(topics).scope_version
         try:
             raw: object = json.loads(input_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -478,7 +483,7 @@ def record_rejects(
         ledger = load_reject_ledger(path)
         new = updated = 0
         for bill in bills:
-            key, entry = entry_of(bill)
+            key, entry = entry_of(bill, scope_version=scope_version)
             if key in ledger:
                 updated += 1
             else:
@@ -489,6 +494,74 @@ def record_rejects(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"recorded {new} new, {updated} updated reject(s) to {path}")
+
+
+@app.command(name="stale-rejects")
+def stale_rejects(
+    scope: Annotated[str, typer.Option(help="federal or state.")],
+    cache_dir: Annotated[
+        Path, typer.Option(help="Reject-ledger directory.")
+    ] = Path("wiki/.rejects"),
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+    key: Annotated[
+        list[str] | None,
+        typer.Option("--key", help="Ledger key to select explicitly (repeatable)."),
+    ] = None,
+    include_unknown: Annotated[
+        bool,
+        typer.Option(
+            "--include-unknown",
+            help="Treat pre-versioning entries (no scope_version) as stale for --clear.",
+        ),
+    ] = False,
+    clear: Annotated[
+        bool, typer.Option("--clear", help="Remove the selected stale entries from the ledger.")
+    ] = False,
+) -> None:
+    """Surface (and optionally clear) reject-ledger entries recorded under superseded scope rules.
+
+    The reject ledger is invalidated by BILL changes only; a scope-RULE change (e.g. D95)
+    would otherwise strand entries forever. This command compares each entry's stamped
+    ``scope_version`` against the taxonomy's current one: a mismatch is *stale*, a missing
+    stamp is *unknown* (pre-versioning). ``--clear`` removes stale entries so the next
+    sweep re-classifies them. Unknown entries are bulk-cleared only under
+    ``--include-unknown`` — without that guard a single ``--clear`` would queue every
+    pre-versioning reject (~1k bills, ~13k classifier tokens each) for re-classification.
+    Explicit ``--key`` selections are always honored, whatever their stamp (D96).
+    """
+    try:
+        if scope not in {"federal", "state"}:
+            raise ConfigError(f"--scope must be 'federal' or 'state', got {scope!r}")
+        current = load_reference(topics).scope_version
+        path = cache_dir / f"{scope}.json"
+        ledger = load_reject_ledger(path)
+        stale, unknown = split_stale_rejects(ledger, current)
+        if key:
+            missing = [k for k in key if k not in ledger]
+            if missing:
+                raise ConfigError(f"--key not in {path}: {', '.join(missing)}")
+            selected = list(key)
+        else:
+            selected = stale + (unknown if include_unknown else [])
+        typer.echo(
+            f"{path}: {len(ledger)} entries — {len(stale)} stale (scope_version != "
+            f"{current!r}), {len(unknown)} unknown (pre-versioning)"
+        )
+        for k in selected:
+            entry = ledger[k]
+            label = entry.id or "-"
+            typer.echo(f"  {k}  id={label}  scope_version={entry.scope_version or 'none'}")
+        if not clear:
+            if selected:
+                typer.echo(f"{len(selected)} entry(ies) selected; re-run with --clear to remove")
+            return
+        for k in selected:
+            del ledger[k]
+        write_reject_ledger(path, ledger)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"cleared {len(selected)} entry(ies) from {path}; next sweep re-classifies them")
 
 
 def _read_json_list(path: Path, *, label: str) -> list[object]:

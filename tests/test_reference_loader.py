@@ -71,6 +71,18 @@ def test_load_reference_policy_areas_default_to_empty(tmp_path: Path) -> None:
     assert ref.policy_areas == []
 
 
+def test_load_reference_exposes_scope_version(tmp_path: Path) -> None:
+    """should expose the taxonomy's scope-rule vintage (D96)"""
+    ref = load_reference(_write(tmp_path, yaml=_YAML + 'scope_version: "D95"\n'))
+    assert ref.scope_version == "D95"
+
+
+def test_load_reference_scope_version_defaults_to_none(tmp_path: Path) -> None:
+    """should default scope_version to None when the file omits it (pre-D96 shape)"""
+    ref = load_reference(_write(tmp_path))
+    assert ref.scope_version is None
+
+
 def test_load_reference_raises_on_missing_file(tmp_path: Path) -> None:
     """should raise ConfigError when the topics file does not exist"""
     with pytest.raises(ConfigError):
@@ -91,3 +103,4 @@ def test_loads_the_shipped_topics_yaml() -> None:
     assert "artificial intelligence" in ref.seeds
     assert "security breach" in ref.seeds  # D94: recovers NY SHIELD-style phrasing
     assert len(ref.seeds) == len(set(ref.seeds))  # no duplicates survive
+    assert ref.scope_version is not None  # D96: the shipped taxonomy must be versioned

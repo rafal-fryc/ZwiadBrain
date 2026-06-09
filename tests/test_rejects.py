@@ -15,6 +15,7 @@ from zwiadbrain.pipeline.rejects import (
     filter_by_key,
     filter_cached_rejects,
     load_reject_ledger,
+    split_stale_rejects,
     state_bill_entry,
     state_cursor,
     state_key,
@@ -233,3 +234,60 @@ def test_federal_bill_entry_records_date_granularity_cursor() -> None:
     )
     _key, entry = federal_bill_entry(bill)
     assert entry.cursor == "2026-06-06"
+
+
+# ---------------------------------------------------------------------------
+# Scope-version staleness (D96)
+# ---------------------------------------------------------------------------
+
+
+def test_legacy_entry_without_scope_version_parses_to_none(tmp_path: Path) -> None:
+    """should load a pre-versioning ledger entry with scope_version None"""
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps({"777": {"cursor": "h", "id": "ca-2025-ab-7"}}), encoding="utf-8")
+    assert load_reject_ledger(path)["777"].scope_version is None
+
+
+def test_entry_functions_stamp_scope_version() -> None:
+    """should stamp the passed scope_version onto both federal and state entries"""
+    fed = Bill(id="119-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1",
+               update_date="2026-01-01")
+    state = Bill(id="ca-2025-ab-7", jurisdiction="US-CA", title="t", bill_number="AB 7",
+                 legiscan_bill_id=999, change_hash="h9")
+    assert federal_bill_entry(fed, scope_version="D95")[1].scope_version == "D95"
+    assert state_bill_entry(state, scope_version="D95")[1].scope_version == "D95"
+
+
+def test_entry_functions_omit_scope_version_when_none(tmp_path: Path) -> None:
+    """should serialize no scope_version key when none is passed (ledger bytes stay stable)"""
+    bill = Bill(id="119-hr-1", jurisdiction="US", title="t", bill_number="H.R. 1",
+                update_date="2026-01-01")
+    key, entry = federal_bill_entry(bill)
+    path = tmp_path / "federal.json"
+    write_reject_ledger(path, {key: entry})
+    assert "scope_version" not in json.loads(path.read_text(encoding="utf-8"))["119-hr-1"]
+
+
+def test_write_reject_ledger_round_trips_scope_version(tmp_path: Path) -> None:
+    """should round-trip a stamped scope_version through write and load"""
+    path = tmp_path / "state.json"
+    write_reject_ledger(path, {"777": RejectEntry(cursor="h", scope_version="D95")})
+    assert load_reject_ledger(path)["777"].scope_version == "D95"
+
+
+def test_split_stale_rejects_buckets_mismatch_vs_unknown() -> None:
+    """should bucket version-mismatched keys as stale and unstamped keys as unknown"""
+    ledger = {
+        "b-current": RejectEntry(cursor="c", scope_version="D95"),
+        "a-old": RejectEntry(cursor="c", scope_version="D88"),
+        "c-legacy": RejectEntry(cursor="c"),
+        "d-old": RejectEntry(cursor="c", scope_version="D94"),
+    }
+    stale, unknown = split_stale_rejects(ledger, "D95")
+    assert stale == ["a-old", "d-old"]  # sorted, current excluded
+    assert unknown == ["c-legacy"]
+
+
+def test_split_stale_rejects_empty_ledger() -> None:
+    """should return empty buckets for an empty ledger"""
+    assert split_stale_rejects({}, "D95") == ([], [])

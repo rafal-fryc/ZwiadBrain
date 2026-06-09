@@ -26,6 +26,7 @@ class Reference(BaseModel):
     seeds: list[str]
     topic_keys: list[str]
     policy_areas: list[str]
+    scope_version: str | None = None
 
 
 class _Topic(BaseModel):
@@ -40,6 +41,7 @@ class _TopicsFile(BaseModel):
 
     topics: dict[str, _Topic]
     policy_areas: list[str] = []
+    scope_version: str | None = None
 
 
 def load_reference(path: Path) -> Reference:
@@ -64,4 +66,5 @@ def load_reference(path: Path) -> Reference:
         seeds=list(dict.fromkeys(seeds)),
         topic_keys=list(parsed.topics),
         policy_areas=parsed.policy_areas,
+        scope_version=parsed.scope_version,
     )

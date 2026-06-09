@@ -57,6 +57,12 @@ topics:
       - "encryption"
       - "CISA"
 
+# Scope-rule vintage (D96). Bump to the newest DECISIONS entry whenever a change
+# below alters what is in/out of scope. `record-rejects` stamps this version onto
+# every new reject-ledger entry; `stale-rejects` compares stamped versions against
+# this value to surface rejects recorded under superseded rules.
+scope_version: "D95"
+
 # SCOPE (D86): ZwiadBrain tracks only laws that impose effects/obligations on
 # PRIVATE-SECTOR COMPANIES — the regulated-industry compliance landscape. Laws
 # governing the GOVERNMENT's own use/operations (its surveillance/intelligence
@@ -68,7 +74,7 @@ topics:
 positive_criteria:
   - "Creates, amends, or repeals obligations governing AI or automated decision-making systems (development, deployment, transparency, impact assessment, or prohibited uses)."
   - "Regulates the collection, processing, sale, sharing, or retention of personal data, or grants/limits consumer privacy rights."
-  - "Establishes cybersecurity requirements, breach-notification duties, incident reporting, or critical-infrastructure protection."
+  - "Establishes cybersecurity requirements, breach-notification duties, incident reporting, or critical-infrastructure protection — including cybersecurity/security mandates on PRIVATE critical-infrastructure operators (energy, water, telecom, aviation, pipelines, hazardous storage). A bill securing only the GOVERNMENT's own systems/infrastructure stays OUT (D86/D95)."
   - "Regulates a company's use, sale, or deployment of biometric, facial-recognition, surveillance, or data-broker capabilities (obligations on private-sector actors — NOT the government's own operations; see SCOPE above)."
   - "Creates or funds an enforcement, oversight, or standards body specifically for AI, privacy, or cybersecurity."
 

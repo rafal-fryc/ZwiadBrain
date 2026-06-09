@@ -2128,8 +2128,16 @@ def test_fetch_state_refreshable_detects_changed_bill(
     assert staged[0]["needs_summarizer"] is True
 
 
+def _tmp_topics(tmp_path: Path, *, scope_version: str | None = "D-TEST") -> Path:
+    """A minimal valid topics.yaml; scope_version=None omits the key (pre-D96 shape)."""
+    version_line = f'scope_version: "{scope_version}"\n' if scope_version else ""
+    path = tmp_path / "topics.yaml"
+    path.write_text(f"topics:\n  ai:\n    seeds: [ai]\n{version_line}", encoding="utf-8")
+    return path
+
+
 def test_record_rejects_federal_writes_ledger(tmp_path: Path) -> None:
-    """should derive the federal cursor and upsert the bill into federal.json"""
+    """should derive the federal cursor and stamp the scope_version into federal.json"""
     rejects = tmp_path / "rejects.json"
     rejects.write_text(
         json.dumps([
@@ -2145,11 +2153,33 @@ def test_record_rejects_federal_writes_ledger(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         ["record-rejects", "--in", str(rejects), "--scope", "federal",
-         "--cache-dir", str(cache)],
+         "--cache-dir", str(cache), "--topics", str(_tmp_topics(tmp_path))],
     )
     assert result.exit_code == 0, result.output
     led = json.loads((cache / "federal.json").read_text(encoding="utf-8"))
-    assert led == {"119-hr-9": {"cursor": "2026-02-02"}}
+    assert led == {"119-hr-9": {"cursor": "2026-02-02", "scope_version": "D-TEST"}}
+
+
+def test_record_rejects_omits_stamp_when_taxonomy_unversioned(tmp_path: Path) -> None:
+    """should serialize no scope_version key when the taxonomy has none (pre-D96 shape)"""
+    rejects = tmp_path / "rejects.json"
+    rejects.write_text(
+        json.dumps([
+            {"id": "119-hr-9", "jurisdiction": "US", "title": "B",
+             "bill_number": "H.R. 9", "update_date": "2026-01-01"}
+        ]),
+        encoding="utf-8",
+    )
+    cache = tmp_path / ".rejects"
+    result = runner.invoke(
+        app,
+        ["record-rejects", "--in", str(rejects), "--scope", "federal",
+         "--cache-dir", str(cache),
+         "--topics", str(_tmp_topics(tmp_path, scope_version=None))],
+    )
+    assert result.exit_code == 0, result.output
+    led = json.loads((cache / "federal.json").read_text(encoding="utf-8"))
+    assert "scope_version" not in led["119-hr-9"]
 
 
 def test_record_rejects_is_idempotent_byte_identical(tmp_path: Path) -> None:
@@ -2164,7 +2194,7 @@ def test_record_rejects_is_idempotent_byte_identical(tmp_path: Path) -> None:
     )
     cache = tmp_path / ".rejects"
     args = ["record-rejects", "--in", str(rejects), "--scope", "federal",
-            "--cache-dir", str(cache)]
+            "--cache-dir", str(cache), "--topics", str(_tmp_topics(tmp_path))]
     runner.invoke(app, args)
     first = (cache / "federal.json").read_bytes()
     runner.invoke(app, args)
@@ -2179,6 +2209,115 @@ def test_record_rejects_rejects_unknown_scope(tmp_path: Path) -> None:
         app,
         ["record-rejects", "--in", str(rejects), "--scope", "county",
          "--cache-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 1
+    assert "scope" in result.output
+
+
+# ---------------------------------------------------------------------------
+# stale-rejects (D96): surface/clear rejects recorded under superseded scope rules
+# ---------------------------------------------------------------------------
+
+
+def _stale_ledger(tmp_path: Path) -> Path:
+    """A state ledger with one current, one stale, and one pre-versioning entry."""
+    cache = tmp_path / ".rejects"
+    cache.mkdir()
+    (cache / "state.json").write_text(
+        json.dumps({
+            "111": {"cursor": "h1", "id": "ny-2021-a-1", "scope_version": "D-TEST"},
+            "222": {"cursor": "h2", "id": "ny-2021-a-2", "scope_version": "D-OLD"},
+            "333": {"cursor": "h3", "id": "ny-2021-a-3"},
+        }),
+        encoding="utf-8",
+    )
+    return cache
+
+
+def test_stale_rejects_reports_stale_and_unknown_counts(tmp_path: Path) -> None:
+    """should report stale (version mismatch) and unknown (pre-versioning) buckets"""
+    cache = _stale_ledger(tmp_path)
+    result = runner.invoke(
+        app,
+        ["stale-rejects", "--scope", "state", "--cache-dir", str(cache),
+         "--topics", str(_tmp_topics(tmp_path))],
+    )
+    assert result.exit_code == 0, result.output
+    assert "1 stale" in result.output
+    assert "1 unknown" in result.output
+    assert "222" in result.output  # the stale entry is listed
+    assert "--clear" in result.output  # hints at the removal flag
+
+
+def test_stale_rejects_clear_removes_only_stale(tmp_path: Path) -> None:
+    """should clear version-mismatched entries but leave current and unknown intact"""
+    cache = _stale_ledger(tmp_path)
+    result = runner.invoke(
+        app,
+        ["stale-rejects", "--scope", "state", "--cache-dir", str(cache),
+         "--topics", str(_tmp_topics(tmp_path)), "--clear"],
+    )
+    assert result.exit_code == 0, result.output
+    led = json.loads((cache / "state.json").read_text(encoding="utf-8"))
+    assert set(led) == {"111", "333"}  # stale 222 gone; unknown 333 guarded
+
+
+def test_stale_rejects_include_unknown_clears_preversioning(tmp_path: Path) -> None:
+    """should clear pre-versioning entries only under the explicit --include-unknown flag"""
+    cache = _stale_ledger(tmp_path)
+    result = runner.invoke(
+        app,
+        ["stale-rejects", "--scope", "state", "--cache-dir", str(cache),
+         "--topics", str(_tmp_topics(tmp_path)), "--clear", "--include-unknown"],
+    )
+    assert result.exit_code == 0, result.output
+    led = json.loads((cache / "state.json").read_text(encoding="utf-8"))
+    assert set(led) == {"111"}  # only the current-version entry survives
+
+
+def test_stale_rejects_key_selects_explicit_entries(tmp_path: Path) -> None:
+    """should clear exactly the named keys regardless of their stamp"""
+    cache = _stale_ledger(tmp_path)
+    result = runner.invoke(
+        app,
+        ["stale-rejects", "--scope", "state", "--cache-dir", str(cache),
+         "--topics", str(_tmp_topics(tmp_path)), "--key", "333", "--clear"],
+    )
+    assert result.exit_code == 0, result.output
+    led = json.loads((cache / "state.json").read_text(encoding="utf-8"))
+    assert set(led) == {"111", "222"}  # only the named pre-versioning key removed
+
+
+def test_stale_rejects_unknown_key_exits_nonzero(tmp_path: Path) -> None:
+    """should fail loud when a named --key is not in the ledger"""
+    cache = _stale_ledger(tmp_path)
+    result = runner.invoke(
+        app,
+        ["stale-rejects", "--scope", "state", "--cache-dir", str(cache),
+         "--topics", str(_tmp_topics(tmp_path)), "--key", "999"],
+    )
+    assert result.exit_code == 1
+    assert "999" in result.output
+
+
+def test_stale_rejects_without_clear_is_readonly(tmp_path: Path) -> None:
+    """should not modify the ledger when --clear is absent"""
+    cache = _stale_ledger(tmp_path)
+    before = (cache / "state.json").read_bytes()
+    runner.invoke(
+        app,
+        ["stale-rejects", "--scope", "state", "--cache-dir", str(cache),
+         "--topics", str(_tmp_topics(tmp_path))],
+    )
+    assert (cache / "state.json").read_bytes() == before
+
+
+def test_stale_rejects_rejects_unknown_scope(tmp_path: Path) -> None:
+    """should exit non-zero on an invalid --scope"""
+    result = runner.invoke(
+        app,
+        ["stale-rejects", "--scope", "county", "--cache-dir", str(tmp_path),
+         "--topics", str(_tmp_topics(tmp_path))],
     )
     assert result.exit_code == 1
     assert "scope" in result.output

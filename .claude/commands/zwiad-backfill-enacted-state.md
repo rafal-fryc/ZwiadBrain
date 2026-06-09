@@ -59,8 +59,10 @@ pending, append, re-run before continuing.
 ```
 uv run zwiadbrain record-rejects --in data/runs/<id>/rejects.json --scope state
 ```
-Upserts each into `wiki/.rejects/state.json` keyed by `bill_id` + `change_hash` (D82). Commit
-`wiki/.rejects/` alongside the pages.
+Upserts each into `wiki/.rejects/state.json` keyed by `bill_id` + `change_hash` (D82), stamped
+with the taxonomy's current `scope_version` (D96). Commit `wiki/.rejects/` alongside the pages.
+After any scope-rule change (a `topics.yaml` `scope_version` bump), run
+`uv run zwiadbrain stale-rejects --scope state` to review rejects recorded under the old rules.
 
 ### 5. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`
 `Read` `classified.json`. Dispatch **batch-summarizer** ONCE with the full in-scope list. `Write`

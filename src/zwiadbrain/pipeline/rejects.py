@@ -23,10 +23,17 @@ from zwiadbrain.sources.base import Candidate
 
 
 class RejectEntry(BaseModel):
-    """One classified-out bill: its change cursor plus an optional human-readable id."""
+    """One classified-out bill: its change cursor plus an optional human-readable id.
+
+    ``scope_version`` records the taxonomy vintage (``topics.yaml`` ``scope_version``,
+    D96) the bill was classified OUT under. ``None`` means pre-versioning: the entry
+    predates stamping, so its rule vintage is unknown — it is surfaced separately by
+    ``split_stale_rejects`` and never bulk-cleared by default.
+    """
 
     cursor: str
     id: str | None = None
+    scope_version: str | None = None
 
 
 RejectLedger = dict[str, RejectEntry]
@@ -134,12 +141,43 @@ def state_cursor(candidate: Candidate) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def federal_bill_entry(bill: Bill) -> tuple[str, RejectEntry]:
+def federal_bill_entry(
+    bill: Bill, *, scope_version: str | None = None
+) -> tuple[str, RejectEntry]:
     """(slug, entry) for a federal reject; cursor at DATE granularity to match `federal_cursor`."""
     cursor = _date_only(bill.update_date_text or bill.update_date) or ""
-    return bill.id, RejectEntry(cursor=cursor)
+    return bill.id, RejectEntry(cursor=cursor, scope_version=scope_version)
 
 
-def state_bill_entry(bill: Bill) -> tuple[str, RejectEntry]:
+def state_bill_entry(bill: Bill, *, scope_version: str | None = None) -> tuple[str, RejectEntry]:
     """(bill_id, entry) for a state reject; keeps the page slug as a human anchor."""
-    return str(bill.legiscan_bill_id), RejectEntry(cursor=bill.change_hash or "", id=bill.id)
+    return str(bill.legiscan_bill_id), RejectEntry(
+        cursor=bill.change_hash or "", id=bill.id, scope_version=scope_version
+    )
+
+
+# ---------------------------------------------------------------------------
+# Scope-version staleness (D96)
+# ---------------------------------------------------------------------------
+
+
+def split_stale_rejects(
+    ledger: RejectLedger, current_version: str | None
+) -> tuple[list[str], list[str]]:
+    """Bucket ledger keys by scope-rule vintage: ``(stale_keys, unknown_keys)``.
+
+    *stale* = stamped with a version other than *current_version* (the rules moved
+    under the entry); *unknown* = ``scope_version is None`` (pre-versioning, vintage
+    unverifiable). Entries stamped with the current version appear in neither list.
+    Both lists are sorted for deterministic output. A ``None`` *current_version*
+    (taxonomy not yet versioned) makes every stamped entry stale and is not expected
+    in production.
+    """
+    stale: list[str] = []
+    unknown: list[str] = []
+    for key, entry in ledger.items():
+        if entry.scope_version is None:
+            unknown.append(key)
+        elif entry.scope_version != current_version:
+            stale.append(key)
+    return sorted(stale), sorted(unknown)

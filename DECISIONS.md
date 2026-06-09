@@ -916,3 +916,25 @@ text when unclear.
 remove them from `wiki/.rejects/state.json` (keyed by bill_id + change_hash), and bump the tracker
 counts (ny/2021-22 -> 1 in; ny/2023-24 -> 4 in).
 **Revisit if:** critical-infra bills prove mostly government-facing on inspection.
+
+## 2026-06-09 — 96. Scope-versioned reject ledger; staleness is surfaced, never auto-invalidated
+**Chosen:** `topics.yaml` carries a `scope_version` (the DECISIONS number of the latest scope-rule
+change, currently `"D95"`). `record-rejects` stamps it onto every new reject-ledger entry; a new
+`stale-rejects` CLI command compares stamps against the current version and lists *stale*
+(version-mismatch) and *unknown* (pre-versioning, no stamp) entries, with `--clear` to remove the
+selection so the next sweep re-classifies it. `filter_cached_rejects` is deliberately UNCHANGED — a
+scope-rule bump never auto-invalidates the cache.
+**Alternatives:** auto-invalidate on version mismatch in `filter_cached_rejects` (rejected: a single
+rule bump would silently queue ~1,030 federal + 45 state rejects × ~13k classifier tokens ≈ 14M tokens
+of re-classification — the exact cost the ledger exists to prevent); retro-stamping existing entries
+with "D94" (rejected: asserts a rule vintage never verified — entries were recorded under D82→D94
+states).
+**Why:** the ledger's cursor invalidates on BILL changes only, so scope-rule changes (e.g. D95's
+critical-infra flip) silently strand entries that the new rules would admit. Versioning makes the
+drift visible and its repair a deliberate, costed operator action.
+**Trade-offs:** pre-versioning entries (`scope_version` absent) have unknowable vintage; they are
+reported as *unknown* and bulk-cleared only under `--include-unknown` (or named via `--key`), so the
+first naive `--clear` cannot become a 14M-token cost bomb. Their staleness resolves organically as
+units are re-swept or via explicit review.
+**Revisit if:** scope changes become frequent enough that per-topic (rather than global) versioning
+would avoid re-classifying rejects untouched by a given rule change.

@@ -953,3 +953,13 @@ second brain.
 links. The right fix is section-targeted extraction (extract just the relevant division/title).
 **Revisit if:** section-targeted extraction is built, or a rider's exact statutory text becomes
 load-bearing for analysis.
+
+## 2026-06-09 — 98. "health data" added to privacy recall seeds (D94 pattern)
+**Chosen:** Added `"health data"` to `privacy.seeds`. The WA 2023-24 sweep's recall missed
+**HB 1155, the My Health My Data Act** — a landmark consumer-health-data privacy law — because its
+title/description ("collection, sharing, and selling of consumer health data") contains no prior
+seed. Same maintained-recall-asset discipline as D94 (each confirmed miss adds a targeted seed).
+**Trade-offs:** "health data" is broad enough to pull in government/health-system bills; the
+classifier's precision pass absorbs the extra candidates. Recall seeds do NOT bump `scope_version`
+(D96) — they change discovery, not scope rules.
+**Revisit if:** the seed floods recall in health-heavy sessions.

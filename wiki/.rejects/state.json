@@ -23,6 +23,11 @@
     "cursor": "759ffb528abae273b46df46edf61fed4",
     "id": "ny-2019-a-1746"
   },
+  "1157513": {
+    "cursor": "66b7b602eaeb04e91ba8cb5389472c97",
+    "id": "wa-2019-hb-1251",
+    "scope_version": "D95"
+  },
   "1176482": {
     "cursor": "5048658ae80030686b123f8e338c7f7d",
     "id": "tx-2019-sb-489",
@@ -112,6 +117,16 @@
     "id": "va-2020-hb-1092",
     "scope_version": "D95"
   },
+  "1300842": {
+    "cursor": "6fa3248a8351a94177b4ec7ff3ef1826",
+    "id": "wa-2019-sb-6187",
+    "scope_version": "D95"
+  },
+  "1303426": {
+    "cursor": "33039a0d0bf99623ac28eccd4ad0c077",
+    "id": "wa-2019-sb-6280",
+    "scope_version": "D95"
+  },
   "1317666": {
     "cursor": "0e139aa1044782d8a623ebf1e88f0972",
     "id": "ny-2019-a-9508"
@@ -149,6 +164,11 @@
   "1406326": {
     "cursor": "750d8e45063a6157de0d4b3a79996a39",
     "id": "tx-2021-hb-1118",
+    "scope_version": "D95"
+  },
+  "1439544": {
+    "cursor": "cac52522cdb8289714db5c970b393022",
+    "id": "wa-2021-sb-5432",
     "scope_version": "D95"
   },
   "1443309": {
@@ -249,13 +269,28 @@
     "id": "tx-2023-hb-315",
     "scope_version": "D95"
   },
+  "1642135": {
+    "cursor": "af0c1bd49d1c19f6c4380ae24f2a673d",
+    "id": "wa-2023-sb-5127",
+    "scope_version": "D95"
+  },
   "1642302": {
     "cursor": "5bc684fe0f9ac99d09c59e38572db20b",
     "id": "ca-2023-scr-9"
   },
+  "1643232": {
+    "cursor": "cc80297504c2ef4783152388eaf92fe5",
+    "id": "wa-2023-sb-5152",
+    "scope_version": "D95"
+  },
   "1652173": {
     "cursor": "a918fc4a563e6dad5091d77c7f862ef5",
     "id": "va-2023-hb-2169",
+    "scope_version": "D95"
+  },
+  "1673519": {
+    "cursor": "5d7d7985be6047d31f2e8e46ddea4e39",
+    "id": "wa-2023-sb-5518",
     "scope_version": "D95"
   },
   "1677767": {
@@ -309,6 +344,16 @@
   "1770114": {
     "cursor": "dd2622dd680c3041caec3183840b5300",
     "id": "ny-2023-s-7543"
+  },
+  "1791614": {
+    "cursor": "94f7e8531d234d426fde81de1c359b77",
+    "id": "wa-2023-sb-5838",
+    "scope_version": "D95"
+  },
+  "1792114": {
+    "cursor": "b3d99fb9c10daadbc7f75b714a98fbf4",
+    "id": "wa-2023-sb-5843",
+    "scope_version": "D95"
   },
   "1796695": {
     "cursor": "be908b6fc524ac7d49da38e2fd1aa3fc",

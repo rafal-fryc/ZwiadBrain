@@ -963,3 +963,22 @@ seed. Same maintained-recall-asset discipline as D94 (each confirmed miss adds a
 classifier's precision pass absorbs the extra candidates. Recall seeds do NOT bump `scope_version`
 (D96) — they change discovery, not scope rules.
 **Revisit if:** the seed floods recall in health-heavy sessions.
+
+## 2026-06-09 — 99. Law-brain cross-check seeds + CIRCIA omnibus-rider flip
+**Chosen:** A cross-check of the completed enacted campaign against the law-brain (law-firm-article)
+corpus surfaced 6 misses; four targeted seeds added (D94/D98 pattern): `"digital replica"` (ai —
+CA AB 1836/AB 2602), `"AI transparency"` (ai — CA SB 942, whose title says "AI" never "artificial
+intelligence"), `"biological data"` (privacy — CO HB 24-1058, "biological" ≠ "biometric" under
+exact-substring recall), `"addictive feed"` (privacy — NY S 7694 SAFE for Kids Act). Affected units
+(CA 2023-24, CO 2024, NY 2023-24) re-swept. Separately, federal **HR 2471 / PL 117-103** (CAA 2022)
+was cleared from the reject ledger and re-classified: its Division Y is **CIRCIA** — cyber-incident
+reporting duties on private critical-infrastructure operators (D95) — the same discrete-rider
+pattern as PL 118-50 that the omnibus disqualifier's exception exists for.
+**Why:** recall is exact-substring on terse titles; each confirmed miss adds a seed. The law brain
+is an independent recall oracle — cross-checking it after a campaign is cheap and caught a federal
+classification error (CIRCIA pre-dated the D95 rule and the PL 118-50 lesson).
+**Trade-offs:** "AI transparency" is narrow (title-cased "AI" phrases vary); a broader "AI " token
+seed was rejected as too noisy. CA SB 926 (criminal deepfake-porn law) deliberately NOT flipped —
+person-facing criminal law; open question logged (the IL Doxing Act precedent cuts the other way).
+**Revisit if:** another post-campaign cross-check finds misses these seeds should have caught — at
+that point consider per-session classify-all as the default for big states.

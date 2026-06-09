@@ -26,6 +26,8 @@ topics:
       - "machine learning"
       - "frontier model"
       - "chatbot"
+      - "digital replica"
+      - "AI transparency"
 
   privacy:
     label: "Consumer Privacy & Data Protection"
@@ -45,6 +47,8 @@ topics:
       - "security breach"
       - "breach of security"
       - "health data"
+      - "biological data"
+      - "addictive feed"
 
   cyber:
     label: "Cybersecurity"

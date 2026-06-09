@@ -18,6 +18,7 @@ interpretation a sourced legislative history materially helps.
 |---------|-------|--------------|-----------------|--------|-----------------|
 | 118-hr-815 | PL 118-50 (carries PADFAA + Protecting Americans from Foreign Adversary Controlled Applications Act / TikTok divestiture) | US | landmark data-broker + foreign-adversary-app statutes; high salience; rode an emergency-supplemental vehicle | flagged | /zwiad-leg-history 118/hr/815 |
 | 117-hr-7776 | PL 117-263 / FY23 NDAA — carries the Daniel Anderl Judicial Security and Privacy Act (data-broker ban re: federal judges' info) | US | named data-broker/judicial-security Act; CAVEAT: the relevant history is the *standalone* Daniel Anderl bill, not the NDAA vehicle — leg-history keyed to 117/hr/7776 would surface defense-bill history, low value | flagged | /zwiad-leg-history 117/hr/7776 |
+| 116-hr-7898 | PL 116-321 — HITECH/HIPAA amendment ("HIPAA Safe Harbor"): cybersecurity-practice incentive in HIPAA enforcement + info-blocking investigation authority | US | company-facing health-data security/privacy statute; NOTE: narrow enforcement-discretion amendment (lower priority than a broad rewrite) | flagged | /zwiad-leg-history 116/hr/7898 |
 
 <!--
 Example rows (delete once real entries land):

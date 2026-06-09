@@ -27,7 +27,7 @@ pages rendered; `flagged` = laws added to `leg-history-queue.md`.
 
 | Unit | Years | Status | enacted | in | out | pages | flagged | Notes |
 |------|-------|--------|--------:|---:|----:|------:|--------:|-------|
-| 116  | 2019–20 | pending | – | – | – | – | – | |
+| 116  | 2019–20 | done | 344 | 1 | 343 | 1 | 1 | classify-all (344, `--limit 400`). 1 in-scope: **HR 7898 / PL 116-321** (HITECH/HIPAA "Safe Harbor" — cyber-practice incentive in HIPAA enforcement; cyber+privacy). Excluded: CARES hr-748 (classifier confabulated a 290dd-2 provision absent from the CRS summary), IOGAN s-2904 (govt deepfake research), CAA-2021 hr-133 (govt AI CoE). NDAAs/CARES/FFCRA/CAA-2019/2020/2021/Nat-Resources all out. |
 | 117  | 2021–22 | done | 362 | 1 | 361 | 1 | 1 | classify-all (362; needed `--limit 400` to beat the 250 output cap). 1 in-scope: **HR 7776 / PL 117-263** (FY23 NDAA) carries the **Daniel Anderl Act** (data-broker ban re: federal judges' info). Borderlines excluded per user (D88): Safe Connections hr-7132, Secure Equipment hr-3919, SBA-cyber s-1687. Big vehicles (NDAA/IIJA/CHIPS/IRA/ARPA/Approps-2023) all out as govt ops/funding. |
 | 118  | 2023–24 | done | 274 | 1 | 272 | 1 | 1 | **classify-all** pass (D87): recall→52 + recall-hidden 221 = 273 classified (+1 already-tracked). 1 in-scope: **HR 815 / PL 118-50** (PADFAA data-broker ban + TikTok divestiture). Borderline hr-1568 (CBP strips PII from public manifests) EXCLUDED per D86 (govt duty) — flag for override. NDAA (hr-5009) & RISAA/FISA-702 (hr-7888) excluded per D86. Recall alone would have MISSED HR 815 (omnibus title). |
 
@@ -65,6 +65,6 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 
 ## Progress
 
-- Federal: 2 / 3 units done (118: HR 815 / PL 118-50; 117: HR 7776 / PL 117-263 Daniel Anderl Act).
+- Federal: **3 / 3 units done** (118: HR 815 / PADFAA+TikTok; 117: HR 7776 / Daniel Anderl Act; 116: HR 7898 / HIPAA Safe Harbor). ~980 enacted laws classified, 3 in-scope.
 - States: 0 / 21 units done (rows may grow if annual sessions need per-year units).
 - Update these totals as units flip to `done`.

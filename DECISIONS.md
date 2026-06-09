@@ -786,3 +786,29 @@ telecom-service, equipment-supply-chain, and government-assistance framings as O
 data-handling duty.
 **Revisit if:** the user later wants telecom-service privacy (e.g. call-log/CPNI) or supply-chain
 security tracked, or a future borderline shows the data-broker throughline is too narrow.
+
+---
+
+## 2026-06-09 — 89. State enacted-backfill units use recall (not classify-all) — exception to D87
+**Chosen:** State (state × session) backfill units use the **default recall** discovery (free
+title+description keyword filter), NOT `--classify-all`. Deliberate exception to D87 (classify-all for
+federal units). Rationale: (a) the STATE recall searches the full bill **title + description** (the
+LegiScan `description` field), so a tech bill's keywords surface even when the short title is generic
+— unlike the FEDERAL recall (title-seed + `policyArea` probe) that hid omnibus riders like PL 118-50;
+(b) state sessions are large (a CA regular session enacts ~870 bills; classify-all across ~21
+state-session units would be ~10,000+ classifications); (c) the skill recommends recall-first for
+states and reviewing the verdict rate. CA 2019-20 validated this: recall surfaced 14 highly-relevant
+candidates (the CCPA cluster + the AB 1202 data-broker registry) from ~870 enacted, 9 in-scope.
+**Alternatives:** (B) classify-all for states (federal parity) — rejected: ~10,000+ classifications
+for marginal recall gain, since state recall already searches descriptions. (C) recall plus a
+classify-all audit sample per session — deferred; do ad hoc only if a unit's verdict rate looks
+suspiciously low.
+**Why:** state recall's description-based matching closes the federal omnibus-rider gap that motivated
+D87 at a fraction of the cost. Thorough where it must be (federal omnibus risk), efficient where it
+can be (state single-subject bills with descriptive metadata).
+**Trade-offs:** a state tech law whose LegiScan description carries NO topic keyword would still be
+missed (residual recall risk). Mitigation: review each unit's in/out counts; if a session yields
+suspiciously few in-scope, re-run that unit with `--classify-all`. The federal classify-all default
+(D87) is unchanged.
+**Revisit if:** a state unit's recall yield looks too low (re-run that session classify-all), or a
+missed state law surfaces later.

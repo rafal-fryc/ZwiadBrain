@@ -41,7 +41,7 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 
 | Unit | Run year(s) | Status | enacted | in | out | pages | flagged | Notes |
 |------|-------------|--------|--------:|---:|----:|------:|--------:|-------|
-| ca / 2019-20 | 2019 | pending | – | – | – | – | – | session 1624 (confirmed) |
+| ca / 2019-20 | 2019 | done | 14 | 9 | 5 | 9 | 1 | session 1624. **Recall** (not classify-all): 14 topical of ~870 enacted. 9 in: CCPA amendments (ab-25/713/874/1146/1281/1355/1564), data-breach (ab-1130), **data-broker registration (ab-1202)**. Out: ab-499 (state-agency SSN, govt), ab-1043 (campaign cyber), **ab-1215 (police facial recognition — govt-use, D86; landmark — flagged for review)**, sr-54/sjr-6 (resolutions). |
 | ca / 2021-22 | 2021 | pending | – | – | – | – | – | session 1791 (confirmed) |
 | ca / 2023-24 | 2023 | pending | – | – | – | – | – | session 2016 (confirmed) |
 | ny / 2019-20 | 2019 | pending | – | – | – | – | – | confirm session cadence |
@@ -66,5 +66,5 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 ## Progress
 
 - Federal: **3 / 3 units done** (118: HR 815 / PADFAA+TikTok; 117: HR 7776 / Daniel Anderl Act; 116: HR 7898 / HIPAA Safe Harbor). ~980 enacted laws classified, 3 in-scope.
-- States: 0 / 21 units done (rows may grow if annual sessions need per-year units).
+- States: 1 / 21 units done (ca/2019-20: 9 in-scope — CCPA cluster + AB 1202 data-broker registry). Method: **recall** per D89.
 - Update these totals as units flip to `done`.

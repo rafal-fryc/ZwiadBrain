@@ -14,6 +14,9 @@ pages rendered; `flagged` = laws added to `leg-history-queue.md`.
 
 > **D87 (run rule):** run every unit with `--classify-all` — the 118 calibration proved the recall
 > pre-filter dropped ~80% of enacted laws and silently hid PL 118-50 (PADFAA + TikTok divestiture).
+> ⚠ **Also pass `--limit <N>` ≥ the congress's enacted total** (e.g. `--limit 400`): the default
+> `--limit 250` silently truncates the candidate set (`scanned[:limit]`). 117 has 362 enacted, so the
+> default would have dropped 112. Check the "of N enacted laws" line in the fetch output.
 > **Scope = company-facing obligations only (D86):** government-use surveillance/operations and
 > omnibus appropriations/authorizations are OUT unless they carry a discrete company-facing
 > AI/privacy/cyber provision. This rule is now encoded in `topics.yaml` (SCOPE preamble + criterion
@@ -25,7 +28,7 @@ pages rendered; `flagged` = laws added to `leg-history-queue.md`.
 | Unit | Years | Status | enacted | in | out | pages | flagged | Notes |
 |------|-------|--------|--------:|---:|----:|------:|--------:|-------|
 | 116  | 2019–20 | pending | – | – | – | – | – | |
-| 117  | 2021–22 | pending | – | – | – | – | – | |
+| 117  | 2021–22 | done | 362 | 1 | 361 | 1 | 1 | classify-all (362; needed `--limit 400` to beat the 250 output cap). 1 in-scope: **HR 7776 / PL 117-263** (FY23 NDAA) carries the **Daniel Anderl Act** (data-broker ban re: federal judges' info). Borderlines excluded per user (D88): Safe Connections hr-7132, Secure Equipment hr-3919, SBA-cyber s-1687. Big vehicles (NDAA/IIJA/CHIPS/IRA/ARPA/Approps-2023) all out as govt ops/funding. |
 | 118  | 2023–24 | done | 274 | 1 | 272 | 1 | 1 | **classify-all** pass (D87): recall→52 + recall-hidden 221 = 273 classified (+1 already-tracked). 1 in-scope: **HR 815 / PL 118-50** (PADFAA data-broker ban + TikTok divestiture). Borderline hr-1568 (CBP strips PII from public manifests) EXCLUDED per D86 (govt duty) — flag for override. NDAA (hr-5009) & RISAA/FISA-702 (hr-7888) excluded per D86. Recall alone would have MISSED HR 815 (omnibus title). |
 
 ## States (LegiScan `getMasterList`, `status==4`)
@@ -62,6 +65,6 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 
 ## Progress
 
-- Federal: 1 / 3 units done (118 done — 1 in-scope: HR 815 / PL 118-50).
+- Federal: 2 / 3 units done (118: HR 815 / PL 118-50; 117: HR 7776 / PL 117-263 Daniel Anderl Act).
 - States: 0 / 21 units done (rows may grow if annual sessions need per-year units).
 - Update these totals as units flip to `done`.

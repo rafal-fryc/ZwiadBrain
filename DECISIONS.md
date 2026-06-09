@@ -757,3 +757,32 @@ and `/zwiad-scan-states` keep recall.
 **Revisit if:** a unit's classify-all volume becomes impractical (re-introduce a smarter recall that
 probes summaries), or `topics.yaml` is edited to encode D86 so the per-run scope injection is
 unnecessary.
+
+---
+
+## 2026-06-09 — 88. Company-facing scope boundary refined: data-broker/data-protection IN; service-obligation, supply-chain, and government-assistance OUT
+**Chosen:** Clarify the D86 "company-facing obligations" line using the 117 borderline rulings. IN
+scope: laws imposing **data-protection / data-broker / personal-data-handling** obligations on
+companies (e.g. PADFAA `118-hr-815`, the Daniel Anderl Act's data-broker ban `117-hr-7776` — even
+narrow ones protecting a specific class, even riding in an omnibus). OUT of scope, even though they
+touch companies or tech: (a) telecom-carrier **service** obligations whose data angle is incidental
+(Safe Connections Act `117-hr-7132`); (b) **supply-chain / equipment** market-access restrictions
+(Secure Equipment Act `117-hr-3919`); (c) **government capacity-building / assistance** programs that
+impose no duty on companies (SBA small-biz cyber program `117-s-1687`). User decisions on the 118/117
+borderlines.
+**Alternatives:** (B) treat any law that "affects companies" as in scope — rejected: pulls in
+telecom-service and supply-chain bills the user does not want, diluting the data-protection focus.
+(C) require a broad consumer-facing data regime (exclude narrow data-broker carve-outs like Daniel
+Anderl) — rejected: the user explicitly included the narrow judges-only data-broker ban, signalling
+that **data-broker regulation itself** is the throughline, regardless of the protected class.
+**Why:** across both decided units the user's IN picks were exactly the data-broker / personal-data
+laws (PADFAA, Daniel Anderl) and the OUT picks were service/supply-chain/assistance. The tracker's
+center of gravity is the **data economy** (who may collect/sell/handle personal data), not telecom
+service rules or national-security supply chains.
+**Trade-offs:** some genuinely company-facing privacy-adjacent laws (Safe Connections' call-log
+confidentiality) are excluded, so the tracker is narrower than "all company-facing tech law." Future
+classifier passes should weight the **data-broker / data-protection** signal heavily and treat
+telecom-service, equipment-supply-chain, and government-assistance framings as OUT absent a discrete
+data-handling duty.
+**Revisit if:** the user later wants telecom-service privacy (e.g. call-log/CPNI) or supply-chain
+security tracked, or a future borderline shows the data-broker throughline is too narrow.

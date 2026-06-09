@@ -42,7 +42,7 @@ slash command (interactive Claude Code session)
   bills, render pages. Backed by CLI `fetch-candidates` + `render-classified`.
   An **enacted-only** discovery half for the prior-years backfill,
   `fetch-enacted-candidates` (`/law/{congress}/pub` → two-stage recall → enrich),
-  stages *only* bills that became public law; it backs the planned
+  stages *only* bills that became public law; it backs the
   `/zwiad-backfill-enacted` campaign (PHASE-23/D84).
 - **`/zwiad-scan-states`** — discover state bills via LegiScan `getSearchRaw`
   full-text search, enrich via `getBill`, classify, summarize + explain amendments
@@ -52,8 +52,14 @@ slash command (interactive Claude Code session)
   An **enacted-only** discovery half for the prior-years backfill,
   `fetch-state-enacted-candidates` (`getSessionList` → `getMasterList(id=session)` →
   keep `status==4` → free title+description recall), stages *only* bills that became
-  law; it backs the planned `/zwiad-backfill-enacted-state` (PHASE-24/D84), distinct
-  from the routine `fetch-state-candidates`.
+  law; it backs `/zwiad-backfill-enacted-state` (PHASE-24/D84), distinct from the
+  routine `fetch-state-candidates`.
+- **`/zwiad-backfill-enacted <congress>`** + **`/zwiad-backfill-enacted-state <st> <year>`** —
+  the prior-years **enacted-only** backfill campaign (D84/D85): one Congress / one state-session
+  per run, enacted-first discovery → classify → summarize → render, **stopping before commit** for
+  a per-unit review gate. Progress tracked in `docs/backfill/enacted-campaign.md`; significant laws
+  flagged to `docs/backfill/leg-history-queue.md` for a separate per-law `/zwiad-leg-history` pass.
+  Backed by CLI `fetch-enacted-candidates` / `fetch-state-enacted-candidates` + `render-classified`.
 - **`/zwiad-leg-history <congress/type/number>`** — assemble a source-linked
   legislative history for one enacted bill: deterministic spine + researched,
   grounded, cross-verified hearings/statements + narrative (D34–D37). On-demand,

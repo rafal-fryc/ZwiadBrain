@@ -636,3 +636,62 @@ relies on review. Gap 3 (push/merge cadence) stays convention-only; gap 4 (LegiS
 unaddressed (no clean API hook).
 **Revisit if:** summary quality degrades at large batch sizes (chunk the batch-summarizer), or
 a third persisted-then-applied stage appears (factor a shared apply harness).
+
+---
+
+## 2026-06-08 — 84. Enacted-first discovery for the prior-years backfill
+**Chosen:** Discover the *enacted* corpus directly, before any enrichment/classification spend.
+Federal: `CongressSource.discover_laws` over Congress.gov `/law/{congress}/pub` (enacted public
+laws only, ~300–500/Congress). State: `LegiScanSource.list_sessions` (`getSessionList`) +
+`list_session_enacted` (`getMasterList?id=<session_id>`, keep `status==4`). New CLI halves
+`fetch-enacted-candidates` (federal) and `fetch-state-enacted-candidates` (state). Recall runs
+**before** enrichment — federal via the two-stage `recall_filter` (title seeds + `policyArea`
+probe over the whole enacted set), state via a free title+description keyword match (both fields
+are in the `getMasterList` row); `keyword_filter` was extended to match `title + summary`.
+`--classify-all` opt-in skips recall (zero recall risk).
+**Alternatives:** (B) enrich-then-filter — reuse existing discovery and drop non-enacted after
+enrichment; rejected: federal would sweep thousands of discarded bills and state stays
+recall-limited. (C) hybrid (federal `/law`, state full-text + year + post-filter) — rejected:
+keeps the state recall gap. (Also: `getMasterListRaw` was the first plan; a live probe showed it
+carries only `bill_id`/`number`/`change_hash` — no `status`/`title`/`description` — so the non-Raw
+`getMasterList` is used instead.)
+**Why:** the goal is *completeness over the enacted set* ("all the relevant enacted laws from prior
+years, never bills that died"). Discovering the enacted universe first guarantees we consider every
+enacted law in each period, reaches prior sessions, and spends classifier/enrichment budget only on
+the small enacted set (~6× less than classify-everything). Enacted-only by construction means no
+pending/failed/vetoed bill enters the pipeline. Live-validated: `/law/118/pub` → 274 public laws;
+CA 2019-20 session → 1,626 of 5,423 with `status==4`; a CA 2019 smoke staged CCPA/SSN/cybersecurity
+laws correctly.
+**Trade-offs:** two new source methods + two CLI commands + a `keyword_filter` change (federal
+title-only behaviour preserved). Recall gap: a relevant law with no title seed AND a `policyArea`
+outside the allowlist (federal) can be missed — recoverable by re-running that unit with
+`--classify-all`. A big state session's `getMasterList` is a large single payload (acceptable; one
+call/session).
+**Revisit if:** the federal recall gap proves material (widen the `policyArea` allowlist), or
+LegiScan `getMasterList` payload size becomes a problem (page it).
+
+---
+
+## 2026-06-08 — 85. Per-(jurisdiction × period) unit batching with review gates for the enacted backfill
+**Chosen:** Run the campaign one **unit** at a time — one Congress (`/zwiad-backfill-enacted
+<congress>`) or one state-session (`/zwiad-backfill-enacted-state <st> <year>`) — each running the
+full resumable classify→summarize→render flow against enacted discovery and **stopping before
+commit** for review. Progress is tracked in `docs/backfill/enacted-campaign.md` (one row/unit,
+status pending→in-review→done). Significant enacted laws are flagged to
+`docs/backfill/leg-history-queue.md` for a separate, per-law-approved `/zwiad-leg-history` pass —
+leg-history is NOT part of the backfill. Scope: federal 116/117/118 + the 7 enabled states' 2019–2024
+sessions.
+**Alternatives:** (B) one continuous run with a single final review — rejected: weakest fit for a
+"thoughtful, deliberate" backfill and hard to audit. (C) extend the routine `/zwiad-backfill` /
+`/zwiad-scan-states` with an `--enacted` mode — rejected: mixing modes complicates the proven
+routine-scan commands; separate commands keep concerns isolated. (D) run leg-history for every
+enacted law — rejected: a massive multiplier; flag-a-subset is the chosen depth.
+**Why:** the user asked for a deliberate, reviewable backfill. Per-unit gates make each
+(jurisdiction × period) independently reviewable, committable, and resumable across sessions; the
+tracker is the source of truth so the campaign survives context resets. Dedicated commands leave the
+routine scan/refresh untouched.
+**Trade-offs:** ~24 review gates (3 federal + ~21 state) means many small commits and human review
+passes — slower than a bulk run, by design. The campaign tracker's state-session rows assume biennial
+sessions; annual-session states need rows added as `list_sessions` confirms them.
+**Revisit if:** the per-unit cadence is too slow in practice (batch a jurisdiction's periods), or the
+tracker drifts from the wiki (reconcile from `reindex`).

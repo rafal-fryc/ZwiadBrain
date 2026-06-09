@@ -27,6 +27,9 @@ These run inside an **interactive Claude Code session** (a terminal must be open
 and the command triggered — nothing is headless or cron-driven, D26):
 
 - `/zwiad-backfill` — discover, classify, summarize, and render federal bills.
+- `/zwiad-backfill-enacted <congress>` / `/zwiad-backfill-enacted-state <st> <year>` —
+  backfill **enacted-only** laws from prior years (one Congress / state-session per run,
+  with a review gate), tracked in `docs/backfill/enacted-campaign.md` (D84/D85).
 - `/zwiad-leg-history <congress/type/number>` — assemble a source-linked
   legislative history for one enacted bill (e.g. `/zwiad-leg-history 118/hr/2670`).
 - `/zwiad-refresh` — re-fetch tracked bills, re-run subagents only where a bill
@@ -35,6 +38,7 @@ and the command triggered — nothing is headless or cron-driven, D26):
 
 The underlying deterministic steps are also runnable directly as CLI commands
 (`python -m zwiadbrain --help`): `fetch-candidates` / `render-classified`,
+`fetch-enacted-candidates` / `fetch-state-enacted-candidates` (enacted-only discovery),
 `fetch-leg-history` / `render-leg-history`, `fetch-refreshable` /
 `render-refreshed`, plus `reindex` and `backfill`.
 

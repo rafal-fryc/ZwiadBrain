@@ -16,7 +16,7 @@ interpretation a sourced legislative history materially helps.
 
 | Wiki id | Title | Jurisdiction | Why significant | Status | leg-history cmd |
 |---------|-------|--------------|-----------------|--------|-----------------|
-| _(none yet — populated as units run)_ | | | | | |
+| 118-hr-815 | PL 118-50 (carries PADFAA + Protecting Americans from Foreign Adversary Controlled Applications Act / TikTok divestiture) | US | landmark data-broker + foreign-adversary-app statutes; high salience; rode an emergency-supplemental vehicle | flagged | /zwiad-leg-history 118/hr/815 |
 
 <!--
 Example rows (delete once real entries land):

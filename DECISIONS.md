@@ -695,3 +695,65 @@ passes — slower than a bulk run, by design. The campaign tracker's state-sessi
 sessions; annual-session states need rows added as `list_sessions` confirms them.
 **Revisit if:** the per-unit cadence is too slow in practice (batch a jurisdiction's periods), or the
 tracker drifts from the wiki (reconcile from `reindex`).
+
+---
+
+## 2026-06-08 — 86. Backfill scope is company-facing obligations only; government-use surveillance/authority is out
+**Chosen:** A bill is in scope only if it imposes effects/obligations on **private-sector entities
+(companies)**. Bills that authorize or govern **government** use of surveillance / intelligence /
+data capabilities — even high-salience ones like RISAA (the FISA §702 reauthorization, `118-hr-7888`)
+— are OUT. Omnibus defense authorizations (NDAA, `118-hr-5009`) are also OUT: AI/cyber is a sliver of
+a ~89KB bill and the noise outweighs the signal. User decision made live during the 118 calibration
+run. This **narrows `topics.yaml` positive criterion #4** ("Authorizes or constrains government use of
+AI, biometric, surveillance, or data-broker capabilities"), which as written over-states the intended
+scope.
+**Alternatives:** (B) apply criterion #4 literally and include government surveillance/biometric/
+data-broker authorities — rejected by the user: not the tracking intent. (C) include omnibus bills
+(NDAA) for their operative AI/cyber subtitles — rejected: too noisy to be useful. (D) leave the
+classifier to decide case-by-case — rejected: RISAA showed the rubric pulls these in, so the scope
+must be stated, not left implicit.
+**Why:** the user wants ZwiadBrain to map the **regulated-industry compliance landscape** — laws that
+create AI/privacy/cyber obligations companies must follow — not the government's own surveillance or
+defense authorities. Stating the rule keeps every unit's classification consistent and auditable.
+**Trade-offs:** marquee surveillance/intelligence laws (RISAA) and defense omnibuses (NDAA) are
+excluded despite high public salience — ZwiadBrain is deliberately NOT a complete "tech law" tracker.
+Under this rule the 118th Congress yields **zero** in-scope enacted public laws. Because `topics.yaml`
+criterion #4 still reads broadly, the `classifier` subagent will keep scoring such bills IN on future
+units (116/117 NDAAs, any FISA bills) and require a manual override each time — until the taxonomy is
+tightened (separate, approval-gated edit; not done in this data run).
+**Revisit if:** the user later wants government surveillance/authority law tracked (restore criterion
+#4 literally), or `topics.yaml` is edited to encode the company-facing narrowing so overrides become
+unnecessary.
+
+---
+
+## 2026-06-08 — 87. Enacted backfill runs use `--classify-all` (recall pre-filter retired for this campaign)
+**Chosen:** Run every enacted-backfill unit with `--classify-all` — classify the FULL enacted set,
+retiring the recall (title-seed + `policyArea`) pre-filter for this campaign. The 118 calibration
+proved recall dropped **221 of 274 (80%)** of enacted laws before classification and **silently hid
+PL 118-50 (HR 815)** — which carries PADFAA (the data-broker ban) and the TikTok divestiture, both
+squarely in-scope company-facing laws, because the law rode an "emergency supplemental appropriations"
+vehicle whose title/policyArea trips no seed. The reject ledger (D82) keeps cost bounded:
+`--classify-all --skip-existing` re-classifies only laws not already tracked or ledgered. The D86
+company-facing scope rule is injected into the classifier prompt each run (topics.yaml criterion #4
+still reads broadly), and classification is **batched** (~15 bills per classifier subagent) to
+amortize the topics.yaml read.
+**Corrects D86:** D86's "the 118th Congress yields zero in-scope enacted public laws" was an artifact
+of the recall miss. Under classify-all, **118 yields 1 in-scope law: HR 815 / PL 118-50.**
+**Alternatives:** (B) keep recall + manually add known-missed laws — rejected: relies on the operator
+remembering what's hidden, defeating a thorough backfill. (C) fix recall to probe summaries/full text
+— deferred: a tested code change, separate from this data campaign; classify-all reaches completeness
+now without touching precision/recall code. (D) accept recall's misses — rejected: an 80% pre-filter
+drop with confirmed false-negatives is unacceptable for a deliberate enacted-law backfill.
+**Why:** the enacted universe per Congress is small (~270–700 laws), so classifying all of them is
+affordable, and completeness matters more than classifier-call savings for a one-time backfill. Recall
+was tuned for the far larger universe of ALL introduced bills in routine scans — the wrong tradeoff
+for enacted-only backfill.
+**Trade-offs:** ~6× more classifier work per unit (273 vs ~52 classifications for 118), mitigated by
+the reject ledger (skip-existing) + batching. Mega-summary bills (>~25k tokens on a single line, e.g.
+FAA Reauthorization, Consolidated Appropriations) still cannot be read whole by a subagent and are
+handled by seed-context extraction. Scoped to the enacted campaign only — routine `/zwiad-backfill`
+and `/zwiad-scan-states` keep recall.
+**Revisit if:** a unit's classify-all volume becomes impractical (re-introduce a smarter recall that
+probes summaries), or `topics.yaml` is edited to encode D86 so the per-run scope injection is
+unnecessary.

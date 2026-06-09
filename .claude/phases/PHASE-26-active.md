@@ -1,5 +1,5 @@
 # Phase 26 — Execute the enacted-laws backfill campaign
-Status: PENDING
+Status: ACTIVE
 
 ## Goal
 Run the campaign unit-by-unit (federal 116/117/118 + the 7 states' 2019–2024 sessions), reviewing and committing each (jurisdiction × period) unit before starting the next.

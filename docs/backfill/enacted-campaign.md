@@ -8,9 +8,15 @@
 
 **Status values:** `pending` → `in-review` (run done, awaiting your approval) → `done` (committed).
 
-**Counts legend:** `enacted` = enacted laws discovered (post recall); `in` / `out` = classified
-in-scope / out-of-scope; `pages` = wiki pages rendered; `flagged` = laws added to
-`leg-history-queue.md`.
+**Counts legend:** `enacted` = enacted laws discovered (full set; runs use `--classify-all` per D87,
+so recall no longer pre-filters); `in` / `out` = classified in-scope / out-of-scope; `pages` = wiki
+pages rendered; `flagged` = laws added to `leg-history-queue.md`.
+
+> **D87 (run rule):** run every unit with `--classify-all` — the 118 calibration proved the recall
+> pre-filter dropped ~80% of enacted laws and silently hid PL 118-50 (PADFAA + TikTok divestiture).
+> **Scope = company-facing obligations only (D86):** government-use surveillance/operations and
+> omnibus appropriations/authorizations are OUT unless they carry a discrete company-facing
+> AI/privacy/cyber provision. Inject this scope rule into the classifier prompt each run.
 
 ## Federal (Congress.gov `/law/{congress}/pub`)
 
@@ -18,7 +24,7 @@ in-scope / out-of-scope; `pages` = wiki pages rendered; `flagged` = laws added t
 |------|-------|--------|--------:|---:|----:|------:|--------:|-------|
 | 116  | 2019–20 | pending | – | – | – | – | – | |
 | 117  | 2021–22 | pending | – | – | – | – | – | |
-| 118  | 2023–24 | pending | – | – | – | – | – | |
+| 118  | 2023–24 | done | 274 | 1 | 272 | 1 | 1 | **classify-all** pass (D87): recall→52 + recall-hidden 221 = 273 classified (+1 already-tracked). 1 in-scope: **HR 815 / PL 118-50** (PADFAA data-broker ban + TikTok divestiture). Borderline hr-1568 (CBP strips PII from public manifests) EXCLUDED per D86 (govt duty) — flag for override. NDAA (hr-5009) & RISAA/FISA-702 (hr-7888) excluded per D86. Recall alone would have MISSED HR 815 (omnibus title). |
 
 ## States (LegiScan `getMasterList`, `status==4`)
 
@@ -54,6 +60,6 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 
 ## Progress
 
-- Federal: 0 / 3 units done.
+- Federal: 1 / 3 units done (118 done — 1 in-scope: HR 815 / PL 118-50).
 - States: 0 / 21 units done (rows may grow if annual sessions need per-year units).
 - Update these totals as units flip to `done`.

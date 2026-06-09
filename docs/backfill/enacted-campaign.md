@@ -46,7 +46,7 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 | ca / 2023-24 | 2023 | done | 23 | 12 | 11 | 12 | 4 | session 2016. Recall: 23 topical. 12 in: CCPA (947/1008/1824/3286), **SB 362 DELETE Act**, **SB 1223 neural data**, **AB 2013 GenAI training-data transparency**, **AB 2655 deepfake-election platform duty** (D91), AB 3030 (health-AI disclosure), SB 793 (insurer privacy), AB 801 + AB 1971 (student/test privacy). Out: govt-AI/cyber (Dept of Tech ADS, CSU, Cal-CSIC, Sec-GovOps GenAI Accountability, school AI bills), AB 2355 (AI political-ad disclosure — election-actor, D91), 3 resolutions. |
 | ny / 2019-20 | 2019 | done | 4 | 1 | 3 | 1 | 1 | After PHASE-27 fix (resolutions dropped, A/S deduped, recall broadened): recall→4. 1 in: **A 5635 NY SHIELD Act** (Ch.117/2019 — breach-notification + data-security on businesses; recall had missed it pre-fix). Out: AI study commission (a-1746), education biometric study/school ban (a-6787), budget Article VII (a-9508) — all govt. |
 | ny / 2021-22 | 2021 | done | 6 | 0 | 6 | 0 | 0 | recall→6, 0 in-scope (NY passed no major company-facing privacy/AI/cyber law this session). All govt/edge: OITS biometric study, DFS literacy site, DEC/parking physical infra, 24h breach-notice-to-state-agencies. ⚠ BORDERLINE excluded: a-3904 critical-energy-infrastructure security (cyber 0.72) — terse metadata; flag for override. |
-| ny / 2023-24 | 2023 | pending | – | – | – | – | – | confirm session cadence |
+| ny / 2023-24 | 2023 | done | 10 | 2 | 8 | 2 | 1 | recall→10. 2 in: **S 2659** (business 30-day data-breach notification), **S 7695 NY Child Data Protection Act**. 4 BORDERLINES excluded (flag for override): a-2896/a-7364 (critical-infra cyber — possible private-operator mandate), a-8805/a-8808 (budget Article-VII omnibus; classifier inferred Part F/Part MM AI/privacy provisions NOT in the terse description — confabulation risk). Out: a-2833 (govt procurement), a-6146 (govt records), s-5890 (insurer wellness incidental), s-7543 (LOADinG Act — govt ADS). |
 | tx / 2019-20 | 2019 | pending | – | – | – | – | – | confirm session cadence |
 | tx / 2021-22 | 2021 | pending | – | – | – | – | – | confirm session cadence |
 | tx / 2023-24 | 2023 | pending | – | – | – | – | – | confirm session cadence |
@@ -66,7 +66,7 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 ## Progress
 
 - Federal: **3 / 3 units done** (118: HR 815 / PADFAA+TikTok; 117: HR 7776 / Daniel Anderl Act; 116: HR 7898 / HIPAA Safe Harbor). ~980 enacted laws classified, 3 in-scope.
-- States: 5 / 21 units done (PHASE-27 hardened big-state discovery). Method: **recall** per D89; **autonomous per-unit commits, stop only at borderlines** per D90.
+- States: 6 / 21 units done (PHASE-27 hardened big-state discovery). Method: **recall** per D89; **autonomous per-unit commits, stop only at borderlines** per D90.
   - ny/2019-20: 1 in-scope (A 5635 NY SHIELD Act). ny/2021-22: 0 in-scope (no major company-facing law; a-3904 borderline excluded).
   - ca/2019-20: 9 in-scope (CCPA cluster + AB 1202 data-broker registry).
   - ca/2021-22: 3 in-scope (AB 2273 AADC + AB 825 genetic-breach + AB 335 CCPA-vessel).

@@ -938,3 +938,18 @@ first naive `--clear` cannot become a 14M-token cost bomb. Their staleness resol
 units are re-swept or via explicit review.
 **Revisit if:** scope changes become frequent enough that per-topic (rather than global) versioning
 would avoid re-classifying rejects untouched by a given rule change.
+
+## 2026-06-09 — 97. Omnibus carriers excluded from full-text extraction (deferred, not dropped)
+**Chosen:** The extraction backfill (`extract-tracked`) skips the federal omnibus carriers —
+`117-hr-7776` (FY23 NDAA, carries the Daniel Anderl Act), `118-hr-2670` (FY24 NDAA), `118-hr-815`
+(foreign-aid supplemental, carries PADFAA + TikTok divestiture) — via `--skip`. Their pages keep
+source links only. User decision.
+**Alternatives:** extract everything (rejected: a ~4,000-page enrolled NDAA is an hour+ Docling run
+and a multi-MB sidecar that is ~99% out-of-scope text, polluting FTS results for every cyber/privacy
+query); a `--max-pages` guard (deferred: more durable but needs a page-count probe before download).
+**Why:** the in-scope provision is a tiny rider; full-carrier text adds noise, not signal, to the
+second brain.
+**Trade-offs:** the operative text of the Anderl Act / PADFAA riders is NOT in the wiki yet — only
+links. The right fix is section-targeted extraction (extract just the relevant division/title).
+**Revisit if:** section-targeted extraction is built, or a rider's exact statutory text becomes
+load-bearing for analysis.

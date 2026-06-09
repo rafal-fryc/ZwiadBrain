@@ -82,3 +82,9 @@ This action targets AI-washing in adtech — companies that falsely invoke AI or
 ## Sources
 
 - [FTC](https://www.ftc.gov/news-events/news/press-releases/2026/05/ftc-require-cox-media-group-two-other-firms-pay-nearly-1-million-settle-charges-they-deceived)
+
+<!-- extracted-text:region:begin -->
+## Extracted Text
+
+- [Full text extracted via Docling](ftc-2026-cox-media-group.text.md)
+<!-- extracted-text:region:end -->

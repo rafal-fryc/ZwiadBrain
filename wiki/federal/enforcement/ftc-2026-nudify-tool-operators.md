@@ -61,3 +61,9 @@ This is among the first enforcement signals under the newly effective TAKE IT DO
 ## Sources
 
 - [FTC](https://www.ftc.gov/news-events/news/press-releases/2026/05/ftc-sends-warning-letters-companies-about-compliance-take-it-down-act)
+
+<!-- extracted-text:region:begin -->
+## Extracted Text
+
+- [Full text extracted via Docling](ftc-2026-nudify-tool-operators.text.md)
+<!-- extracted-text:region:end -->

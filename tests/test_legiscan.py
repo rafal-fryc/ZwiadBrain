@@ -238,3 +238,70 @@ def test_fetch_leg_history_uses_single_getbill_call() -> None:
         route = mock.get(url=LEGISCAN_API_BASE).respond(200, json=payload)
         _source().fetch_leg_history("1789012")
     assert route.call_count == 1
+
+
+# --- Session dataclass + list_sessions (PHASE-24) ---------------------------
+
+
+def test_list_sessions_maps_getsessionlist_to_sessions() -> None:
+    """should map getSessionList entries to Session records for the state"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getSessionList": _fixture("getSessionList.json")})
+        sessions = _source().list_sessions()
+    assert [s.session_id for s in sessions] == [2016, 1791, 1624]
+    assert sessions[-1].year_start == 2019
+    assert sessions[-1].year_end == 2020
+    assert sessions[-1].special is False
+    assert sessions[-1].session_name == "2019-2020 Session"
+
+
+# --- list_session_enacted (PHASE-24) ----------------------------------------
+
+
+def test_list_session_enacted_keeps_only_passed_bills() -> None:
+    """should keep status==4 rows, carry title+description, skip the session member"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterList": _fixture("getMasterList.json")})
+        cands = _source().list_session_enacted(1624)
+    assert [c.native_id for c in cands] == ["1132030", "1132099"]
+    ab1 = cands[0]
+    assert ab1.jurisdiction == "US-CA"
+    assert "artificial intelligence" in (ab1.title.lower() + " " + (ab1.summary or "").lower())
+    assert ab1.summary is not None
+    assert ab1.raw.get("change_hash") == "hashA"
+
+
+def test_list_session_enacted_respects_limit() -> None:
+    """should cap the returned enacted candidates at limit"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterList": _fixture("getMasterList.json")})
+        cands = _source().list_session_enacted(1624, limit=1)
+    assert [c.native_id for c in cands] == ["1132030"]
+
+
+def test_list_sessions_returns_empty_when_no_sessions() -> None:
+    """should return [] when getSessionList omits the sessions key"""
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getSessionList": {"status": "OK"}})
+        assert _source().list_sessions() == []
+
+
+def test_list_session_enacted_returns_empty_when_none_passed() -> None:
+    """should return [] when no bill in the masterlist has status==4"""
+    payload = {
+        "status": "OK",
+        "masterlist": {
+            "session": {"session_id": 1624},
+            "0": {
+                "bill_id": 1,
+                "number": "AB9",
+                "change_hash": "h",
+                "status": 6,
+                "title": "x",
+                "description": "y",
+            },
+        },
+    }
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterList": payload})
+        assert _source().list_session_enacted(1624) == []

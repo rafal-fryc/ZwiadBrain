@@ -206,6 +206,17 @@ def _parse_supplement_media(detail: dict[str, Any]) -> list[RelatedMedia]:
 
 
 @dataclass(frozen=True)
+class Session:
+    """One LegiScan legislative session (from ``getSessionList``)."""
+
+    session_id: int
+    year_start: int
+    year_end: int
+    special: bool
+    session_name: str
+
+
+@dataclass(frozen=True)
 class StateLegHistoryInputs:
     """One getBill's legislative-history inputs (PHASE-16 / D75).
 
@@ -351,6 +362,67 @@ class LegiScanSource:
                 len(candidates), total, self.state,
             )
         return candidates
+
+    def list_sessions(self) -> list[Session]:
+        """List the state's legislative sessions (``getSessionList``) newest-first.
+
+        Maps each entry to a :class:`Session`; the prior-years backfill resolves a target
+        ``--year`` to the session(s) whose ``[year_start, year_end]`` span covers it
+        (PHASE-24/D84).
+        """
+        payload = self._get("getSessionList", state=self.state)
+        sessions: list[Session] = []
+        for entry in _items(payload.get("sessions")):
+            sid = entry.get("session_id")
+            if sid is None:
+                continue
+            sessions.append(
+                Session(
+                    session_id=int(sid),
+                    # LegiScan reliably provides year_start/year_end for regular sessions;
+                    # default 0 for any that omit them (won't match a real --year).
+                    year_start=int(entry.get("year_start") or 0),
+                    year_end=int(entry.get("year_end") or 0),
+                    special=bool(entry.get("special")),
+                    session_name=str(entry.get("session_name") or ""),
+                )
+            )
+        return sessions
+
+    def list_session_enacted(
+        self, session_id: int, *, limit: int | None = None
+    ) -> list[Candidate]:
+        """List a session's ENACTED bills as candidates (D84, PHASE-24).
+
+        Keeps only rows with ``status == 4`` (LegiScan "Passed" = enacted; see
+        ``_STATUS_TEXT``). Uses ``getMasterList`` (NOT ``getMasterListRaw`` — the Raw variant
+        carries only ``bill_id``/``number``/``change_hash``). Each kept row carries ``title``
+        and the LegiScan ``description`` (onto ``Candidate.summary``) so topic recall is free, plus
+        ``change_hash`` in ``raw`` for the state reject-ledger cursor. The numeric-keyed
+        ``masterlist`` container's non-bill ``session`` member is skipped by requiring a
+        ``bill_id`` (parity with :meth:`change_hashes`).
+        """
+        masterlist = _obj(self._get("getMasterList", id=session_id).get("masterlist"))
+        candidates: list[Candidate] = []
+        for entry in masterlist.values():
+            row = _obj(entry)
+            bill_id = row.get("bill_id")
+            if bill_id is None:
+                continue
+            if int(row.get("status") or 0) != _PASSED_STATUS:
+                continue
+            candidates.append(
+                Candidate(
+                    source=self.name,
+                    native_id=str(bill_id),
+                    jurisdiction=f"US-{self.state.upper()}",
+                    title=str(row.get("title") or ""),
+                    summary=_opt_str(row.get("description")),
+                    update_date=_opt_str(row.get("status_date")),
+                    raw={"change_hash": row.get("change_hash"), "status": row.get("status")},
+                )
+            )
+        return candidates[:limit] if limit is not None else candidates
 
     def change_hashes(self) -> dict[int, str]:
         """Return ``{bill_id: change_hash}`` for the state's current session (refresh cursor).

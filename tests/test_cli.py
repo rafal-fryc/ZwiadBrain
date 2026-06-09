@@ -6,6 +6,7 @@ wired up and reports its version.
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import httpx
@@ -35,6 +36,21 @@ _TOPICS = Path(__file__).resolve().parents[1] / "reference" / "topics.yaml"
 
 def _fixture(name: str) -> dict[str, object]:
     return json.loads((_FIX / name).read_text(encoding="utf-8"))
+
+
+_LEGISCAN_FIX = Path(__file__).parent / "fixtures" / "legiscan"
+
+
+def _legiscan_fixture(name: str) -> dict[str, Any]:
+    return json.loads((_LEGISCAN_FIX / name).read_text(encoding="utf-8"))
+
+
+def _route_legiscan(mock: respx.MockRouter, mapping: dict[str, dict[str, Any]]) -> None:
+    """Dispatch LegiScan ops (single base URL) to fixture payloads by the `op` query param."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        op = request.url.params.get("op")
+        return httpx.Response(200, json=mapping[op])
+    mock.get(url=LEGISCAN_API_BASE).mock(side_effect=handler)
 
 
 def _route_backfill(mock: respx.MockRouter) -> None:
@@ -1723,6 +1739,123 @@ def test_fetch_state_candidates_stages_enriched_bills(
     staged = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
     assert len(staged) == 1
     assert staged[0]["id"] == "ca-2023-sb-362"
+
+
+def _fake_state_enrich(source: object, candidate: Candidate) -> Bill:
+    """Stub enrich: build a state Bill from the candidate (no HTTP)."""
+    return Bill(
+        id=f"ca-2019-{candidate.native_id}",
+        jurisdiction=candidate.jurisdiction,
+        title=candidate.title or "x",
+        bill_number=candidate.native_id,
+        enacted=True,
+        legiscan_bill_id=int(candidate.native_id),
+    )
+
+
+def test_fetch_state_enacted_keeps_topical_enacted_laws(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should resolve --year to a session, keep enacted+topical bills, stage them"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LEGISCAN_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_state_enrich)
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        _route_legiscan(mock, {
+            "getSessionList": _legiscan_fixture("getSessionList.json"),
+            "getMasterList": _legiscan_fixture("getMasterList.json"),
+        })
+        result = runner.invoke(
+            app,
+            ["fetch-state-enacted-candidates", "--state", "ca", "--year", "2019",
+             "--topics", str(_TOPICS), "--out", str(out)],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    # AB1 (status4, AI) kept; AB99 (status4, off-topic) dropped by recall; SB200 (status6) excluded.
+    assert [b["legiscan_bill_id"] for b in data] == [1132030]
+
+
+def test_fetch_state_enacted_classify_all_stages_all_enacted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--classify-all stages every enacted (status==4) bill, skipping recall"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LEGISCAN_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_state_enrich)
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        _route_legiscan(mock, {
+            "getSessionList": _legiscan_fixture("getSessionList.json"),
+            "getMasterList": _legiscan_fixture("getMasterList.json"),
+        })
+        result = runner.invoke(
+            app,
+            ["fetch-state-enacted-candidates", "--state", "ca", "--year", "2019",
+             "--classify-all", "--out", str(out)],
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert [b["legiscan_bill_id"] for b in data] == [1132030, 1132099]  # both enacted, no recall
+
+
+def test_fetch_state_enacted_errors_without_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero with a clear error when LEGISCAN_API_KEY is unset"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("LEGISCAN_API_KEY", raising=False)
+    result = runner.invoke(
+        app, ["fetch-state-enacted-candidates", "--state", "ca", "--year", "2019"]
+    )
+    assert result.exit_code == 1
+    assert "LEGISCAN_API_KEY" in result.output
+
+
+def test_fetch_state_enacted_skip_existing_drops_cached_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--skip-existing drops a recall-kept enacted bill cached as a reject (D82)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LEGISCAN_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_state_enrich)
+    wiki = tmp_path / "wiki"
+    # AB1 (bill_id 1132030, change_hash hashA) is the only recall survivor; cache it
+    # as a reject with its unchanged cursor so skip-existing drops it.
+    write_reject_ledger(
+        wiki / ".rejects" / "state.json",
+        {"1132030": RejectEntry(cursor="hashA", id="ca-2019-1132030")},
+    )
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        _route_legiscan(mock, {
+            "getSessionList": _legiscan_fixture("getSessionList.json"),
+            "getMasterList": _legiscan_fixture("getMasterList.json"),
+        })
+        result = runner.invoke(
+            app,
+            ["fetch-state-enacted-candidates", "--state", "ca", "--year", "2019",
+             "--skip-existing", "--wiki", str(wiki), "--topics", str(_TOPICS), "--out", str(out)],
+        )
+    assert result.exit_code == 0, result.output
+    assert json.loads((out / "candidates.json").read_text(encoding="utf-8")) == []
+    assert "cached-reject" in result.output
+
+
+def test_fetch_state_enacted_errors_when_no_session_covers_year(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should exit non-zero when no session covers the requested year"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LEGISCAN_API_KEY", "test-key")
+    with respx.mock(assert_all_called=False) as mock:
+        _route_legiscan(mock, {"getSessionList": _legiscan_fixture("getSessionList.json")})
+        result = runner.invoke(
+            app, ["fetch-state-enacted-candidates", "--state", "ca", "--year", "1990"]
+        )
+    assert result.exit_code == 1
+    assert "no ca session" in result.output
 
 
 def test_fetch_bill_stages_federal_bill_when_no_state(

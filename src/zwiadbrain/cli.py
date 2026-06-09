@@ -12,6 +12,8 @@ makes no LLM calls — DECISIONS.md D26/D27). Commands:
 - ``fetch-leg-history`` / ``render-leg-history`` — the ``/zwiad-leg-history`` halves.
 - ``fetch-refreshable`` / ``render-refreshed`` — the ``/zwiad-refresh`` halves.
 - ``fetch-state-candidates`` / ``fetch-state-refreshable`` — ``/zwiad-scan-states``.
+- ``fetch-state-enacted-candidates`` — enacted-only state discovery for
+  ``/zwiad-backfill-enacted-state`` (D84).
 - ``fetch-enforcement-candidates`` / ``render-enforcement`` — ``/zwiad-scan-enforcement``.
 - ``fetch-lawbrain-candidates`` / ``render-lawbrain-commentary`` — ``/zwiad-sync-lawbrain``.
 
@@ -664,6 +666,88 @@ def fetch_state_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"fetched {len(bills)} {state} candidate(s) to {path}")
+
+
+@app.command(name="fetch-state-enacted-candidates")
+def fetch_state_enacted_candidates(
+    state: Annotated[str, typer.Option(help="Two-letter state, e.g. ca.")],
+    year: Annotated[int, typer.Option(help="Target year; resolves to the session(s) covering it.")],
+    # Default high (vs fetch_state_candidates's 5): backfill enumerates most of a
+    # session's enacted laws, not just a handful of newest search hits.
+    limit: Annotated[
+        int, typer.Option(min=1, help="Max in-scope candidates to stage (recall output cap).")
+    ] = 250,
+    classify_all: Annotated[
+        bool,
+        typer.Option(
+            "--classify-all/--no-classify-all",
+            help="Skip the recall pre-filter; stage every enacted bill for classification.",
+        ),
+    ] = False,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            "--skip-existing/--no-skip-existing",
+            help="Drop bills already tracked or in the state reject ledger.",
+        ),
+    ] = False,
+    out: Annotated[Path | None, typer.Option(help="Run directory for candidates.json.")] = None,
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+    wiki: Annotated[Path, typer.Option(help="Wiki root, for --skip-existing.")] = Path("wiki"),
+) -> None:
+    """Fetch a state session's ENACTED bills and stage the in-scope ones for classification.
+
+    Enacted-first discovery half of ``/zwiad-backfill-enacted-state`` (D84): ``getSessionList``
+    resolves ``--year`` to the session(s) covering it, then ``getMasterList`` lists that
+    session's bills and we keep only ``status == 4 (Passed)`` — non-enacted bills never enter
+    the pipeline. By default a free title+description keyword recall keeps the topically-
+    relevant enacted bills and the classifier subagent gates the survivors; ``--classify-all``
+    skips recall and stages every enacted bill.
+    """
+    try:
+        api_key = load_settings().require_legiscan_api_key()
+        source = LegiScanSource(api_key, state)
+        sessions = [s for s in source.list_sessions() if s.year_start <= year <= s.year_end]
+        if not sessions:
+            raise ConfigError(f"no {state} session covers year {year}")
+        # Dedup across sessions by native_id (preserving order): a special session can
+        # overlap a regular session's year span, so --year may match >1 session and
+        # surface the same bill twice — staging it once avoids a double enrich.
+        enacted: list[Candidate] = []
+        seen_ids: set[str] = set()
+        for session in sessions:
+            for cand in source.list_session_enacted(session.session_id):
+                if cand.native_id in seen_ids:
+                    continue
+                seen_ids.add(cand.native_id)
+                enacted.append(cand)
+        if classify_all:
+            candidates = enacted
+        else:
+            seeds = load_reference(topics).seeds
+            candidates = keyword_filter(enacted, seeds)
+        if skip_existing:
+            known = _existing_state_bill_ids(wiki, state)
+            ledger = load_reject_ledger(wiki / ".rejects" / "state.json")
+            before = len(candidates)
+            candidates = filter_by_key(candidates, known, key_of=state_key)
+            after_unseen = len(candidates)
+            candidates = filter_cached_rejects(
+                candidates, ledger, key_of=state_key, cursor_of=state_cursor
+            )
+            typer.echo(
+                f"skip-existing: dropped {before - after_unseen} already-tracked"
+                f" + {after_unseen - len(candidates)} cached-reject of {before} enacted"
+                f" ({len(known)} on wiki, {len(ledger)} rejects)"
+            )
+        candidates = candidates[:limit]
+        bills = [enrich(source, candidate) for candidate in candidates]
+        payload = [bill.model_dump(mode="json") for bill in bills]
+        path = stage_json(payload, name="candidates.json", out=out)
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"fetched {len(bills)} enacted {state} candidate(s) to {path}")
 
 
 @app.command(name="fetch-bill")

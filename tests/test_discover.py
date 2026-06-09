@@ -157,6 +157,35 @@ def test_recall_filter_caps_to_limit_without_probing() -> None:
 # --- filter_unseen: drop candidates already on the wiki (PHASE-22) ----------
 
 
+def test_keyword_filter_matches_summary_text() -> None:
+    """should keep a candidate whose seed appears only in its summary, not its title"""
+    title_miss = Candidate(
+        source="legiscan", native_id="1", jurisdiction="US-CA",
+        title="An act relating to public works.",
+        summary="Establishes an artificial intelligence oversight board.",
+    )
+    no_match = Candidate(
+        source="legiscan", native_id="2", jurisdiction="US-CA",
+        title="An act relating to fishing licenses.",
+        summary="Concerns recreational fishing fees.",
+    )
+    kept = keyword_filter([title_miss, no_match], ["artificial intelligence"])
+    assert [c.native_id for c in kept] == ["1"]
+
+
+def test_keyword_filter_title_only_when_summary_absent() -> None:
+    """should preserve title-only matching for candidates with no summary (federal)"""
+    fed = Candidate(source="congress", native_id="118/hr/1", jurisdiction="US",
+                    title="Artificial Intelligence Accountability Act")
+    other = Candidate(source="congress", native_id="118/hr/2", jurisdiction="US",
+                      title="Farm Bill")
+    kept = keyword_filter([fed, other], ["artificial intelligence"])
+    assert [c.native_id for c in kept] == ["118/hr/1"]
+
+
+# --- filter_unseen: drop candidates already on the wiki (PHASE-22) ----------
+
+
 def test_filter_unseen_drops_candidates_already_on_the_wiki() -> None:
     """should drop a candidate whose bill id is in known_ids, keep the rest"""
     cands = [_fed_candidate("118/hr/1"), _fed_candidate("118/hr/2")]

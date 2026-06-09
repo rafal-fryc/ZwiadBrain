@@ -47,10 +47,12 @@ budget. The only new code is discovery; everything downstream is reused verbatim
 
 - **Federal:** discover via Congress.gov `/law/{congress}` — lists *only* enacted public
   laws (~300–500/Congress). Far smaller, precise, complete.
-- **State:** `getSessionList` → `getMasterListRaw(id=session_id)` per prior session →
-  keep `status == 4 (Passed)`. The masterlist already carries `status` + title +
-  description, so the **complete** enacted set is filtered with **one call per session
-  and zero per-bill fetches**.
+- **State:** `getSessionList` → `getMasterList(id=session_id)` per prior session →
+  keep `status == 4 (Passed)`. **(Use `getMasterList`, NOT `getMasterListRaw` — the Raw
+  variant carries only `bill_id`/`number`/`change_hash`; the non-Raw `getMasterList`
+  carries `status` + `title` + `description` per row, live-confirmed.)** The masterlist
+  thus filters the **complete** enacted set with **one call per session and zero per-bill
+  fetches**.
 
 **Rejected alternatives** (logged in DECISIONS):
 - *B — enrich-then-filter:* reuse existing discovery, drop non-enacted after enrichment.
@@ -75,15 +77,17 @@ discover_laws(congress: int, *, limit: int = 250, max_pages: int = 1) -> list[Ca
 ### 4.2 State — `legiscan.py`
 ```
 list_sessions() -> list[Session]                       # getSessionList for self.state
-list_session_enacted(session_id: int, *, limit) -> list[Candidate]   # getMasterListRaw(id=)
+list_session_enacted(session_id: int, *, limit) -> list[Candidate]   # getMasterList(id=)
 ```
 - `Session` = `{session_id, year_start, year_end, special, session_name}` (small frozen
   dataclass, like `StateLegHistoryInputs`).
-- `list_session_enacted` reads the numeric-keyed `masterlist` (same container shape as
-  `change_hashes()`), keeps rows with `status == 4`, and returns `Candidate`s carrying
-  `bill_id`, `change_hash`, `title`, `description` from the masterlist row.
-- **Live-validation task (PHASE-B first step):** confirm `getMasterListRaw?id=<session_id>`
-  returns a per-row `status` field and that `id=` selects a *prior* session.
+- `list_session_enacted` reads the numeric-keyed `masterlist` from **`getMasterList(id=)`**
+  (skipping the `session` sub-object, as `change_hashes()` does), keeps rows with
+  `status == 4`, and returns `Candidate`s carrying `bill_id`, `change_hash`, `title`,
+  `description` from the masterlist row.
+- **Live-confirmed (2026-06-08):** `getMasterList?id=<session_id>` selects a *prior* session
+  and every row carries `status`/`title`/`description` (CA 2019–20 session `1624`: 5,423 rows,
+  1,626 with `status==4`). `getMasterListRaw` does **not** carry these — hence `getMasterList`.
 
 ### 4.3 New CLI fetch halves — `cli.py` (mirror `fetch-candidates`)
 ```
@@ -109,7 +113,7 @@ enrichment + classifier spend, near-identical recall):
   `topics.yaml` allowlist (one cheap GET each). `--max-probe` is raised to cover the
   **whole** enacted set so recall is not truncated.
 - **State:** keyword recall on the masterlist row's **title + description** (both present in
-  `getMasterListRaw`, so **free — no extra call**). This is the state analog of federal's
+  `getMasterList`, so **free — no extra call**). This is the state analog of federal's
   two-stage and is arguably broader (full description vs title only). LegiScan has no
   `policyArea` probe (`fetch_policy_area` returns `None`, `legiscan.py:308`), so the
   description text carries the Stage-2 recall instead.
@@ -183,8 +187,9 @@ subset").
 - `discover_laws`: mocked `/law/{congress}` payload → expected `Candidate`s + id format;
   pagination + truncation-log path.
 - `list_sessions`: mocked `getSessionList` → `Session` list.
-- `list_session_enacted`: mocked `getMasterListRaw(id=)` with mixed `status` → keeps only
-  `status == 4`; skips non-bill masterlist members (parity with `change_hashes`).
+- `list_session_enacted`: mocked `getMasterList(id=)` with mixed `status` → keeps only
+  `status == 4`; carries title+description; skips the `session` masterlist member
+  (parity with `change_hashes`).
 - enacted-filter + post-enrich resolution guard unit tests.
 - Both CLI commands via `CliRunner` (mock source) — happy path + `--skip-existing` +
   malformed-input/`--out` override, mirroring `test_cli.py`.
@@ -243,10 +248,12 @@ DECISIONS.md                          + D84, D85
 
 ## 15. Risks & open questions
 
-- **`/law/{congress}` response shape** — validated live in PHASE-A before relying on it.
-- **`getMasterListRaw?id=` status reliability** — validated live in PHASE-B; if `status`
-  is ever absent/stale for a session, fall back to a bounded post-enrich `enacted` filter
-  for that session (logged, never silent).
+- **`/law/{congress}` response shape** — validated live in PHASE-A (`/law/118/pub` returns
+  `{bills, pagination}` like `/bill`; 274 enacted public laws in the 118th).
+- **State masterlist status — RESOLVED (2026-06-08).** `getMasterListRaw` carries no
+  `status`/`title`/`description` (only `bill_id`/`number`/`change_hash`); the non-Raw
+  `getMasterList` carries all three. PHASE-24 uses `getMasterList`. No post-enrich fallback
+  needed.
 - **Recall gap** — a relevant law with no title seed AND a `policyArea` outside the
   Stage-2 allowlist (federal) is the only completeness risk; recoverable by re-running
   that unit with `--classify-all` (logged as a cost decision).

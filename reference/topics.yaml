@@ -54,25 +54,32 @@ topics:
       - "encryption"
       - "CISA"
 
+# SCOPE (D86): ZwiadBrain tracks only laws that impose effects/obligations on
+# PRIVATE-SECTOR COMPANIES — the regulated-industry compliance landscape. Laws
+# governing the GOVERNMENT's own use/operations (its surveillance/intelligence
+# authorities, internal IT/security, federal hiring, procurement, or inter-agency
+# data-sharing) are OUT, even when they mention AI/biometric/surveillance/data.
+#
 # A bill is IN SCOPE when it satisfies at least one of these (the classifier must
 # name which one it satisfied).
 positive_criteria:
   - "Creates, amends, or repeals obligations governing AI or automated decision-making systems (development, deployment, transparency, impact assessment, or prohibited uses)."
   - "Regulates the collection, processing, sale, sharing, or retention of personal data, or grants/limits consumer privacy rights."
   - "Establishes cybersecurity requirements, breach-notification duties, incident reporting, or critical-infrastructure protection."
-  - "Authorizes or constrains government use of AI, biometric, surveillance, or data-broker capabilities."
+  - "Regulates a company's use, sale, or deployment of biometric, facial-recognition, surveillance, or data-broker capabilities (obligations on private-sector actors — NOT the government's own operations; see SCOPE above)."
   - "Creates or funds an enforcement, oversight, or standards body specifically for AI, privacy, or cybersecurity."
 
 # A bill is OUT OF SCOPE if it matches a disqualifier despite containing a seed
 # term. For borderline items the classifier must name which disqualifier it
 # survived. (decision 17 — precision with stated negative criteria.)
 disqualify:
-  - "Appropriations or budget bill that merely funds an agency, with no AI/privacy/cyber operative text of its own."
+  - "Appropriations, budget, or omnibus authorization vehicle that merely funds/authorizes agencies, with no AI/privacy/cyber operative text of its own — BUT a discrete operative provision imposing an AI/privacy/cyber obligation on companies that rides in such a vehicle (e.g. a data-broker restriction in an omnibus, as in PL 118-50) IS in scope for that provision."
   - "Ceremonial, commemorative, or congratulatory resolution (e.g. naming a day, honoring a person or organization)."
   - "A seed term appears only in findings, recitals, 'whereas' clauses, or a bill's title — not in any operative/enacting provision."
   - "Tax, trade, or general-commerce bill that references 'data' or 'information' only incidentally (e.g. recordkeeping, reporting of unrelated metrics)."
   - "Health, education, or financial bill where any data/technology mention is incidental to a non-AI/privacy/cyber purpose."
   - "Bill solely about physical telecommunications/broadband infrastructure with no data-protection or cybersecurity provisions."
+  - "Governs the GOVERNMENT's own use or operations — its surveillance/intelligence authorities (e.g. FISA Section 702), internal IT/cybersecurity, federal hiring, procurement, or inter-agency data-sharing — without imposing AI/privacy/cyber obligations on private-sector companies (D86)."
 
 # Enforcement-action relevance (D55). Reuses the shared topic keys (ai|privacy|cyber)
 # above; the classifier subagent applies these enforcement-specific criteria, NOT the

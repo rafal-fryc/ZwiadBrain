@@ -838,3 +838,25 @@ catch issues post-hoc; confabulation-prone cases (unreadable mega-summaries, ter
 verified against source data before ingest. Applies to the state half only — federal is complete.
 **Revisit if:** an autonomously-committed unit is found to contain a misclassification (re-introduce
 gating), or the user asks to resume per-unit approval.
+
+---
+
+## 2026-06-09 — 91. AI-election-content laws are in scope only when the duty falls on a private platform/company
+**Chosen:** Laws about AI/deepfakes in elections are IN scope only when they impose an operative duty
+on a **private platform or company** (e.g. CA AB 2655, the Defending Democracy from Deepfake Deception
+Act — duties on large online platforms to block/label deceptive AI election content → IN). They are
+OUT when the duty falls on **election actors** — candidates, campaign committees, or advertisers under
+election/political-reform law (e.g. CA AB 2355, AI-disclosure on political ads → OUT). User decision on
+the CA 2023-24 borderline.
+**Alternatives:** (B) track all AI-election/deepfake laws — rejected: pulls in committee/candidate
+election-law that isn't a company data/AI obligation. (C) exclude all AI-election-content laws as
+speech regulation outside the data-economy focus — rejected: a platform-facing AI mandate is a genuine
+company obligation and fits the AI topic.
+**Why:** consistent with D86 (company-facing duty-holder test) and D88 (the throughline is obligations
+on companies, not on government or political actors). The regulated party — platform vs committee —
+is the deciding line, same logic that split government-use (out) from company-use (in).
+**Trade-offs:** the tracker captures platform-facing deepfake/AI-election mandates but not the
+candidate/committee-facing disclosure rules, so it is not a complete "AI in elections" tracker. Applies
+to all jurisdictions (other states' deepfake-election laws will be judged the same way).
+**Revisit if:** the user later wants the full AI-election landscape (including committee/advertiser
+duties), or a platform-vs-actor call proves ambiguous in a future bill.

@@ -43,7 +43,7 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 |------|-------------|--------|--------:|---:|----:|------:|--------:|-------|
 | ca / 2019-20 | 2019 | done | 14 | 9 | 5 | 9 | 1 | session 1624. **Recall** (not classify-all): 14 topical of ~870 enacted. 9 in: CCPA amendments (ab-25/713/874/1146/1281/1355/1564), data-breach (ab-1130), **data-broker registration (ab-1202)**. Out: ab-499 (state-agency SSN, govt), ab-1043 (campaign cyber), **ab-1215 (police facial recognition — govt-use, D86; landmark — flagged for review)**, sr-54/sjr-6 (resolutions). |
 | ca / 2021-22 | 2021 | done | 10 | 3 | 7 | 3 | 1 | session 1791. Recall: 10 topical. 3 in: **AB 2273 Age-Appropriate Design Code Act**, AB 825 (genetic-data breach), AB 335 (CCPA vessel exemption). Out: govt-entity bills (EDD SSN, public-school cyber, local agencies, Cal-CSIC, state sector-cyber planning, Sec-GovOps deepfakes) + AR-5 resolution. |
-| ca / 2023-24 | 2023 | pending | – | – | – | – | – | session 2016 (confirmed) |
+| ca / 2023-24 | 2023 | done | 23 | 12 | 11 | 12 | 4 | session 2016. Recall: 23 topical. 12 in: CCPA (947/1008/1824/3286), **SB 362 DELETE Act**, **SB 1223 neural data**, **AB 2013 GenAI training-data transparency**, **AB 2655 deepfake-election platform duty** (D91), AB 3030 (health-AI disclosure), SB 793 (insurer privacy), AB 801 + AB 1971 (student/test privacy). Out: govt-AI/cyber (Dept of Tech ADS, CSU, Cal-CSIC, Sec-GovOps GenAI Accountability, school AI bills), AB 2355 (AI political-ad disclosure — election-actor, D91), 3 resolutions. |
 | ny / 2019-20 | 2019 | pending | – | – | – | – | – | confirm session cadence |
 | ny / 2021-22 | 2021 | pending | – | – | – | – | – | confirm session cadence |
 | ny / 2023-24 | 2023 | pending | – | – | – | – | – | confirm session cadence |
@@ -66,7 +66,8 @@ year — add a row per session as confirmed. CA sessions are live-confirmed (162
 ## Progress
 
 - Federal: **3 / 3 units done** (118: HR 815 / PADFAA+TikTok; 117: HR 7776 / Daniel Anderl Act; 116: HR 7898 / HIPAA Safe Harbor). ~980 enacted laws classified, 3 in-scope.
-- States: 2 / 21 units done. Method: **recall** per D89; **autonomous per-unit commits, stop only at borderlines** per D90.
+- States: 3 / 21 units done. Method: **recall** per D89; **autonomous per-unit commits, stop only at borderlines** per D90.
   - ca/2019-20: 9 in-scope (CCPA cluster + AB 1202 data-broker registry).
   - ca/2021-22: 3 in-scope (AB 2273 AADC + AB 825 genetic-breach + AB 335 CCPA-vessel).
+  - ca/2023-24: 12 in-scope (SB 362 DELETE Act, SB 1223 neural data, AB 2013 GenAI transparency, AB 2655 deepfake-election, AB 3030 health-AI, + CCPA/student/insurer). **CA complete (24 in-scope across 3 sessions).**
 - Update these totals as units flip to `done`.

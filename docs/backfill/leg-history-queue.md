@@ -21,6 +21,10 @@ interpretation a sourced legislative history materially helps.
 | 116-hr-7898 | PL 116-321 — HITECH/HIPAA amendment ("HIPAA Safe Harbor"): cybersecurity-practice incentive in HIPAA enforcement + info-blocking investigation authority | US | company-facing health-data security/privacy statute; NOTE: narrow enforcement-discretion amendment (lower priority than a broad rewrite) | flagged | /zwiad-leg-history 116/hr/7898 |
 | ca-2019-ab-1202 | AB 1202 (Ch. 753, 2019) — California Data Broker Registration law (Civ. Code §1798.99.80 et seq.) | US-CA | landmark, first-of-its-kind state data-broker registry; D88-core | flagged | /zwiad-leg-history ca/ab-1202 |
 | ca-2021-ab-2273 | AB 2273 (Ch. 320, 2022) — California Age-Appropriate Design Code Act (Civ. Code Title 1.81.47) | US-CA | landmark children's-privacy / online-design statute; high salience (later NetChoice litigation) | flagged | /zwiad-leg-history ca/ab-2273 |
+| ca-2023-sb-362 | SB 362 (Ch. 709, 2023) — the DELETE Act (single accessible data-broker deletion mechanism) | US-CA | landmark data-broker law; D88-core | flagged | /zwiad-leg-history ca/sb-362 |
+| ca-2023-ab-2013 | AB 2013 (Ch. 817, 2024) — Generative AI training-data transparency (Civ. Code Title 15.2) | US-CA | first-of-its-kind GenAI training-data disclosure mandate | flagged | /zwiad-leg-history ca/ab-2013 |
+| ca-2023-sb-1223 | SB 1223 (Ch. 887, 2024) — neural data added to CCPA sensitive personal information | US-CA | novel neural-data privacy first; high salience | flagged | /zwiad-leg-history ca/sb-1223 |
+| ca-2023-ab-2655 | AB 2655 (Ch. 261, 2024) — Defending Democracy from Deepfake Deception Act (platform duties) | US-CA | named AI-election Act; platform-facing; notable litigation | flagged | /zwiad-leg-history ca/ab-2655 |
 
 <!--
 Example rows (delete once real entries land):

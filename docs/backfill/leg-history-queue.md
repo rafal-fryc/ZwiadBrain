@@ -34,3 +34,5 @@ Example rows (delete once real entries land):
 -->
 | ny-2023-s-7695 | S 7695 (Ch.?, 2024) — New York Child Data Protection Act | US-NY | landmark state children-data-protection statute | flagged | /zwiad-leg-history ny/s-7695 |
 | tx-2021-sb-2116 | SB 2116 (2021) — Lone Star Infrastructure Protection Act (bars hostile-nation-owned companies from critical-infrastructure access contracts) | US-TX | named critical-infra security Act; first-of-its-kind state foreign-adversary infrastructure ban | flagged | /zwiad-leg-history tx/sb-2116 |
+| tx-2023-hb-4 | HB 4 (2023) — Texas Data Privacy and Security Act (TDPSA) | US-TX | landmark comprehensive state consumer-privacy statute | flagged | /zwiad-leg-history tx/hb-4 |
+| tx-2023-sb-2105 | SB 2105 (2023) — Texas data-broker registration law (SoS registry + security-program duty) | US-TX | D88-core data-broker registry statute | flagged | /zwiad-leg-history tx/sb-2105 |

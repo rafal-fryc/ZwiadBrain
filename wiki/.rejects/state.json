@@ -179,9 +179,19 @@
     "cursor": "546ce75898bc9b463025b725363ca1ad",
     "id": "ca-2021-ab-2627"
   },
+  "1633201": {
+    "cursor": "181923fa66a1bf1d66db4b4ece510af5",
+    "id": "tx-2023-hb-315",
+    "scope_version": "D95"
+  },
   "1642302": {
     "cursor": "5bc684fe0f9ac99d09c59e38572db20b",
     "id": "ca-2023-scr-9"
+  },
+  "1677767": {
+    "cursor": "7c335d5737f323679637ee4eecca2c20",
+    "id": "tx-2023-sb-578",
+    "scope_version": "D95"
   },
   "1683775": {
     "cursor": "838cfd5730e7ad26dd04c658cafc8a76",
@@ -195,9 +205,24 @@
     "cursor": "cd9ecbacd2a49f95a7be1b44e620373e",
     "id": "ca-2023-scr-17"
   },
+  "1700527": {
+    "cursor": "9858aef2406867a038cc4b827e10907c",
+    "id": "tx-2023-hb-2060",
+    "scope_version": "D95"
+  },
   "1701010": {
     "cursor": "e6536ed3cb2e653a447884b2e0fde43c",
     "id": "ca-2023-ab-569"
+  },
+  "1702629": {
+    "cursor": "adf836c8e0fc357df058cdae050df6cd",
+    "id": "tx-2023-sb-821",
+    "scope_version": "D95"
+  },
+  "1708352": {
+    "cursor": "4fb572b3ab9ca85ddb25bc9a8b610c79",
+    "id": "tx-2023-sb-947",
+    "scope_version": "D95"
   },
   "1709723": {
     "cursor": "875d1e96df1d86061df72d1a75498d3b",

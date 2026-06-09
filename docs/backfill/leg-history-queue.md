@@ -38,3 +38,4 @@ Example rows (delete once real entries land):
 | tx-2023-sb-2105 | SB 2105 (2023) — Texas data-broker registration law (SoS registry + security-program duty) | US-TX | D88-core data-broker registry statute | flagged | /zwiad-leg-history tx/sb-2105 |
 | co-2021-sb-190 | SB21-190 — Colorado Privacy Act (CPA) | US-CO | landmark comprehensive state consumer-privacy statute (3rd in US); universal opt-out first | flagged | /zwiad-leg-history co/sb-190 |
 | co-2024-sb-205 | SB24-205 — Colorado AI Act (Consumer Protections for Artificial Intelligence) | US-CO | FIRST comprehensive US state AI law; developer/deployer high-risk-AI duties; highest salience in the corpus | flagged | /zwiad-leg-history co/sb-205 |
+| va-2021-hb-2307 | HB 2307 (2021) — Virginia Consumer Data Protection Act (VCDPA) | US-VA | SECOND comprehensive US state privacy law; template for the post-CCPA state wave | flagged | /zwiad-leg-history va/hb-2307 |

@@ -89,4 +89,5 @@ def test_loads_the_shipped_topics_yaml() -> None:
     ref = load_reference(repo_root / "reference" / "topics.yaml")
     assert ref.topic_keys == ["ai", "privacy", "cyber"]
     assert "artificial intelligence" in ref.seeds
+    assert "security breach" in ref.seeds  # D94: recovers NY SHIELD-style phrasing
     assert len(ref.seeds) == len(set(ref.seeds))  # no duplicates survive

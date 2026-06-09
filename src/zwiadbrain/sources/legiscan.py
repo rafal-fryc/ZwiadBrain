@@ -50,6 +50,30 @@ _STATUS_TEXT: dict[int, str] = {
 _CHAPTERED_EVENT = 8  # progress[].event code for Chaptered (enactment signal)
 _PASSED_STATUS = 4
 
+# Memorializing/ceremonial/procedural resolution number-prefixes (D92). LegiScan marks
+# these status==4 ("Passed") but they are NOT chaptered laws, so a state session's enacted
+# list must exclude them. An EXCLUDE-list (not an include-list of bill prefixes) is used
+# deliberately: an unanticipated legitimate *bill* prefix must never be silently dropped
+# (a missed enacted law); an over-kept resolution is harmless precision noise the classifier
+# rejects.
+_RESOLUTION_PREFIXES: frozenset[str] = frozenset(
+    {"R", "HR", "SR", "J", "HJR", "SJR", "JR", "HJ", "SJ",
+     "K", "HC", "SC", "HCR", "SCR", "CR", "ACR", "AJR", "AR"}
+)
+
+
+def _resolution_prefix(number: str) -> str:
+    """Leading non-digit run of a LegiScan masterlist ``number``, uppercased ('K724' -> 'K')."""
+    i = 0
+    while i < len(number) and not number[i].isdigit():
+        i += 1
+    return number[:i].upper()
+
+
+def _is_resolution(number: str) -> bool:
+    """True when ``number``'s prefix marks a memorializing/ceremonial resolution (D92)."""
+    return _resolution_prefix(number) in _RESOLUTION_PREFIXES
+
 
 class _Retryable(SourceError):
     """Internal marker for a transient HTTP status that should be retried."""
@@ -411,6 +435,9 @@ class LegiScanSource:
                 continue
             if int(row.get("status") or 0) != _PASSED_STATUS:
                 continue
+            number = str(row.get("number") or "")
+            if _is_resolution(number):  # D92: memorializing resolutions aren't laws
+                continue
             candidates.append(
                 Candidate(
                     source=self.name,
@@ -419,7 +446,11 @@ class LegiScanSource:
                     title=str(row.get("title") or ""),
                     summary=_opt_str(row.get("description")),
                     update_date=_opt_str(row.get("status_date")),
-                    raw={"change_hash": row.get("change_hash"), "status": row.get("status")},
+                    raw={
+                        "change_hash": row.get("change_hash"),
+                        "status": row.get("status"),
+                        "number": number,
+                    },
                 )
             )
         return candidates[:limit] if limit is not None else candidates

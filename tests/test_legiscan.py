@@ -305,3 +305,26 @@ def test_list_session_enacted_returns_empty_when_none_passed() -> None:
     with respx.mock(assert_all_called=False) as mock:
         _route_by_op(mock, {"getMasterList": payload})
         assert _source().list_session_enacted(1624) == []
+
+
+def test_list_session_enacted_drops_memorializing_resolutions() -> None:
+    """should drop K/J resolution rows, keep A/S bills, carry number onto raw (D92)"""
+    payload = {
+        "status": "OK",
+        "masterlist": {
+            "session": {"session_id": 1624},
+            "0": {"bill_id": 10, "number": "A1746", "change_hash": "ha",
+                  "status": 4, "title": "AI study", "description": "d"},
+            "1": {"bill_id": 11, "number": "S3971", "change_hash": "hs",
+                  "status": 4, "title": "AI study", "description": "d"},
+            "2": {"bill_id": 12, "number": "K724", "change_hash": "hk",
+                  "status": 4, "title": "Data Privacy Day", "description": "memorial"},
+            "3": {"bill_id": 13, "number": "J512", "change_hash": "hj",
+                  "status": 4, "title": "memorial", "description": "memorial"},
+        },
+    }
+    with respx.mock(assert_all_called=False) as mock:
+        _route_by_op(mock, {"getMasterList": payload})
+        cands = _source(state="ny").list_session_enacted(1624)
+    assert [c.native_id for c in cands] == ["10", "11"]
+    assert cands[0].raw.get("number") == "A1746"

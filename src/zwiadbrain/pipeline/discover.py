@@ -10,10 +10,47 @@ from __future__ import annotations
 
 import datetime as dt
 
+from zwiadbrain.models import Bill
 from zwiadbrain.sources.base import Candidate, Source
 
 # Over-fetch factor so the keyword filter has room to discard before capping to limit.
 _OVERSAMPLE = 5
+
+
+def _norm_billno(number: str) -> str:
+    """Normalize a bill number for same-as matching.
+
+    Spaces removed, uppercased, and leading zeros stripped from the numeric run, so the
+    LegiScan ``sasts`` zero-padded form ('S03971') matches the bill's own ('S 3971') -> 'S3971'.
+    """
+    s = "".join(number.split()).upper()
+    i = 0
+    while i < len(s) and not s[i].isdigit():
+        i += 1
+    return s[:i] + s[i:].lstrip("0")
+
+
+def dedupe_companions(bills: list[Bill]) -> list[Bill]:
+    """Drop same-as companion duplicates (D93).
+
+    NY (and other states) enact a law as an Assembly+Senate *same-as* pair (A1746 ≡ S3971);
+    LegiScan flags the link via ``sasts`` -> ``Bill.related_bills`` (``"<type>: <number>"``).
+    Keep the first-seen sibling (input order == masterlist order, so the earlier/lower-numbered
+    chamber wins deterministically) and drop later companions. A bill with no companion always
+    passes. Dedup keys on the authoritative same-as link, NEVER on title (distinct CCPA bills
+    share the title "California Consumer Privacy Act of 2018.").
+    """
+    seen: set[str] = set()
+    kept: list[Bill] = []
+    for bill in bills:
+        companions = {
+            _norm_billno(rel.split(": ", 1)[1]) for rel in bill.related_bills if ": " in rel
+        }
+        if companions & seen:
+            continue
+        kept.append(bill)
+        seen.add(_norm_billno(bill.bill_number or ""))
+    return kept
 
 
 def keyword_filter(candidates: list[Candidate], seeds: list[str] | None) -> list[Candidate]:

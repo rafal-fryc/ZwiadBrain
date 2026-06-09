@@ -860,3 +860,43 @@ candidate/committee-facing disclosure rules, so it is not a complete "AI in elec
 to all jurisdictions (other states' deepfake-election laws will be judged the same way).
 **Revisit if:** the user later wants the full AI-election landscape (including committee/advertiser
 duties), or a platform-vs-actor call proves ambiguous in a future bill.
+
+---
+
+## 2026-06-09 — 92. Exclude memorializing resolutions from state enacted discovery (number-prefix exclude-list)
+**Chosen:** `list_session_enacted` (legiscan.py) drops masterlist rows whose `number` prefix is a
+memorializing/ceremonial/procedural **resolution** type (`_RESOLUTION_PREFIXES`: R/HR/SR/J/HJR/SJR/K/…)
+even when LegiScan marks them `status==4`. Use an **exclude-list of resolution prefixes**, not an
+include-list of bill prefixes.
+**Why:** NY's `getMasterList` returned 6,422 "enacted" rows — thousands are K/J resolutions that "pass"
+but are not laws. An include-list would silently drop an unanticipated legitimate *bill* prefix (a
+missed enacted law — the failure we are fixing); a kept resolution is harmless (classifier rejects it).
+**Trade-offs:** an exotic state where a resolution prefix is actually a bill series could over-drop —
+bounded, narrow list, caught by the per-session yield review (D90). Filter is at the list stage so NY's
+resolutions never cost a `getBill`.
+**Revisit if:** a real bill series uses a listed resolution prefix in some state.
+
+## 2026-06-09 — 93. Dedupe same-as Assembly/Senate pairs post-enrich via LegiScan `sasts`
+**Chosen:** `dedupe_companions` (discover.py), run in the CLI after enrich, collapses same-as pairs
+(NY A1746 ≡ S3971) to one candidate using LegiScan's authoritative companion linkage
+(`detail["sasts"]` → `Bill.related_bills`), keeping the first-seen (lower/earlier-chamber) sibling.
+Number matching strips spaces AND leading zeros (sasts is zero-padded "S03971"; bill_number is "S 3971").
+**Alternatives:** require chaptered-event-8 (rejected — would drop genuinely-enacted bills LegiScan
+never tags with event 8, a recall regression); title/title+description dedup (rejected — distinct CA
+CCPA bills share the title "California Consumer Privacy Act of 2018.").
+**Trade-offs:** one wasted `getBill` per dropped sibling; `[:limit]` runs pre-dedup so output can be
+slightly under limit when a pair straddles the cap (never over, never duplicated).
+**Revisit if:** a state exposes no `sasts` linkage for genuine companions (would need a fallback).
+
+## 2026-06-09 — 94. Broaden state recall lexicon (targeted); classify-all stays per-session opt-in
+**Chosen:** Added `"security breach"`, `"breach of security"`, `"biometric information"` to
+`privacy.seeds` (under existing keys only — never a 4th topic key). `"security breach"` recovers the NY
+SHIELD Act, whose description reads "notification of a security breach" (our seeds were
+"breach notification"/"data security"). Keep `--classify-all` as the per-session escape hatch for any
+session whose in-scope yield looks suspiciously low (D89/D90); not the new default.
+**Why:** recall is exact-substring on title+description; targeted variants close known lexical gaps at
+zero classifier cost, where classify-all on a big-state session (~1,100-1,500) is expensive.
+**Trade-offs:** residual recall risk remains — a law whose description contains NONE of the seed
+lexicon is still missed. Mitigation: per-session yield review + classify-all; the seed list is now a
+maintained recall asset (each confirmed miss adds a seed + a DECISIONS note).
+**Revisit if:** recurring misses make per-session classify-all the better default for big states.

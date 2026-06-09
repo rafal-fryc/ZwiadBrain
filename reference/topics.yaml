@@ -40,7 +40,10 @@ topics:
       - "breach notification"
       - "children's privacy"
       - "biometric privacy"
+      - "biometric information"
       - "geolocation"
+      - "security breach"
+      - "breach of security"
 
   cyber:
     label: "Cybersecurity"

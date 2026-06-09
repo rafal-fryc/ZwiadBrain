@@ -4,6 +4,7 @@ import datetime as dt
 
 from zwiadbrain.models import Bill
 from zwiadbrain.pipeline.discover import (
+    dedupe_companions,
     discover_candidates,
     filter_unseen,
     keyword_filter,
@@ -14,6 +15,46 @@ from zwiadbrain.sources.base import Candidate
 
 def _candidate(title: str) -> Candidate:
     return Candidate(source="fake", native_id=title, jurisdiction="US", title=title)
+
+
+def _bill(bill_number: str, *, same_as: list[str] | None = None) -> Bill:
+    """Minimal state Bill (jurisdiction != 'US' bypasses the federal-id validator)."""
+    return Bill(
+        id=f"ny-2019-{bill_number.replace(' ', '-').lower()}",
+        jurisdiction="US-NY",
+        title="A bill",
+        bill_number=bill_number,
+        related_bills=[f"Same As: {n}" for n in (same_as or [])],
+    )
+
+
+def test_dedupe_companions_collapses_same_as_pair() -> None:
+    """should keep the first sibling and drop the same-as companion (D93)"""
+    bills = [_bill("A 1746", same_as=["S3971"]), _bill("S 3971", same_as=["A1746"])]
+    kept = dedupe_companions(bills)
+    assert [b.bill_number for b in kept] == ["A 1746"]
+
+
+def test_dedupe_companions_keeps_unrelated_bills() -> None:
+    """should keep bills with no same-as overlap (e.g. distinct CCPA bills)"""
+    bills = [_bill("AB 25"), _bill("AB 874"), _bill("AB 1355")]
+    assert [b.bill_number for b in dedupe_companions(bills)] == ["AB 25", "AB 874", "AB 1355"]
+
+
+def test_dedupe_companions_normalizes_number_forms() -> None:
+    """should match the zero-padded sasts form 'S03971' against bill_number 'S 3971'"""
+    bills = [_bill("A 1746", same_as=["S03971"]), _bill("S 3971", same_as=["A01746"])]
+    assert [b.bill_number for b in dedupe_companions(bills)] == ["A 1746"]
+
+
+def test_dedupe_companions_keeps_first_of_cluster() -> None:
+    """should keep only the first of a 3-way same-as cluster"""
+    bills = [
+        _bill("A 1", same_as=["S 1", "H 1"]),
+        _bill("S 1", same_as=["A 1"]),
+        _bill("H 1", same_as=["A 1"]),
+    ]
+    assert [b.bill_number for b in dedupe_companions(bills)] == ["A 1"]
 
 
 def _fed_candidate(native_id: str) -> Candidate:

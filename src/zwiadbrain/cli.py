@@ -45,7 +45,12 @@ from zwiadbrain.models import (
     RelatedMedia,
     Statement,
 )
-from zwiadbrain.pipeline.discover import filter_unseen, keyword_filter, recall_filter
+from zwiadbrain.pipeline.discover import (
+    dedupe_companions,
+    filter_unseen,
+    keyword_filter,
+    recall_filter,
+)
 from zwiadbrain.pipeline.docling_text import docling_available, extract_markdown
 from zwiadbrain.pipeline.enforcement import (
     MatterRef,
@@ -742,6 +747,7 @@ def fetch_state_enacted_candidates(
             )
         candidates = candidates[:limit]
         bills = [enrich(source, candidate) for candidate in candidates]
+        bills = dedupe_companions(bills)  # D93: collapse same-as Assembly/Senate pairs
         payload = [bill.model_dump(mode="json") for bill in bills]
         path = stage_json(payload, name="candidates.json", out=out)
     except AppError as exc:

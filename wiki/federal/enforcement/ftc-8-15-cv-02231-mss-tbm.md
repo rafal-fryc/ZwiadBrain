@@ -17,10 +17,10 @@ background: Roca Labs marketed dietary supplement powders as a non-surgical gast
   customers who posted truthful negative reviews. Roca Labs also promised to keep
   purchaser health information confidential but disclosed it in public court filings
   and to payment processors.
-date_filed: '2025-07-15'
-date_resolved: '2025-07-15'
+date_filed: '2019-01-15'
+date_resolved: '2019-01-15'
 developments:
-- date: '2025-07-15'
+- date: '2019-01-15'
   source_url: https://www.ftc.gov/legal-library/browse/cases-proceedings/142-3255-x150061-roca-labs-inc
   summary: Consent order issued imposing a $25,246,000 judgment and 20-year injunction
     against Roca Labs for false weight-loss claims, non-disparagement gag clauses,
@@ -73,7 +73,7 @@ The FTC sued Roca Labs for falsely claiming its dietary supplement had a scienti
 
 ## Developments
 
-- 2025-07-15 — Consent order issued imposing a $25,246,000 judgment and 20-year injunction against Roca Labs for false weight-loss claims, non-disparagement gag clauses, undisclosed paid endorsements, and misrepresentation of consumer health information confidentiality. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/142-3255-x150061-roca-labs-inc)
+- 2019-01-15 — Consent order issued imposing a $25,246,000 judgment and 20-year injunction against Roca Labs for false weight-loss claims, non-disparagement gag clauses, undisclosed paid endorsements, and misrepresentation of consumer health information confidentiality. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/142-3255-x150061-roca-labs-inc)
 
 ## Background
 

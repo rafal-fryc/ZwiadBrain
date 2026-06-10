@@ -14,10 +14,10 @@ background: LabMD, Inc. operated as a cancer-detection laboratory. In 2008, a 1,
   in November 2015 for insufficient evidence of substantial consumer harm; the Commission
   reversed in July 2016. Key evidence relied on by the FTC was later found by the
   ALJ to have been fabricated by Tiversa.
-date_filed: '2016-09-15'
-date_resolved: '2016-09-15'
+date_filed: '2016-07-29'
+date_resolved: '2016-07-29'
 developments:
-- date: '2016-09-15'
+- date: '2016-07-29'
   source_url: https://www.ftc.gov/legal-library/browse/cases-proceedings/102-3099-labmd-inc-matter
   summary: Commission issued its Final Decision and Order finding LabMD's failure
     to implement reasonable data security practices an unfair act or practice under
@@ -63,7 +63,7 @@ The FTC charged LabMD, a cancer-detection laboratory, with failing to implement 
 
 ## Developments
 
-- 2016-09-15 — Commission issued its Final Decision and Order finding LabMD's failure to implement reasonable data security practices an unfair act or practice under FTC Act Section 5, reversing the ALJ's earlier dismissal. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/102-3099-labmd-inc-matter)
+- 2016-07-29 — Commission issued its Final Decision and Order finding LabMD's failure to implement reasonable data security practices an unfair act or practice under FTC Act Section 5, reversing the ALJ's earlier dismissal. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/102-3099-labmd-inc-matter)
 
 ## Background
 

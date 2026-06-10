@@ -16,10 +16,10 @@ background: EMP Media operated MyEx.com, a revenge-porn website that solicited i
   — often via Western Union to the Philippines — to remove material the defendants
   themselves had posted. Between January 2014 and April 2016, EMP collected more than
   $4 million.
-date_filed: '2020-09-15'
-date_resolved: '2020-09-15'
+date_filed: '2018-01-09'
+date_resolved: '2018-06-22'
 developments:
-- date: '2020-09-15'
+- date: '2018-06-22'
   source_url: https://www.ftc.gov/legal-library/browse/cases-proceedings/162-3052-emp-media-inc-myexcom
   summary: Consent order finalized permanently barring EMP Media from posting nonconsensual
     intimate images or charging removal fees, with a $205,000 judgment (largely suspended)
@@ -72,7 +72,7 @@ The FTC charged EMP Media, Inc., operator of MyEx.com, with nonconsensually post
 
 ## Developments
 
-- 2020-09-15 — Consent order finalized permanently barring EMP Media from posting nonconsensual intimate images or charging removal fees, with a $205,000 judgment (largely suspended) and a 20-year compliance obligation. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/162-3052-emp-media-inc-myexcom)
+- 2018-06-22 — Consent order finalized permanently barring EMP Media from posting nonconsensual intimate images or charging removal fees, with a $205,000 judgment (largely suspended) and a 20-year compliance obligation. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/162-3052-emp-media-inc-myexcom)
 
 ## Background
 

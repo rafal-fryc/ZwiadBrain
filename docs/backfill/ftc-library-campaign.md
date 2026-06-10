@@ -20,8 +20,15 @@ approximate by construction. Worse, in ~4 of 20 verified cases the library month
 LifeLock → refund mailing +4yr; Ashley Madison → FTC award item +9mo; BetterHelp → +1yr).
 Substance (penalties, recipients, order terms, allegations) verified 20/20 correct against
 FTC.gov. Fixed pages: Avast, LifeLock, Ashley Madison, Rite Aid, BetterHelp, Marriott
-(+Equifax $125M-trigger wording). Remaining tranches: spot-check dates of named-brand
-matters against FTC.gov before relying on them; minor day-level imprecision is accepted.
+(+Equifax $125M-trigger wording). **Full date audit (2026-06-10):** all ~112 rendered
+library cases date-checked against FTC.gov; 12 further corrections applied (Roca Labs
+→2018/2019, Vivint →2021-04, 1Health.io →2023, Ring →2023-05, CafePress →2022, Everalbum
+→2021-05, Credit Bureau Center →2021/2023, EMP Media →2018, Office Depot →2019-03, Jerk
+→2017-11, Vipvape →2016-06, LabMD →2016-07). Overall date-error rate ~16/112 (14%), always
+the same failure mode: library month tracks a later refund/claims/appellate/award press
+item. Substance error rate: 0/20 sampled. **Tranches 7+ must include one date-audit web
+agent per tranche before the review gate.** Borderlines accepted as-is: ReadyTech (Oct vs
+Nov 2018), IDmission (Nov vs Oct 2018), LeapLab (Feb vs Mar 2016) — within ±1 month.
 
 Ordering: `date_issued` desc, library `id` asc. 285 cases / 25 ≈ 12 tranches.
 Tranche N = rows [(N-1)·25, N·25) of that ordering — stable as long as the cached

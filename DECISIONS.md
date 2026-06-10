@@ -982,3 +982,30 @@ seed was rejected as too noisy. CA SB 926 (criminal deepfake-porn law) deliberat
 person-facing criminal law; open question logged (the IL Doxing Act precedent cuts the other way).
 **Revisit if:** another post-campaign cross-check finds misses these seeds should have caught — at
 that point consider per-session classify-all as the default for big states.
+
+## 2026-06-09 — 100. FTC Enforcement Provisions Library as historical enforcement backfill source
+**Chosen:** Backfill all 285 FTC consent orders (1997–2026) from the user's curated FTC
+Enforcement Provisions Library (rafalsportfolio.me — llms.txt + /data/ftc-cases.json +
+provision shards) into the enforcement wiki, in tranches of ~25 per session, newest first.
+A standalone stager (`scripts/stage_ftc_library.py`) converts cached library snapshots
+(`data/external/`) into the same per-item layout `/zwiad-scan-enforcement` uses; the
+enforcement-extractor subagent runs once per case over text assembled from the library's
+local source mirror (`C:\Users\rafst\Documents\projectas\FTC\output_v2` — per-case
+complaint factual background + counts + order provisions, extracted from the case PDFs;
+web provision shards as fallback; no FTC.gov scraping), returning topics + an in_scope flag
+in the same dispatch (the library is curated around data-security/privacy orders, so a
+separate classifier pass per item would be ~50% more dispatches for near-zero rejects;
+TSR/CAN-SPAM-only cases are the exception the in_scope flag exists for). Docket numbers
+are strong keys; keyless overlaps (e.g. Illuminate) go through enforcement-matcher +
+deterministic confirm as usual. (User decision: full backfill in tranches.)
+**Alternatives:** Recent-only slice (2020+); thin metadata-only pages without extractor
+prose; extending fetch-enforcement-candidates with an external-JSON source type.
+**Why:** The press-feed scanner is forward-from-now and can never recover history; the
+library is machine-readable, has docket strong keys for dedup, and verbatim provision
+language firmer than press releases. A standalone script keeps the external-snapshot
+ingest out of the package until a second external source justifies a source type.
+**Trade-offs:** Library is a snapshot (generated 2026-03-27) — freshness stays with the
+press-feed scan; ~285 extractor dispatches of plan usage across ~12 sessions; extractor
+works from structured PDF extractions rather than the press-release narrative voice.
+**Revisit if:** A second external enforcement dataset appears (promote the stager into
+`sources/enforcement/`), or the library publishes an update feed.

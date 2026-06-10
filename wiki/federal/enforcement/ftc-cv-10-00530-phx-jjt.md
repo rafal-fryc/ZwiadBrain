@@ -15,10 +15,10 @@ background: LifeLock marketed an identity theft prevention service to over one m
   to encrypt and restrict access to that data; in reality the company stored and transmitted
   personal information in clear readable text, failed to enforce strong password policies,
   and left paper documents containing personal information in open accessible areas.
-date_filed: '2019-10-15'
-date_resolved: '2019-10-15'
+date_filed: '2015-12-17'
+date_resolved: '2015-12-17'
 developments:
-- date: '2019-10-15'
+- date: '2015-12-17'
   source_url: https://www.ftc.gov/legal-library/browse/cases-proceedings/072-3069-x100023-lifelock-inc-corporation
   summary: Amended consent order entered imposing $100 million judgment against LifeLock
     for falsely marketing identity theft protection services and failing to implement
@@ -64,7 +64,7 @@ The FTC charged LifeLock with falsely marketing its identity theft protection se
 
 ## Developments
 
-- 2019-10-15 — Amended consent order entered imposing $100 million judgment against LifeLock for falsely marketing identity theft protection services and failing to implement adequate data security practices. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/072-3069-x100023-lifelock-inc-corporation)
+- 2015-12-17 — Amended consent order entered imposing $100 million judgment against LifeLock for falsely marketing identity theft protection services and failing to implement adequate data security practices. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/072-3069-x100023-lifelock-inc-corporation)
 
 ## Background
 

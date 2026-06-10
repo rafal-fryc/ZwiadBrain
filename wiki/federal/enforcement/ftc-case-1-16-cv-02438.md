@@ -16,10 +16,10 @@ background: Ruby Corp. and its subsidiaries operated AshleyMadison.com, a dating
   charged $19 for a 'Full Delete' service that retained personal data for up to 12
   months. In July 2015 hackers published the personal and billing information of more
   than 36 million members, exposing the company's security failures.
-date_filed: '2017-09-15'
-date_resolved: '2017-09-15'
+date_filed: '2016-12-14'
+date_resolved: '2016-12-14'
 developments:
-- date: '2017-09-15'
+- date: '2016-12-14'
   source_url: https://www.ftc.gov/legal-library/browse/cases-proceedings/152-3284-ashley-madison
   summary: Consent order issued against Ruby Corp. (AshleyMadison.com) for fake profiles,
     false security claims, a sham deletion service, and failure to implement basic
@@ -70,7 +70,7 @@ The FTC charged Ruby Corp., operator of AshleyMadison.com, with deceiving consum
 
 ## Developments
 
-- 2017-09-15 — Consent order issued against Ruby Corp. (AshleyMadison.com) for fake profiles, false security claims, a sham deletion service, and failure to implement basic data security, resulting in an $8.75 million judgment and 20-year oversight requirements. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/152-3284-ashley-madison)
+- 2016-12-14 — Consent order issued against Ruby Corp. (AshleyMadison.com) for fake profiles, false security claims, a sham deletion service, and failure to implement basic data security, resulting in an $8.75 million judgment and 20-year oversight requirements. — [source](https://www.ftc.gov/legal-library/browse/cases-proceedings/152-3284-ashley-madison)
 
 ## Background
 

@@ -19,6 +19,7 @@ import email.utils
 import logging
 import re
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 from bs4 import BeautifulSoup
@@ -125,6 +126,27 @@ def _parse_date(value: Any) -> dt.date | None:
         return dt.date.fromisoformat(str(value)[:10])
     except ValueError:
         return None
+
+
+def _parse_vote_date(value: Any) -> dt.date | None:
+    """Parse a ``recordedVotes[].date`` UTC timestamp as a US-Eastern calendar date.
+
+    Floor votes are timestamped in UTC, so an evening vote in Washington falls
+    after midnight UTC and the naive date component is a day late. A bare
+    ``YYYY-MM-DD`` (no time) is returned as-is.
+    """
+    if not value:
+        return None
+    text = str(value)
+    if len(text) <= 10:
+        return _parse_date(text)
+    try:
+        moment = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return _parse_date(text)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=dt.timezone.utc)
+    return moment.astimezone(ZoneInfo("America/New_York")).date()
 
 
 def _obj(value: Any) -> dict[str, Any]:
@@ -477,20 +499,40 @@ class CongressSource:
         own ``date`` if present, falling back to the parent action's
         ``actionDate``.  ``result`` is left ``None`` — the roll-call URL is the
         verifiable link for downstream grounding.
+
+        Two corrections applied to the raw payload:
+
+        * ``recordedVotes[].date`` is a UTC timestamp, so an evening floor vote
+          in Washington crosses midnight UTC and the naive date component lands
+          a day late; the timestamp is converted to US Eastern before taking
+          the date.
+        * The same roll call can be referenced from several actions (passage,
+          message-to-the-other-chamber, etc.); votes are deduplicated by
+          ``roll_call_url``, keeping the earliest date seen.
         """
         congress, bill_type, number = native_id.split("/")
         path = f"/bill/{congress}/{bill_type}/{number}/actions"
         actions = _items(self._get_json(path).get("actions"))
+        by_url: dict[str, Vote] = {}
         votes: list[Vote] = []
         for action in actions:
             for rv in _items(action.get("recordedVotes")):
-                date_val = rv.get("date") or action.get("actionDate")
-                votes.append(
-                    Vote(
-                        date=_parse_date(date_val),
-                        chamber=_opt_str(rv.get("chamber")),
-                        result=None,
-                        roll_call_url=_opt_str(rv.get("url")),
-                    )
+                date = _parse_vote_date(rv.get("date")) or _parse_date(action.get("actionDate"))
+                vote = Vote(
+                    date=date,
+                    chamber=_opt_str(rv.get("chamber")),
+                    result=None,
+                    roll_call_url=_opt_str(rv.get("url")),
                 )
+                url = vote.roll_call_url
+                if url is None:
+                    votes.append(vote)
+                    continue
+                seen = by_url.get(url)
+                if seen is None:
+                    by_url[url] = vote
+                    votes.append(vote)
+                elif date is not None and (seen.date is None or date < seen.date):
+                    votes[votes.index(seen)] = vote
+                    by_url[url] = vote
         return votes

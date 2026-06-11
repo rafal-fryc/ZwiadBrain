@@ -568,6 +568,74 @@ def test_recorded_votes_returns_empty_list_when_no_actions_have_votes() -> None:
     assert votes == []
 
 
+def test_recorded_votes_converts_utc_timestamp_to_eastern_date() -> None:
+    """should date an evening DC vote by Eastern time when the UTC timestamp crosses midnight"""
+    # Senate passed H.R. 2471 at 9:55 PM ET on 2022-03-10 == 02:55Z on 2022-03-11.
+    payload: dict[str, Any] = {
+        "actions": [
+            {
+                "actionDate": "2022-03-11",
+                "text": "Passed Senate: 68 - 31.",
+                "type": "Floor",
+                "recordedVotes": [
+                    {
+                        "rollNumber": "78",
+                        "chamber": "Senate",
+                        "congress": 117,
+                        "date": "2022-03-11T02:55:00Z",
+                        "sessionNumber": 2,
+                        "url": "https://www.senate.gov/legislative/LIS/roll_call_votes/vote1172/vote_117_2_00078.xml",
+                    }
+                ],
+            }
+        ]
+    }
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/117/hr/2471/actions").respond(json=payload)
+        votes = _source().recorded_votes("117/hr/2471")
+
+    assert len(votes) == 1
+    assert votes[0].date == dt.date(2022, 3, 10)
+
+
+def test_recorded_votes_dedups_repeated_roll_call_url_keeping_earliest_date() -> None:
+    """should emit one Vote per roll-call URL when several actions reference the same vote"""
+    url = "https://clerk.house.gov/evs/2025/roll104.xml"
+    payload: dict[str, Any] = {
+        "actions": [
+            {
+                "actionDate": "2025-04-29",
+                "text": "Message on House action sent to the Senate.",
+                "type": "Floor",
+                "recordedVotes": [
+                    {"rollNumber": "104", "chamber": "House", "congress": 119, "url": url}
+                ],
+            },
+            {
+                "actionDate": "2025-04-28",
+                "text": "On motion to suspend the rules and pass the bill Agreed to: 409 - 2.",
+                "type": "Floor",
+                "recordedVotes": [
+                    {
+                        "rollNumber": "104",
+                        "chamber": "House",
+                        "congress": 119,
+                        "date": "2025-04-28T23:50:00Z",
+                        "url": url,
+                    }
+                ],
+            },
+        ]
+    }
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/119/s/146/actions").respond(json=payload)
+        votes = _source().recorded_votes("119/s/146")
+
+    assert len(votes) == 1
+    assert votes[0].date == dt.date(2025, 4, 28)
+    assert votes[0].roll_call_url == url
+
+
 # --- T2: split cursors and amendment dates -----------------------------------
 
 

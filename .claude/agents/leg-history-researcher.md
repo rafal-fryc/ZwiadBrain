@@ -30,12 +30,22 @@ fields outside your lane stay empty.
 
 | Lane | What you search | Returns | source_type |
 |------|-----------------|---------|-------------|
-| `crec` | Congressional Record (floor) + committee-report text, via `spine.floor_consideration` and committee reports | on-bill floor statements **and the narrative** | `CREC` |
+| `crec` | Congressional Record (floor) + committee-report text, via `spine.floor_consideration` and committee reports; **CRS products** on the bill | on-bill floor statements, CRS products → `related_media[]`, **and the narrative** | `CREC` |
 | `hearings` | Congressional/committee hearing **records** + **hearing videos** | hearing records → `hearings[]`; hearing videos → `related_media[]` (`kind: video`); witness `statements[]` only if a transcript page carries the verbatim words | `hearing` |
 | `press` | Member press releases (house.gov/senate.gov), reputable news, sponsors' **past/subject-matter** statements | on-bill and subject-matter `statements[]` | `press`, `news`, `other` |
 | `signing` | The executive **signing statement** — the **President** for a federal bill, the **Governor** for a state bill — and any contemporaneous signing remarks | `statements[]` for the signer | `signing` |
 
 **Only the `crec` lane writes the narrative.** Every other lane returns `"narrative": ""`.
+
+**The `crec` lane also collects CRS products (federal bills only).** The Congressional
+Research Service routinely publishes analyses of significant enacted bills — **Legal
+Sidebars (LSB)**, **In Focus briefs (IF)**, and **Reports (R)** — that no API links to the
+bill, so they are easy to miss. Search `crsreports.congress.gov` and
+`congress.gov/crs-products` for products on the bill (by bill number, public-law number, and
+popular title). Emit each one found as a `related_media` entry (`kind: "page"`, publisher
+"Congressional Research Service", `relation: "on_bill"` if it analyzes this bill, with the
+product number — e.g. "LSB11314" — in the title or note). These are Tier-2 reference pages:
+never quote from them into `statements[]`. Finding none is fine; most minor bills have none.
 
 ## Input
 

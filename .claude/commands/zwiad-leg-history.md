@@ -81,6 +81,11 @@ parallel (separate `Task` calls in a single message): `crec`, `hearings`,
 - `spine.floor_consideration`, `spine.committee_reports`, `spine.enactment` — anchors
   (mainly for the `crec` and `signing` lanes)
 
+For a FEDERAL bill, remind the `crec` dispatch that its lane also collects **CRS
+products** (Legal Sidebars / In Focus / Reports from crsreports.congress.gov and
+congress.gov/crs-products) on the bill as Tier-2 `related_media` (`kind: page`) — no
+API links these to the bill, so they must be searched for explicitly.
+
 **For a STATE bill** the four lanes map to state sources — tell each dispatch it is a
 **state bill** and pass `leads.state` (e.g. `CA`) in place of `congress`, plus these directives:
 

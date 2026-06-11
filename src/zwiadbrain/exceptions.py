@@ -22,6 +22,10 @@ class SourceFetchError(SourceError):
     """A source request failed or returned an unusable response."""
 
 
+class SourceNotFoundError(SourceFetchError):
+    """A source returned 404 for a specific resource (often a benign 'no records')."""
+
+
 class RateLimitError(SourceError):
     """A source rejected a request for exceeding its rate limit."""
 

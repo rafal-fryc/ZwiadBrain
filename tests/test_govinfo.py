@@ -12,7 +12,7 @@ import httpx
 import pytest
 import respx
 
-from zwiadbrain.exceptions import RateLimitError, SourceFetchError
+from zwiadbrain.exceptions import RateLimitError, SourceFetchError, SourceNotFoundError
 from zwiadbrain.models import CommitteeReport, Enactment, FloorAction, Hearing
 from zwiadbrain.sources.govinfo import (
     GOVINFO_API_BASE,
@@ -358,13 +358,29 @@ def test_get_json_raises_rate_limit_error_on_429() -> None:
             _source().enacted_law(118, "HR", 8818)
 
 
-def test_get_json_raises_source_fetch_error_on_4xx() -> None:
-    """should surface a 404 GET as SourceFetchError"""
+def test_related_treats_404_as_no_records() -> None:
+    """should return None from enacted_law when the related lookup answers 404"""
     pkg_id = enrolled_bill_package_id(118, "HR", 9999)
     with respx.mock(base_url=GOVINFO_API_BASE) as mock:
         mock.get(f"/related/{pkg_id}/PLAW").respond(404)
+        assert _source().enacted_law(118, "HR", 9999) is None
+
+
+def test_get_json_raises_source_fetch_error_on_4xx() -> None:
+    """should surface a non-404 4xx GET as SourceFetchError"""
+    pkg_id = enrolled_bill_package_id(118, "HR", 9999)
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get(f"/related/{pkg_id}/PLAW").respond(403)
         with pytest.raises(SourceFetchError):
             _source().enacted_law(118, "HR", 9999)
+
+
+def test_package_summary_raises_not_found_on_404() -> None:
+    """should surface a 404 on a non-related endpoint as SourceNotFoundError"""
+    with respx.mock(base_url=GOVINFO_API_BASE) as mock:
+        mock.get("/packages/PLAW-118publ42/summary").respond(404)
+        with pytest.raises(SourceNotFoundError):
+            _source().package_summary("PLAW-118publ42")
 
 
 def test_get_json_raises_source_fetch_error_after_retry_exhaustion() -> None:

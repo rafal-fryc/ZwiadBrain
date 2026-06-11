@@ -27,7 +27,12 @@ from tenacity import (
 )
 from tenacity.wait import wait_base
 
-from zwiadbrain.exceptions import RateLimitError, SourceError, SourceFetchError
+from zwiadbrain.exceptions import (
+    RateLimitError,
+    SourceError,
+    SourceFetchError,
+    SourceNotFoundError,
+)
 from zwiadbrain.models import CommitteeReport, Enactment, FloorAction, Hearing, StatutesAtLarge
 from zwiadbrain.sources._redact import redact_api_key
 
@@ -195,6 +200,8 @@ class GovInfoSource:
             raise _Retryable(
                 response.status_code, path, retry_after=_retry_after_seconds(response)
             )
+        if response.status_code == 404:
+            raise SourceNotFoundError(f"GovInfo returned 404 for {path}")
         if response.status_code >= 400:
             raise SourceFetchError(f"GovInfo returned {response.status_code} for {path}")
         return response
@@ -237,9 +244,17 @@ class GovInfoSource:
     # --- primitives ---------------------------------------------------------
 
     def related(self, access_id: str, collection: str) -> list[dict[str, Any]]:
-        """Return the ``results`` list from ``GET /related/{accessId}/{collection}``."""
+        """Return the ``results`` list from ``GET /related/{accessId}/{collection}``.
+
+        GovInfo answers 404 when the package has no relationship to *collection*
+        (e.g. a bill with no committee report), so a 404 is "no records", not a
+        fetch failure.
+        """
         path = f"/related/{access_id}/{collection}"
-        payload = self._get_json(path)
+        try:
+            payload = self._get_json(path)
+        except SourceNotFoundError:
+            return []
         results: list[dict[str, Any]] = payload.get("results") or []
         return results
 

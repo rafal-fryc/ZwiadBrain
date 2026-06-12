@@ -196,6 +196,35 @@ _CURLY_QUOTE_TABLE: dict[int, int] = {
     0x0060: ord("'"),
 }
 
+# Dash variants and mojibake mapped to a plain space BEFORE whitespace collapse (D78):
+#   0x002D = HYPHEN-MINUS
+#   0x2010 = HYPHEN
+#   0x2011 = NON-BREAKING HYPHEN
+#   0x2012 = FIGURE DASH
+#   0x2013 = EN DASH
+#   0x2014 = EM DASH
+#   0x2015 = HORIZONTAL BAR
+#   0x2212 = MINUS SIGN
+#   0xFFFD = REPLACEMENT CHARACTER
+# A page that serves Windows-1252 bytes while declaring UTF-8 decodes its em-dash to
+# U+FFFD ("health data � particularly"), while the researcher records U+2014
+# ("health data—particularly") — one garbage character defeats the verbatim
+# match. Mapping ALL dash forms and U+FFFD to a space on BOTH sides lets the
+# whitespace collapse absorb the difference; hyphenated words normalize identically
+# on both sides ("first-in-the-nation" -> "first in the nation"), so no precision is
+# lost between needle and haystack.
+_DASH_MOJIBAKE_TABLE: dict[int, int] = {
+    0x002D: ord(" "),
+    0x2010: ord(" "),
+    0x2011: ord(" "),
+    0x2012: ord(" "),
+    0x2013: ord(" "),
+    0x2014: ord(" "),
+    0x2015: ord(" "),
+    0x2212: ord(" "),
+    0xFFFD: ord(" "),
+}
+
 
 def _normalize_text(s: str) -> str:
     """Normalize a string for quote-presence comparison.
@@ -204,10 +233,13 @@ def _normalize_text(s: str) -> str:
 
     1. Replace curly double/single quotes and apostrophes with their straight
        ASCII equivalents (U+201C/201D -> double-quote, U+2018/2019/0060 -> apostrophe).
-    2. Collapse all whitespace runs (spaces, tabs, newlines) to a single space
+    2. Replace dash variants (hyphen, en/em dash, horizontal bar, minus sign) and
+       the U+FFFD replacement character with a space (see
+       :data:`_DASH_MOJIBAKE_TABLE` for why mojibake must normalize away).
+    3. Collapse all whitespace runs (spaces, tabs, newlines) to a single space
        and strip leading/trailing whitespace.
     """
-    s = s.translate(_CURLY_QUOTE_TABLE)
+    s = s.translate(_CURLY_QUOTE_TABLE).translate(_DASH_MOJIBAKE_TABLE)
     return " ".join(s.split())
 
 
@@ -348,8 +380,15 @@ def _quote_present(quote: str, page_text: str) -> bool:
     always returns False — an empty string must not be treated as matching.
     The comparison is case-sensitive: attributed quotes must match the source
     verbatim.
+
+    Terminal punctuation on the QUOTE is stripped before matching (D78): a page
+    that embeds a quote mid-sentence ends it ``…decisions," said X`` while the
+    researcher records ``…decisions.`` — the final mark is an artifact of the
+    embedding context, not of the speaker's words. Every word and all interior
+    punctuation remain strictly verbatim; attribution stays with the independent
+    verifier.
     """
-    normalized_quote = _normalize_text(quote)
+    normalized_quote = _normalize_text(quote).rstrip(".,;:!?")
     if not normalized_quote:
         return False
     return normalized_quote in _normalize_text(_page_text(page_text))
@@ -502,6 +541,7 @@ def reground_with_render(
     static_fetch: Callable[[str], tuple[int, str]],
     render_html: Callable[[str], str],
     verifier_verdicts: dict[int, bool],
+    archive_fetch: Callable[[str], tuple[int, str]] | None = None,
 ) -> tuple[GroundingResult, int]:
     """Second grounding pass that renders JS for statements ``pass1`` dropped as
     "quote not found on source page" (Fix 3, PHASE-19).
@@ -511,6 +551,12 @@ def reground_with_render(
     *render_html* maps a url to the post-JS DOM HTML (``""`` when rendering is
     unavailable or fails); it is the deterministic headless-browser boundary, so the gate
     stays LLM-free.
+
+    *archive_fetch* (optional, D78e) maps a suspect url to an archived snapshot of the
+    SAME page (e.g. the Wayback Machine). A 200-with-JS-shell page defeats both the
+    static fetch and a bot-challenged headless render; the snapshot often carries the
+    server-rendered text. Snapshot text is APPENDED alongside the rendered text — same
+    monotonic-superset rule — and the statement's ``source_url`` is untouched.
 
     Design (why no verdict remap): only the urls that static-dropped as quote-not-found are
     rendered; every other url re-uses *static_fetch*, so statically-grounded statements are
@@ -538,12 +584,24 @@ def reground_with_render(
         return pass1, 0
 
     def render_fetch(url: str) -> tuple[int, str]:
+        status, body = static_fetch(url)
         if url in suspect_urls:
+            # APPEND recovery texts to the static body rather than replacing it: a
+            # suspect url can also host a statically-grounded statement, and
+            # replacement lets a blocked/diverging render drop it (the non-monotonic
+            # pass-2 regression). Appending keeps pass 2 a strict superset of pass 1.
+            extras: list[str] = []
             rendered = render_html(url)
             if rendered:
-                return (200, rendered)
-            # Render unavailable/failed -> fall back to the static fetch (fail-closed drop).
-        return static_fetch(url)
+                extras.append(rendered)
+            if archive_fetch is not None:
+                archive_status, archive_text = archive_fetch(url)
+                if archive_status == 200 and archive_text.strip():
+                    extras.append(archive_text)
+            if extras:
+                return (200, "\n".join([body, *extras]))
+            # No recovery text -> fall back to the static fetch (fail-closed drop).
+        return (status, body)
 
     result2 = ground_items(
         statements, hearings, fetch=render_fetch, verifier_verdicts=verifier_verdicts

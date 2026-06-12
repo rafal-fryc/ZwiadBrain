@@ -1970,15 +1970,9 @@ _GATE_HEADERS: dict[str, str] = {
 }
 
 
-def _is_pdf_response(resp: httpx.Response) -> bool:
-    """True when *resp* is a PDF — by content-type or the ``%PDF-`` magic bytes.
-
-    The magic-byte fallback catches servers that label a PDF as a generic
-    ``application/octet-stream``.
-    """
-    if "application/pdf" in resp.headers.get("content-type", "").lower():
-        return True
-    return resp.content[:5] == b"%PDF-"
+# Hard cap on a grounding download. Anything past this is a media binary (video/audio),
+# which carries no groundable text; the cap keeps the status code and drops the body.
+_GATE_MAX_BYTES = 30 * 1024 * 1024
 
 
 def _extract_pdf_text(data: bytes) -> str:
@@ -2005,8 +1999,37 @@ def _extract_pdf_text(data: bytes) -> str:
             tmp_path.unlink(missing_ok=True)
 
 
+# Hosts behind hard bot walls (Cloudflare challenges, UA-immune 403s) blocked grounding
+# even for verifier-confirmed quotes. When the live fetch is blocked, the gate retries the
+# Wayback Machine's latest snapshot of the SAME url (D78d) — the statement's source_url
+# stays the original page; only the grounding text comes from the archive.
+_WAYBACK_PREFIX = "https://web.archive.org/web/2/"
+_BLOCKED_STATUSES = frozenset({0, 401, 403, 429})
+
+
 def _fetch_url(url: str) -> tuple[int, str]:
     """Fetch a URL for grounding; returns (status_code, body_text).
+
+    Tries the live url first; when the response status is in ``_BLOCKED_STATUSES`` (bot
+    wall / network failure), falls back to the Wayback Machine snapshot of the same url
+    and, if the snapshot loads, returns ``(200, snapshot_text)``. Never raises.
+    """
+    status, text = _fetch_url_once(url)
+    # Fallback only for well-formed http(s) urls: a malformed url (InvalidURL -> status 0)
+    # must not be appended to the archive prefix and probed against the live archive.
+    if (
+        status in _BLOCKED_STATUSES
+        and url.startswith(("http://", "https://"))
+        and not url.startswith(_WAYBACK_PREFIX)
+    ):
+        wb_status, wb_text = _fetch_url_once(_WAYBACK_PREFIX + url)
+        if wb_status == 200 and wb_text.strip():
+            return (200, wb_text)
+    return (status, text)
+
+
+def _fetch_url_once(url: str) -> tuple[int, str]:
+    """Single fetch attempt for grounding; returns (status_code, body_text).
 
     Sends a browser-like User-Agent (so UA-gated hosts return 200, PHASE-17) and, for a
     200 PDF response, returns Docling-extracted text so PDF-sourced quotes can ground.
@@ -2014,14 +2037,40 @@ def _fetch_url(url: str) -> tuple[int, str]:
     Never raises — returns (0, '') on any HTTP error or on a malformed researcher-supplied
     URL (``httpx.InvalidURL``, which is NOT an HTTPError subclass and would otherwise crash
     the whole render).
+
+    Streams the body with a hard size cap: httpx's read timeout is per-chunk, so a direct
+    video link (e.g. a Tier-2 ``.mp4`` media URL) that keeps streaming never times out and
+    would buffer gigabytes into memory. A video/audio content-type or an over-cap body
+    yields ``(status, "")`` — the status still grounds a Tier-2 media URL (resolution
+    check), while a text quote against such a URL fail-closed drops, same as unfetchable.
     """
     try:
-        resp = httpx.get(url, timeout=30.0, follow_redirects=True, headers=_GATE_HEADERS)
+        with httpx.stream(
+            "GET", url, timeout=30.0, follow_redirects=True, headers=_GATE_HEADERS
+        ) as resp:
+            ctype = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+            if ctype.startswith(("video/", "audio/")):
+                return (resp.status_code, "")
+            chunks: list[bytes] = []
+            total = 0
+            for chunk in resp.iter_bytes():
+                total += len(chunk)
+                if total > _GATE_MAX_BYTES:
+                    return (resp.status_code, "")
+                chunks.append(chunk)
+            content = b"".join(chunks)
+            if resp.status_code == 200 and (
+                "application/pdf" in ctype or content[:5] == b"%PDF-"
+            ):
+                return (200, _extract_pdf_text(content))
+            encoding = resp.charset_encoding or "utf-8"
+            try:
+                text = content.decode(encoding, errors="replace")
+            except LookupError:
+                text = content.decode("utf-8", errors="replace")
+            return (resp.status_code, text)
     except (httpx.HTTPError, httpx.InvalidURL):
         return (0, "")
-    if resp.status_code == 200 and _is_pdf_response(resp):
-        return (200, _extract_pdf_text(resp.content))
-    return (resp.status_code, resp.text)
 
 
 def _load_leghistory(run_dir: Path) -> dict[str, object]:
@@ -2058,6 +2107,37 @@ def _load_lane_payloads(run_dir: Path) -> dict[str, object | None]:
     return lanes
 
 
+def _stage_pdf_texts(run_dir: Path, urls: list[str]) -> dict[str, Path]:
+    """Extract and stage text for PDF source urls so the verifier can Read it (D78b).
+
+    The leg-history-verifier subagent fetches with WebFetch, which returns raw bytes for
+    a PDF — so every PDF-sourced quote failed verification even when the grounding gate
+    (which extracts PDFs via Docling) could verbatim-match it.  This stages the SAME
+    deterministic extraction the gate uses (``_fetch_url`` -> ``_extract_pdf_text``) into
+    ``<run dir>/verifier-pdfs/pdf-<n>.txt`` per unique PDF url, preserving the trust
+    boundary: extraction is deterministic (no LLM) and the verifier still independently
+    judges verbatim presence, attribution, and contiguity over that text, while the gate
+    later re-fetches and re-matches on its own.
+
+    Only urls that look like PDFs (``.pdf`` in the lowercased url) are fetched; an
+    extraction failure or empty text simply stages nothing for that url (the verifier
+    falls back to WebFetch and fail-closed behaviour, exactly as before).
+    """
+    staged: dict[str, Path] = {}
+    pdf_urls = [u for u in dict.fromkeys(urls) if ".pdf" in u.lower()]
+    if not pdf_urls:
+        return staged
+    out_dir = run_dir / "verifier-pdfs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for n, url in enumerate(pdf_urls):
+        status, text = _fetch_url(url)
+        if status == 200 and text.strip():
+            path = out_dir / f"pdf-{n}.txt"
+            path.write_text(text, encoding="utf-8")
+            staged[url] = path.resolve()
+    return staged
+
+
 @app.command(name="build-verifier-input")
 def build_verifier_input(
     run_dir: Annotated[
@@ -2069,8 +2149,10 @@ def build_verifier_input(
     Reads ``leghistory.json`` (for the bill) and the four ``lane-<name>.json`` files, runs the
     deterministic :func:`merge_lanes`, and writes ``verifier-input.json`` — a ``subject`` block
     plus index-stamped ``statements`` / ``related_media``.  The interactive session dispatches
-    the leg-history-verifier over that file, then runs ``assemble-leg-history-input``.  Pure
-    deterministic plumbing: NO LLM calls.
+    the leg-history-verifier over that file, then runs ``assemble-leg-history-input``.  No LLM
+    calls; the only network use is the deterministic PDF-text staging (D78b), which writes
+    ``verifier-pdfs/pdf-<n>.txt`` for PDF source urls and stamps each affected entry with a
+    ``pdf_text_path`` the verifier can Read (WebFetch cannot extract PDF text).
     """
     try:
         leghistory = _load_leghistory(run_dir)
@@ -2080,6 +2162,35 @@ def build_verifier_input(
 
         merged = merge_lanes(_load_lane_payloads(run_dir))
 
+        pdf_texts = _stage_pdf_texts(
+            run_dir,
+            [s.source_url for s in merged.statements] + [m.url for m in merged.related_media],
+        )
+
+        def _stmt_entry(i: int, s: Statement) -> dict[str, object]:
+            entry: dict[str, object] = {
+                "index": i,
+                "speaker": s.speaker,
+                "quote": s.quote,
+                "source_url": s.source_url,
+                "relation": s.relation,
+            }
+            if s.source_url in pdf_texts:
+                entry["pdf_text_path"] = str(pdf_texts[s.source_url])
+            return entry
+
+        def _media_entry(i: int, m: RelatedMedia) -> dict[str, object]:
+            entry: dict[str, object] = {
+                "index": i,
+                "title": m.title,
+                "url": m.url,
+                "kind": m.kind,
+                "relation": m.relation,
+            }
+            if m.url in pdf_texts:
+                entry["pdf_text_path"] = str(pdf_texts[m.url])
+            return entry
+
         verifier_input = {
             "subject": {
                 "citation": bill.bill_number,
@@ -2087,28 +2198,12 @@ def build_verifier_input(
                 "topics": bill.topics,
                 "sponsors": bill.sponsors,
             },
-            "statements": [
-                {
-                    "index": i,
-                    "speaker": s.speaker,
-                    "quote": s.quote,
-                    "source_url": s.source_url,
-                    "relation": s.relation,
-                }
-                for i, s in enumerate(merged.statements)
-            ],
-            "related_media": [
-                {
-                    "index": i,
-                    "title": m.title,
-                    "url": m.url,
-                    "kind": m.kind,
-                    "relation": m.relation,
-                }
-                for i, m in enumerate(merged.related_media)
-            ],
+            "statements": [_stmt_entry(i, s) for i, s in enumerate(merged.statements)],
+            "related_media": [_media_entry(i, m) for i, m in enumerate(merged.related_media)],
         }
         path = stage_json(verifier_input, name="verifier-input.json", out=run_dir)
+        if pdf_texts:
+            typer.echo(f"  staged pdf text for {len(pdf_texts)} url(s) under verifier-pdfs/")
 
         typer.echo(
             f"verifier-input: {len(merged.statements)} statement(s),"
@@ -2494,22 +2589,25 @@ def render_leg_history(
             statements, hearings, fetch=gate_fetch, verifier_verdicts=verifier_verdicts
         )
 
-        # PHASE-19 (Fix 3): second pass re-grounds statements that dropped as
-        # "quote not found" by rendering ONLY those urls through headless Chromium (the
-        # JS-injected-quote signature). Optional/fail-closed: skipped entirely when
-        # Playwright is absent, so behaviour is identical to the static gate without it.
-        # Re-runs the FULL gate with the ORIGINAL verdicts, so verdict-by-index keying is
-        # preserved (no subset to re-key — the highest-stakes failure mode).
-        js_recovered = 0
-        if playwright_available():
-            result, js_recovered = reground_with_render(
-                statements,
-                hearings,
-                result,
-                static_fetch=gate_fetch,
-                render_html=render_page_html,
-                verifier_verdicts=verifier_verdicts,
-            )
+        # PHASE-19 (Fix 3) + D78e: second pass re-grounds statements that dropped as
+        # "quote not found" by appending, for ONLY those urls, the headless-Chromium
+        # rendered DOM (the JS-injected-quote signature) and the Wayback snapshot of the
+        # same page (the 200-with-JS-shell signature that defeats both static fetch and a
+        # bot-challenged render). Each recovery source is optional/fail-closed: an absent
+        # Playwright or a missing snapshot contributes nothing and behaviour matches the
+        # static gate. Re-runs the FULL gate with the ORIGINAL verdicts, so
+        # verdict-by-index keying is preserved (no subset to re-key — the highest-stakes
+        # failure mode).
+        archive_fetch = memoize_fetch(lambda u: _fetch_url_once(_WAYBACK_PREFIX + u))
+        result, js_recovered = reground_with_render(
+            statements,
+            hearings,
+            result,
+            static_fetch=gate_fetch,
+            render_html=render_page_html if playwright_available() else lambda _u: "",
+            verifier_verdicts=verifier_verdicts,
+            archive_fetch=archive_fetch,
+        )
 
         media_result = ground_related(
             related_media, fetch=gate_fetch, verifier_verdicts=media_verifier_verdicts

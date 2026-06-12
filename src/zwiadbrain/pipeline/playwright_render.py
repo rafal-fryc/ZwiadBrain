@@ -22,6 +22,13 @@ import importlib.util
 # that exceeds this simply yields "" and the item drops as if unfetchable.
 _RENDER_TIMEOUT_MS = 30_000
 
+# After DOM-content-loaded, wait up to this long for network idle before capturing anyway
+# (D78c). Pages with analytics beacons / websockets NEVER reach networkidle, and the old
+# hard wait burned the full budget and returned "" — dropping content that had fully
+# rendered seconds earlier. Best-effort capture keeps the gate fail-closed at the MATCH
+# step (challenge/empty pages simply won't contain the quote) instead of the fetch step.
+_RENDER_SETTLE_MS = 10_000
+
 
 def playwright_available() -> bool:
     """True when the Playwright python package can be imported in this environment.
@@ -63,13 +70,20 @@ def _render_with_playwright(url: str) -> str:
     Isolated from :func:`render_page_html` so the wrapper's never-raises contract can be
     unit-tested by patching this seam (no real browser in the test suite).
     """
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
     from playwright.sync_api import sync_playwright  # lazy: spawns a browser process
 
     with sync_playwright() as runtime:
         browser = runtime.chromium.launch(headless=True)
         try:
             page = browser.new_page()
-            page.goto(url, wait_until="networkidle", timeout=_RENDER_TIMEOUT_MS)
+            page.goto(url, wait_until="domcontentloaded", timeout=_RENDER_TIMEOUT_MS)
+            try:
+                page.wait_for_load_state("networkidle", timeout=_RENDER_SETTLE_MS)
+            except PlaywrightTimeoutError:
+                # Busy page (analytics/websockets) — capture what has rendered so far
+                # rather than failing the whole fetch (D78c).
+                pass
             html: str = page.content()
             return html
         finally:

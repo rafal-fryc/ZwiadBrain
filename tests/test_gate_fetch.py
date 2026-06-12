@@ -126,7 +126,29 @@ def test_fetch_url_non_200_reports_status() -> None:
 
 
 def test_fetch_url_network_error_returns_zero() -> None:
-    """should return (0, '') on a transport error rather than raising"""
+    """should return (0, '') when both the live fetch and the Wayback fallback fail"""
     with respx.mock(assert_all_called=False) as mock:
         mock.get(url=_URL).mock(side_effect=httpx.ConnectError("boom"))
+        mock.get(url=f"https://web.archive.org/web/2/{_URL}").respond(404, text="")
         assert _fetch_url(_URL) == (0, "")
+
+
+def test_fetch_url_blocked_falls_back_to_wayback() -> None:
+    """should ground via the Wayback snapshot when the live fetch is bot-blocked (D78d)"""
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(url=_URL).respond(403, text="Just a moment...")
+        mock.get(url=f"https://web.archive.org/web/2/{_URL}").respond(
+            200, text="<p>the archived quote</p>"
+        )
+        status, body = _fetch_url(_URL)
+    assert status == 200
+    assert "the archived quote" in body
+
+
+def test_fetch_url_wayback_failure_keeps_original_status() -> None:
+    """should keep the live 403 when the Wayback snapshot also fails"""
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(url=_URL).respond(403, text="blocked")
+        mock.get(url=f"https://web.archive.org/web/2/{_URL}").respond(404, text="")
+        status, _ = _fetch_url(_URL)
+    assert status == 403

@@ -1009,3 +1009,91 @@ press-feed scan; ~285 extractor dispatches of plan usage across ~12 sessions; ex
 works from structured PDF extractions rather than the press-release narrative voice.
 **Revisit if:** A second external enforcement dataset appears (promote the stager into
 `sources/enforcement/`), or the library publishes an update feed.
+
+## 2026-06-12 — 101. Grounding gate: terminal-punctuation relaxation + monotonic JS re-ground (D78)
+**Chosen:** (a) `_quote_present` strips terminal punctuation (`.,;:!?`) from the QUOTE
+(not the page) before the verbatim containment check. (b) `reground_with_render`'s
+render fetch APPENDS the rendered DOM text to the static body for suspect urls instead
+of replacing it, making pass 2 a strict per-url superset of pass 1. (c) Playwright is
+now installed (pinned in pyproject), so the PHASE-19 JS re-ground actually runs; the
+streamed `_fetch_url` also caps grounding downloads at 30 MB and short-circuits
+video/audio content-types (httpx read timeouts are per-chunk, so a direct `.mp4` media
+link streamed gigabytes into memory and stalled a render for hours). (User decision:
+option 1 — relax terminal punctuation only.)
+**Alternatives:** Keep the gate fully strict and re-prompt researchers to copy the
+embedded terminal punctuation (`…decisions,` not `…decisions.`); accept the lower
+grounding rates.
+**Why:** The dominant "quote not found" drop signature in the first state-bill batch
+was a single trailing character: pages embed quotes mid-sentence (`…decisions," said
+X`) while researchers record sentence-final periods. The final mark is an artifact of
+the embedding context, not the speaker's words — every word and all interior
+punctuation remain strictly verbatim, and speaker attribution remains with the
+independent cross-modal verifier. The replace→append fix removes a real regression
+where a blocked render could un-ground a statically-grounded statement sharing the
+suspect url (observed: −1 js-recovered on co-2024-sb-205).
+**Trade-offs:** A quote differing from the source ONLY in its final punctuation mark
+now grounds; the gate no longer distinguishes `?` from `.` at quote end. Appending
+static+rendered text doubles the haystack for suspect urls (negligible cost).
+**Revisit if:** A misgrounded quote is traced to the terminal-punctuation relaxation,
+or researchers start emitting quotes with trailing ellipses that the rstrip masks.
+
+## 2026-06-12 — 102. Grounding gate: dash + mojibake normalization (extends 101)
+**Chosen:** `_normalize_text` maps all dash variants (hyphen, en/em dash, horizontal
+bar, minus sign) AND the U+FFFD replacement character to a space on BOTH sides of the
+quote-presence check, before whitespace collapse. (User decision.)
+**Alternatives:** Charset re-detection on mis-declared pages (fix the decode rather
+than the match); leaving WA's drops as-is.
+**Why:** atg.wa.gov serves Windows-1252 bytes while declaring UTF-8 — its em-dash
+decodes to U+FFFD ("health data � particularly") and one garbage character defeats the
+verbatim match against the researcher's em-dash. Dash-to-space is symmetric (needle and
+haystack normalize identically, hyphenated words included), so recall rises with no
+needle/haystack asymmetry; charset re-detection would add a heuristic dependency for
+the same outcome.
+**Trade-offs:** The gate no longer distinguishes dash styles or a dash from a missing
+character at that position; U+FFFD-as-space could in principle mask a real one-character
+difference inside a quote.
+**Revisit if:** A misgrounded quote traces to dash/U+FFFD normalization.
+
+## 2026-06-12 — 103. Leg-history grounding recall: verifier PDF staging, best-effort render, Wayback fallback (D78b-d)
+**Chosen:** Three recall fixes for the leg-history pipeline, preserving the fail-closed
+trust boundary. (b) `build-verifier-input` stages the gate's deterministic Docling
+extraction of each PDF source url under `<run dir>/verifier-pdfs/` and stamps affected
+entries with `pdf_text_path`; the verifier Reads that text (WebFetch returns raw bytes
+for PDFs, so every PDF-sourced quote previously failed verification even when the gate
+could match it — 15 of AB 2273's 23 statements died this way). (c) The Playwright render
+navigates on `domcontentloaded`, waits up to 10s for network idle, then captures the DOM
+best-effort instead of returning "" on a hard `networkidle` timeout (pages with
+analytics/websockets NEVER reach idle; js-recovered was 0 in every run because the old
+wait burned the full 30s budget and dropped fully-rendered content). (d) `_fetch_url`
+retries blocked fetches (status 0/401/403/429) via the Wayback Machine's latest snapshot
+(`web.archive.org/web/2/<url>`); the statement's `source_url` stays the live page — only
+the grounding text comes from the archive. The verifier agent mirrors (b) and (d); the
+researcher agent now bakes in the prefer-static-sources guidance that measurably raised
+batch-2 grounding (Delete Act 16/19). Diagnosis note: nysenate.gov serves a Cloudflare
+bot challenge to headless Chromium — (c) cannot recover such pages by design, (d) can;
+no challenge-circumvention was built deliberately.
+**Alternatives:** Letting the assembler accept gate-matched PDF quotes without a verifier
+verdict (rejected: collapses the cross-modal double-check exactly where misattribution
+risk is highest — committee analyses quote many speakers); headless-stealth evasion for
+bot walls (rejected on principle); leaving recall as-is.
+**Trade-offs:** (b) the verifier judges pipeline-extracted text rather than its own fetch
+for PDFs (extraction is deterministic and the gate still independently re-matches); (d)
+grounds against an archived snapshot of the same url, which may lag the live page.
+**Revisit if:** A misgrounded quote traces to a stale Wayback snapshot, or Docling
+extraction is shown to alter quote text.
+
+## 2026-06-12 — 104. Pass-2 archive recovery for 200-with-JS-shell pages (D78e, extends 103)
+**Chosen:** `reground_with_render` takes an optional `archive_fetch`; for urls that
+dropped as quote-not-found, the pass-2 haystack is now static + rendered DOM + Wayback
+snapshot of the SAME url, appended monotonically. The CLI always runs pass 2 (an absent
+Playwright contributes an empty render) with a memoized Wayback fetcher. Covers pages
+that return 200 with a client-side shell (e.g. 2022-era gov.ca.gov releases), which the
+status-keyed fallback in 103(d) cannot see. `source_url` stays the live page.
+**Alternatives:** Triggering the Wayback fallback inside `_fetch_url` on "suspiciously
+small body" heuristics (rejected: fetch layer cannot know a quote is missing); leaving
+shell pages to fail.
+**Trade-offs:** Suspect urls now cost up to two extra fetches (render + archive), and
+grounding may succeed against an archived rather than live copy — same trade accepted
+in 103(d).
+**Revisit if:** A misgrounded quote traces to a stale snapshot whose live page removed
+or corrected the quote.

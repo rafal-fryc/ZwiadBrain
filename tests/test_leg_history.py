@@ -1463,6 +1463,61 @@ def test_reground_recovers_quote_not_found_via_render() -> None:
     assert result2.statements[0].verified is True
 
 
+def test_reground_recovers_quote_not_found_via_archive() -> None:
+    """should re-ground via the archive snapshot when static AND render both miss (D78e)"""
+    quote = "This quote only survives in the archived snapshot of the shell page today."
+    url = "https://shell.test/article"
+    statements = [_make_statement(speaker="Jane Roe", quote=quote, source_url=url)]
+    static_fetch = _fake_fetch({url: (200, "<div id='app'>Loading...</div>")})  # JS shell
+    verdicts = {0: True}
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+    assert len(pass1.statements) == 0  # static drop (quote not found)
+
+    archive_calls: list[str] = []
+
+    def archive_fetch(u: str) -> tuple[int, str]:
+        archive_calls.append(u)
+        return (200, f"<body><p>{quote}</p></body>")
+
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=lambda _u: "",  # render unavailable / bot-challenged
+        verifier_verdicts=verdicts,
+        archive_fetch=archive_fetch,
+    )
+
+    assert archive_calls == [url]  # ONLY the suspect url hit the archive
+    assert recovered == 1
+    assert len(result2.statements) == 1
+    assert result2.statements[0].source_url == url  # source_url stays the live page
+
+
+def test_reground_archive_failure_keeps_pass1() -> None:
+    """should keep the pass-1 drop when both render and archive contribute nothing"""
+    quote = "Neither the render nor the archive carries this quote anywhere at all."
+    url = "https://gone.test/article"
+    statements = [_make_statement(speaker="Jane Roe", quote=quote, source_url=url)]
+    static_fetch = _fake_fetch({url: (200, "<div>shell</div>")})
+    verdicts = {0: True}
+    pass1 = ground_items(statements, [], fetch=static_fetch, verifier_verdicts=verdicts)
+
+    result2, recovered = reground_with_render(
+        statements,
+        [],
+        pass1,
+        static_fetch=static_fetch,
+        render_html=lambda _u: "",
+        verifier_verdicts=verdicts,
+        archive_fetch=lambda _u: (404, ""),
+    )
+
+    assert recovered == 0
+    assert len(result2.statements) == 0
+
+
 def test_reground_does_not_render_statically_grounded_urls() -> None:
     """only urls that static-dropped as quote-not-found are rendered; grounded ones are not"""
     quote_ok = "This statically grounded quote is present in the raw HTML body right here."

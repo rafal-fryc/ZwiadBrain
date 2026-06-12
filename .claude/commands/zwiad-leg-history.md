@@ -138,12 +138,18 @@ by `url`, take the `narrative` from the `crec` lane, and write `<run dir>/verifi
 its 0-based merged `index`**. Python assigns every index; you never hand-build the index
 array. No LLM calls happen in this step.
 
+For each PDF source url it also stages the gate's deterministic Docling extraction under
+`<run dir>/verifier-pdfs/` and stamps the affected entries with a `pdf_text_path` (D78b) —
+the verifier `Read`s that file instead of WebFetching raw PDF bytes it cannot parse.
+
 ### 5. Dispatch the verifier subagent
 
 `Read` `<run dir>/verifier-input.json` and dispatch the **leg-history-verifier** subagent
 over it. Pass the `subject` block, the `statements` array, and the `related_media` array
 exactly as written — each entry already carries its `index`; do not re-number or reorder
-them. The verifier independently fetches each `source_url` / `url`, applies the verbatim +
+them (entries with a `pdf_text_path` keep it — the verifier reads the staged extraction).
+The verifier independently fetches each `source_url` / `url` (falling back to the Wayback
+Machine when a live fetch is bot-blocked, mirroring the gate), applies the verbatim +
 attribution + contiguity checks to statements (and, for `related` items, the
 subject-relevance clamp) and a Tier-2 identity check to media, and returns an object with
 two arrays:

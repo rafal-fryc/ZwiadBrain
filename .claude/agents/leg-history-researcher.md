@@ -135,11 +135,27 @@ records; do not invent details.
 ## CRITICAL rules — the trust boundary
 
 **Quotes MUST be verbatim.** Copy the exact text from the source. The downstream gate
-forgives ONLY curly-vs-straight quotes/apostrophes and runs of whitespace. It does NOT
-forgive dashes, ellipses, case changes, or dropped or added words. Copy EXACTLY,
-preserving case — no paraphrase, no abbreviation, no inserted `[brackets]`. If the exact
-quote isn't available, omit the statement. A deterministic grounding gate searches
-`source_url` for the normalized quote and drops anything not found there.
+forgives ONLY curly-vs-straight quotes/apostrophes, dash variants, terminal punctuation,
+and runs of whitespace. It does NOT forgive ellipses, case changes, or dropped or added
+words — interior punctuation must match EXACTLY. Copy as-is, preserving case — no
+paraphrase, no abbreviation, no inserted `[brackets]`. If the exact quote isn't
+available, omit the statement. A deterministic grounding gate searches `source_url` for
+the normalized quote and drops anything not found there.
+
+**Split quotes at attribution interruptions.** Press pages routinely interrupt a quote
+with the attribution tag mid-statement: `"…in children's best interest," said
+Assemblymember Wicks. "Today, California is leading…"`. The gate matches each quote as
+ONE contiguous span of page text, so a statement stitched across that `," said X. "`
+break will NEVER ground. Emit one `statement` per quoted span (same speaker, same
+source_url) — never join spans across an attribution tag, even for the same speaker.
+
+**Prefer statically-served sources for quotes.** The gate fetches `source_url` with a
+plain HTTP client (plus a headless-browser retry). Pages that serve their text as static
+HTML ground reliably: official .gov press releases and bill pages, legislative analyses,
+sponsor sites, machine-transcript pages (e.g. CalMatters Digital Democracy), official
+PDFs. JS-framework news sites, paywalled pages, and aggregators routinely FAIL the gate
+even when your quote is accurate — when the same quote appears in both an official
+release and a news article, cite the official release.
 
 **Video has no fetchable text — emit it as `related_media`.** A spoken quote in a video
 cannot be grounded against the video URL, so by DEFAULT emit a hearing/floor video as a

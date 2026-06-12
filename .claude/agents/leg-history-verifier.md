@@ -28,6 +28,12 @@ Each `statements` entry has:
 - `source_url` — the URL to fetch and search
 - `relation` — `on_bill` (about this specific bill) or `related` (about the bill's subject
   matter); `related` items get the extra subject-relevance check below
+- `pdf_text_path` — OPTIONAL: present when `source_url` is a PDF. The pipeline has already
+  extracted the PDF's text deterministically (Docling, no LLM) and staged it at this local
+  path. `Read` this file and run your verbatim/attribution/contiguity checks against it —
+  WebFetch returns raw bytes for PDFs and cannot extract their text. When `pdf_text_path`
+  is present, still confirm the `source_url` resolves (status 200) via WebFetch, but judge
+  the quote against the staged text.
 
 Each `related_media` entry (Tier-2 — a hearing/floor video or reference page, NO quote) has:
 
@@ -42,7 +48,12 @@ Each `related_media` entry (Tier-2 — a hearing/floor video or reference page, 
 
 For **each statement** in the input list:
 
-1. `WebFetch` the `source_url`.
+1. `WebFetch` the `source_url` — unless the entry carries a `pdf_text_path`, in which case
+   `Read` that staged text file for the content checks (and use WebFetch only to confirm
+   the url still resolves). If the live fetch is blocked (403, bot challenge, timeout),
+   retry once via the Wayback Machine — `https://web.archive.org/web/2/<source_url>` —
+   and judge the quote against the snapshot (the grounding gate uses the same fallback).
+   Only if BOTH fail is the url unverifiable.
 2. Check (a): does the **exact quote text** appear on the fetched page? Minor
    typographic normalization is acceptable (curly vs straight quotes, collapsed
    whitespace), but the words must be the same. Paraphrases do not count.
@@ -75,6 +86,9 @@ For **each `related_media` entry** — these carry NO quote, so there is nothing
 verbatim-match; you confirm IDENTITY and (for `related` items) subject relevance:
 
 1. `WebFetch` the `url`. If it does not resolve (error, empty body), `verified: false`.
+   If the entry carries a `pdf_text_path`, `Read` that staged extraction for the identity
+   check instead of judging raw PDF bytes (a resolving PDF whose staged text matches the
+   claimed document IS the claimed item).
 2. **Identity:** is this plausibly the claimed item — does the page/video title, channel,
    or committee match the entry's `title`/`kind`? A generic search page, an unrelated video,
    or a dead/parked link is NOT the claimed item → `verified: false`.

@@ -1097,3 +1097,30 @@ grounding may succeed against an archived rather than live copy — same trade a
 in 103(d).
 **Revisit if:** A misgrounded quote traces to a stale snapshot whose live page removed
 or corrected the quote.
+
+## 2026-06-30 — 105. Subprocess-isolate + page-cap Docling OCR (D81)
+**Chosen:** The Docling boundary (`extract_markdown`) now drives an out-of-process
+worker (`zwiadbrain.pipeline.docling_worker`) instead of converting in-process. The
+worker caps OCR via `DocumentConverter.convert(..., max_num_pages=12)` and writes its
+Markdown to a temp file; the parent driver runs it with a 300s timeout and returns `""`
+on any non-zero exit, native crash, timeout, or absent Docling. Both the grounding gate
+(`_extract_pdf_text`) and the verifier-input PDF staging (`_stage_pdf_texts`) route
+through it, so build and render are both protected.
+**Why:** Long scanned PDFs (e.g. CO SB 190's ~30-page `2021a_190_signed.pdf`) make
+RapidOCR/torch allocate huge per-page tensors and abort with a native C++ `std::bad_alloc`
+on the tail pages. A native abort is uncatchable by Python `except`, so the documented
+"the gate must never crash a render" invariant was actually broken — the process was
+killed and `build-verifier-input` never wrote `verifier-input.json`. Blind retries failed
+identically (deterministic to the PDF's pages, not memory pressure). Isolation makes the
+crash take down only the child (non-zero exit -> `""` -> existing fail-closed drop); the
+page cap keeps OCR clear of the exhausting tail pages so the crash is rarely reached.
+**Alternatives:** Page-cap alone (rejected: a single pathological page could still abort
+the parent); subprocess alone (rejected: every long scan would still burn full OCR before
+crashing); dropping media PDFs from staging (rejected: loses legitimate Tier-2 identity
+checks for signed-act / session-law PDFs). User chose cap + subprocess together.
+**Trade-offs:** Each PDF now spawns a fresh process that reloads torch + models (the old
+run-scoped converter cache is gone), so extraction is slower; a quote or media-identity
+marker buried past page 12 of a long *scanned* PDF will not ground (front-loaded in
+practice — signing statements are 1-2 pp, media identity is on page 1).
+**Revisit if:** Extraction latency becomes a bottleneck (consider a pooled long-lived
+worker), or a real quote is shown to live past the page cap in a scanned source.

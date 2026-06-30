@@ -25,7 +25,7 @@ interpretation a sourced legislative history materially helps.
 | ca-2023-ab-2013 | AB 2013 (Ch. 817, 2024) — Generative AI training-data transparency (Civ. Code Title 15.2) | US-CA | first-of-its-kind GenAI training-data disclosure mandate | flagged | /zwiad-leg-history ca/ab-2013 |
 | ca-2023-sb-1223 | SB 1223 (Ch. 887, 2024) — neural data added to CCPA sensitive personal information | US-CA | novel neural-data privacy first; high salience | done | /zwiad-leg-history ca/sb-1223 |
 | ca-2023-ab-2655 | AB 2655 (Ch. 261, 2024) — Defending Democracy from Deepfake Deception Act (platform duties) | US-CA | named AI-election Act; platform-facing; notable litigation | done | /zwiad-leg-history ca/ab-2655 |
-| ny-2019-a-5635 | A 5635 (Ch. 117, 2019) — NY SHIELD Act (breach notification + data-security safeguards on businesses) | US-NY | landmark state data-security statute; high salience | flagged | /zwiad-leg-history ny/a-5635 |
+| ny-2019-a-5635 | A 5635 (Ch. 117, 2019) — NY SHIELD Act (breach notification + data-security safeguards on businesses) | US-NY | landmark state data-security statute; high salience | done | /zwiad-leg-history ny/a-5635 |
 
 <!--
 Example rows (delete once real entries land):
@@ -42,6 +42,6 @@ Example rows (delete once real entries land):
 | wa-2023-hb-1155 | HB 1155 (2023) — My Health My Data Act | US-WA | first-of-its-kind consumer-health-data privacy law; private right of action; geofencing ban | flagged | /zwiad-leg-history wa/hb-1155 |
 | il-2019-hb-2557 | HB 2557 (2019) — Artificial Intelligence Video Interview Act | US-IL | FIRST US law regulating AI in hiring | flagged | /zwiad-leg-history il/hb-2557 |
 | il-2023-hb-3773 | HB 3773 (2024) — IL Human Rights Act amendment: discriminatory employer AI banned | US-IL | landmark employment-AI antidiscrimination law (eff. 2026) | flagged | /zwiad-leg-history il/hb-3773 |
-| ny-2023-s-7694 | S 7694-A (2024) — SAFE for Kids Act (addictive feeds to minors) | US-NY | landmark platform-design/minors law; companion to tracked S 7695 | flagged | /zwiad-leg-history ny/s-7694 |
+| ny-2023-s-7694 | S 7694-A (2024) — SAFE for Kids Act (addictive feeds to minors) | US-NY | landmark platform-design/minors law; companion to tracked S 7695 | done | /zwiad-leg-history ny/s-7694 |
 | 117-hr-2471 | PL 117-103 Division Y — CIRCIA (Cyber Incident Reporting for Critical Infrastructure Act of 2022) | US | landmark federal critical-infra incident-reporting mandate; CAVEAT: leg-history keyed to the omnibus surfaces appropriations history — the useful record is the standalone CIRCIA bills (S 2875 / HR 5440) | flagged | /zwiad-leg-history 117/hr/2471 |
 | 119-s-146 | PL 119-12 — TAKE IT DOWN Act (NCII/deepfake ban + 48-hour platform removal duty, FTC-enforced) | US | landmark: first federal statute regulating AI-generated intimate imagery and platform takedown duties; active FTC enforcement since May 2026 (see ftc-2026-nudify-tool-operators) | flagged | /zwiad-leg-history 119/s/146 |

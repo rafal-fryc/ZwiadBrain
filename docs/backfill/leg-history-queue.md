@@ -33,9 +33,9 @@ Example rows (delete once real entries land):
 | ca-2019-ab-25 | California Consumer Privacy Act amendments | US-CA | landmark privacy statute | flagged | /zwiad-leg-history ca/AB25 |
 -->
 | ny-2023-s-7695 | S 7695 (Ch.?, 2024) — New York Child Data Protection Act | US-NY | landmark state children-data-protection statute | flagged | /zwiad-leg-history ny/s-7695 |
-| tx-2021-sb-2116 | SB 2116 (2021) — Lone Star Infrastructure Protection Act (bars hostile-nation-owned companies from critical-infrastructure access contracts) | US-TX | named critical-infra security Act; first-of-its-kind state foreign-adversary infrastructure ban | flagged | /zwiad-leg-history tx/sb-2116 |
+| tx-2021-sb-2116 | SB 2116 (2021) — Lone Star Infrastructure Protection Act (bars hostile-nation-owned companies from critical-infrastructure access contracts) | US-TX | named critical-infra security Act; first-of-its-kind state foreign-adversary infrastructure ban | done | /zwiad-leg-history tx/sb-2116 |
 | tx-2023-hb-4 | HB 4 (2023) — Texas Data Privacy and Security Act (TDPSA) | US-TX | landmark comprehensive state consumer-privacy statute | flagged | /zwiad-leg-history tx/hb-4 |
-| tx-2023-sb-2105 | SB 2105 (2023) — Texas data-broker registration law (SoS registry + security-program duty) | US-TX | D88-core data-broker registry statute | flagged | /zwiad-leg-history tx/sb-2105 |
+| tx-2023-sb-2105 | SB 2105 (2023) — Texas data-broker registration law (SoS registry + security-program duty) | US-TX | D88-core data-broker registry statute | done | /zwiad-leg-history tx/sb-2105 |
 | co-2021-sb-190 | SB21-190 — Colorado Privacy Act (CPA) | US-CO | landmark comprehensive state consumer-privacy statute (3rd in US); universal opt-out first | flagged | /zwiad-leg-history co/sb-190 |
 | co-2024-sb-205 | SB24-205 — Colorado AI Act (Consumer Protections for Artificial Intelligence) | US-CO | FIRST comprehensive US state AI law; developer/deployer high-risk-AI duties; highest salience in the corpus | flagged | /zwiad-leg-history co/sb-205 |
 | va-2021-hb-2307 | HB 2307 (2021) — Virginia Consumer Data Protection Act (VCDPA) | US-VA | SECOND comprehensive US state privacy law; template for the post-CCPA state wave | flagged | /zwiad-leg-history va/hb-2307 |

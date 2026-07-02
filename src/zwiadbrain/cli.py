@@ -90,6 +90,7 @@ from zwiadbrain.pipeline.leg_history import (
     merge_lanes,
     reground_with_render,
 )
+from zwiadbrain.pipeline.linkcheck import check_pages, group_by_family
 from zwiadbrain.pipeline.playwright_render import playwright_available, render_page_html
 from zwiadbrain.pipeline.refresh import (
     apply_classifier_flip,
@@ -3082,6 +3083,75 @@ def extract_tracked(
     )
     for ident, reason in dropped:
         typer.echo(f"  - skipped {ident}: {reason}", err=True)
+
+
+def _probe_url(url: str) -> int:
+    """HEAD-probe a URL for the link check; GET fallback for HEAD-hostile hosts.
+
+    Returns the final status code (0 on any network error). ``follow_redirects`` is
+    on — a 301 to a working page is a live link (several states redirect legacy
+    hosts). The GET streams and closes immediately: only the status matters.
+    """
+    try:
+        resp = httpx.head(url, timeout=20.0, follow_redirects=True, headers=_GATE_HEADERS)
+        if resp.status_code in (405, 501):
+            with httpx.stream(
+                "GET", url, timeout=20.0, follow_redirects=True, headers=_GATE_HEADERS
+            ) as get_resp:
+                return get_resp.status_code
+        return resp.status_code
+    except (httpx.HTTPError, httpx.InvalidURL):
+        return 0
+
+
+@app.command(name="check-links")
+def check_links(
+    wiki: Annotated[Path, typer.Option(help="Wiki root holding the pages.")] = Path("wiki"),
+    limit: Annotated[
+        int | None, typer.Option(min=1, help="Max pages to scan this run (resume-friendly).")
+    ] = None,
+    prefix: Annotated[
+        str | None,
+        typer.Option(help="Only scan pages whose wiki-relative path starts with this prefix."),
+    ] = None,
+) -> None:
+    """Probe every URL on the tracked pages and report dead links grouped by URL family.
+
+    Read-only link-rot detection (D111): a site redesign that retires a URL scheme
+    (the 2026 ILGA case, which 404'd most links on every Illinois page) shows up as
+    one large family cluster instead of waiting for the next accuracy audit. 403s
+    may be bot walls rather than dead pages — the report flags them separately.
+    """
+    pages: list[tuple[str, str]] = []
+    for path in sorted(wiki.rglob("*.md")):
+        rel = path.relative_to(wiki).as_posix()
+        if rel.startswith(".rejects/") or rel == "README.md":
+            continue
+        if prefix is not None and not rel.startswith(prefix):
+            continue
+        try:
+            pages.append((rel, path.read_text(encoding="utf-8")))
+        except OSError as exc:
+            typer.echo(f"  - skipped {rel}: {exc}", err=True)
+    if limit is not None:
+        pages = pages[:limit]
+
+    dead = check_pages(pages, fetch=_probe_url)
+    families = group_by_family(dead)
+
+    typer.echo(
+        f"check-links: {len(pages)} page(s) scanned, {len(dead)} dead link(s)"
+        f" in {len(families)} family(ies)"
+    )
+    for family, links in families.items():
+        typer.echo(f"  family {family} — {len(links)} dead link(s)")
+        for link in links:
+            blocked = " (403 — possibly a bot wall, verify manually)" if link.status == 403 else ""
+            typer.echo(f"    [{link.status}]{blocked} {link.url}")
+            for page_id in link.pages[:5]:
+                typer.echo(f"      on {page_id}")
+            if len(link.pages) > 5:
+                typer.echo(f"      ... and {len(link.pages) - 5} more page(s)")
 
 
 def main() -> None:

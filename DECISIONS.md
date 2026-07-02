@@ -1263,3 +1263,24 @@ tally or the description.
 **Revisit if:** A real consecutive-day same-tally same-motion vote pair surfaces (drop the
 heuristic and prefer forced refresh), or LegiScan starts reporting spelled-out chambers
 routinely (extend the map).
+
+## 2026-07-02 — 112. `zwiadbrain check-links`: routine link-rot detection grouped by URL family
+**Chosen:** A read-only CLI command walks the tracked wiki pages (skipping `.rejects/`),
+harvests every http(s) URL, probes each unique URL once (HEAD with the gate's browser
+UA, GET fallback on 405/501, redirects followed), and reports non-2xx/3xx links grouped
+by URL *family* (host + first path segment), largest family first. 403s are flagged as
+possible bot walls to verify manually. Logic is pure (`pipeline/linkcheck.py`, injected
+fetcher) and unit-tested with a fake.
+**Alternatives:** Checking links inline during render (rejected: renders must stay
+deterministic and offline-capable); a rewrite map for known-retired URL families
+(rejected: LegiScan's current `state_link`s already point at new URLs, and persisted
+404s are page fixes — a map would mask, not fix).
+**Why:** The 2026-07-01 audit found ILGA's site redesign had 404'd a whole URL family
+across every Illinois page; nothing would have noticed until the next manual audit. The
+family grouping makes the next redesign one loud cluster in a routine report.
+**Trade-offs:** Status-only probing misses soft-404s (a 200 "not found" page) and can
+false-positive on hard bot walls (hence the 403 flag). Smoke run note: ILGA now 301s the
+legacy URLs to its new scheme when sent a browser UA, so those specific links are alive
+again; the persisted-page URL migration in accuracy-fixes-TODO remains worthwhile but is
+less urgent than the audit suggested.
+**Revisit if:** Soft-404s become a real miss class (add a lightweight body heuristic).

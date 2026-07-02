@@ -1203,3 +1203,34 @@ passed to a summarizer that never saw the enacted text.
 sidecar still rely on the synopsis, mitigated by the new fidelity rules.
 **Revisit if:** Docling sidecar coverage is too low for the rule to bite — then consider
 staging enacted text at summarize time the way the leg-history verifier does.
+
+## 2026-07-02 — 108. `source_type` is jurisdiction-scoped; `analysis` added for state analyses
+**Chosen:** `Statement.source_type` gains `"analysis"` (state committee/floor analyses and
+journal excerpts). `CREC` is documented as federal-only across the model and the
+researcher prompt; the researcher's vocabulary rule now says "never label a state source
+CREC". Backward-compatible: existing persisted values remain valid; no page rewrite.
+**Alternatives:** Reusing `other` for state analyses (rejected: erases exactly the
+official-record signal the relevance clamp keys on); renaming `CREC` to `record`
+(rejected: breaks every persisted page for a cosmetic gain).
+**Why:** The audit found `source_type: CREC` on California committee-analysis and NY
+sponsor-memo statements across many pages — a federal label on state sources, produced
+because the crec lane's table hardcoded one source_type for both jurisdictions.
+**Trade-offs:** Old pages keep their CREC labels until touched (page fixes live in
+docs/accuracy-fixes-TODO.md).
+**Revisit if:** More state source classes need distinguishing (e.g. veto messages).
+
+## 2026-07-02 — 109. Prior-session predecessor items are `relation: related`
+**Chosen:** Codify the 116-hr-7898 convention: any hearing, statement, or media item about
+a predecessor or companion bill from a PRIOR Congress/session carries
+`relation: "related"`, never `on_bill`, even when the predecessor is textually identical.
+Enforced twice: a researcher rule, and a verifier check that fails prior-session
+predecessor items marked `on_bill`.
+**Alternatives:** Allowing `on_bill` when the predecessor is the "same bill" reintroduced
+(rejected: 119-s-146 showed where that leads — the page said the bill was never reported
+by committee while an `on_bill` statement celebrated its committee vote, because the vote
+belonged to the prior Congress's bill).
+**Why:** The audit found the two conventions coexisting (116-hr-7898 vs 119-s-146); the
+`related` treatment renders under "Related (Subject Matter)" with a disclaimer, which is
+the accurate presentation for prior-session material.
+**Trade-offs:** Some genuinely-continuous campaigns read as "related" material; accepted.
+**Revisit if:** A rendering need arises to group predecessor material explicitly.

@@ -137,7 +137,9 @@ class Statement(BaseModel):
     quote: Annotated[str, Field(min_length=20)]  # D36 grounding floor (_MIN_QUOTE_CHARS)
     context: str | None = None
     source_url: _HttpUrlStr
-    source_type: Literal["CREC", "hearing", "press", "news", "signing", "other"]
+    # "CREC" is the federal Congressional Record ONLY; a state committee/floor
+    # analysis or journal excerpt is "analysis" (D108 — jurisdiction-scoped vocab).
+    source_type: Literal["CREC", "analysis", "hearing", "press", "news", "signing", "other"]
     verified: bool = False
     # "on_bill" = a statement about this specific bill; "related" = a sponsor/official
     # statement on the bill's subject matter, under the D70 relevance clamp (D69).

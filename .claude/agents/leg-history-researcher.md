@@ -30,7 +30,7 @@ fields outside your lane stay empty.
 
 | Lane | What you search | Returns | source_type |
 |------|-----------------|---------|-------------|
-| `crec` | Congressional Record (floor) + committee-report text, via `spine.floor_consideration` and committee reports; **CRS products** on the bill | on-bill floor statements, CRS products → `related_media[]`, **and the narrative** | `CREC` |
+| `crec` | Congressional Record (floor) + committee-report text, via `spine.floor_consideration` and committee reports; **CRS products** on the bill | on-bill floor statements, CRS products → `related_media[]`, **and the narrative** | `CREC` (federal) / `analysis` (state analyses & journals) |
 | `hearings` | Congressional/committee hearing **records** + **hearing videos** | hearing records → `hearings[]`; hearing videos → `related_media[]` (`kind: video`); witness `statements[]` only if a transcript page carries the verbatim words | `hearing` |
 | `press` | Member press releases (house.gov/senate.gov), reputable news, sponsors' **past/subject-matter** statements | on-bill and subject-matter `statements[]` | `press`, `news`, `other` |
 | `signing` | The executive **signing statement** — the **President** for a federal bill, the **Governor** for a state bill — and any contemporaneous signing remarks | `statements[]` for the signer | `signing` |
@@ -128,7 +128,7 @@ For every **statement** you find:
   "quote": "VERBATIM text — exact copy from the source, no paraphrasing",
   "context": "One line: what the speaker was addressing",
   "source_url": "The exact fetchable URL where this quote appears",
-  "source_type": "CREC" | "hearing" | "press" | "news" | "signing" | "other",
+  "source_type": "CREC" | "analysis" | "hearing" | "press" | "news" | "signing" | "other",
   "verified": false,
   "relation": "on_bill" | "related"
 }
@@ -231,14 +231,26 @@ item beats an unverifiable one.
 the grounding gate confirms the quote AND an independent verifier cross-checks it. You MUST
 NOT set `verified: true`.
 
+**Every date is the source's OWN date.** A statement's or media item's `date` is the
+publication or event date printed on the source page itself — never the date of the event
+the page *describes* (an article published Oct 9 about an Oct 1 firing is dated Oct 9). If
+the page shows no date, use `null`. The verifier fails statements whose claimed date
+contradicts the page's own date.
+
 **`role` must be exactly one of:** `sponsor`, `cosponsor`, `member`, `witness`, `other`.
 
-**`source_type` must be exactly one of:** `CREC`, `hearing`, `press`, `news`, `signing`,
-`other`. Use the specific value for your lane; reserve `other` for a member's own website
-or a think-tank report.
+**`source_type` must be exactly one of:** `CREC`, `analysis`, `hearing`, `press`, `news`,
+`signing`, `other` — and the vocabulary is **jurisdiction-scoped**: `CREC` means the
+*federal* Congressional Record ONLY. For a STATE bill, a committee/floor analysis or
+journal excerpt is `analysis`; press releases are `press`; the governor's signing message
+is `signing`. Never label a state source `CREC`. Reserve `other` for a member's own
+website or a think-tank report.
 
 **`relation` must be exactly one of:** `on_bill`, `related` — and `related` only under the
-relevance clamp above.
+relevance clamp above. A hearing, statement, or media item about a **predecessor or
+companion bill from a prior Congress/session** is ALWAYS `related`, never `on_bill`, even
+when the predecessor is textually identical to this bill — the verifier rejects
+prior-session predecessor items marked `on_bill`.
 
 **Do not invent or approximate.** If you cannot find a verbatim quote with a working source
 URL, omit that statement. Fewer confirmed quotes is better than more fabricated ones.

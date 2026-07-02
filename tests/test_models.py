@@ -668,3 +668,18 @@ def test_statutes_at_large_rejects_non_http_url() -> None:
     from zwiadbrain.models import StatutesAtLarge
     with pytest.raises(ValidationError):
         StatutesAtLarge(citation="138 Stat. 1234", url="govinfo.gov/STATUTE")
+
+
+def test_statement_accepts_analysis_source_type() -> None:
+    """should accept the D108 'analysis' source_type for state committee/floor analyses"""
+    s = Statement.model_validate(
+        {
+            "speaker": "Sen. Josh Becker",
+            "role": "sponsor",
+            "quote": "This bill protects the neural data of every Californian.",
+            "source_url": "https://sjud.senate.ca.gov/analysis",
+            "source_type": "analysis",
+        }
+    )
+    assert s.source_type == "analysis"
+    assert s.model_dump(mode="json")["source_type"] == "analysis"

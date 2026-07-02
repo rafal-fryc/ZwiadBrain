@@ -15,8 +15,13 @@ cut N per-bill round-trips down to one.
 ## Input
 
 The prompt gives you a JSON list of bills, each with `id`, `title`, official `summary`
-(CRS/LegiScan-style), `status`, sponsor(s), and latest action. Everything you need is in the
-prompt; you do not fetch anything.
+(CRS/LegiScan-style), `status`, sponsor(s), latest action, and optionally `text_path` —
+the local path of that bill's extracted full text (`.text.md` sidecar). You never fetch
+the web. When a bill carries a `text_path` you MUST `Read` it (long files: the first
+~1,500 lines suffice) and write that bill's summary from the **latest/enacted text**,
+using the official `summary` only for orientation: for enacted bills the official
+synopsis frequently describes the *introduced* version, whose consent/notice/threshold
+provisions may have been amended out.
 
 ## What to write — for each bill
 
@@ -28,6 +33,19 @@ A tight summary — **2 to 4 sentences** — that answers:
 Be specific and neutral. Name the obligation, prohibition, agency, or right the bill creates.
 Avoid hedging, boilerplate ("This bill would..."), and editorializing. Do not invent details
 unsupported by the input. Summarize every bill in the input; do not skip any.
+
+## Accuracy rules — for every bill
+
+- **Enacted-version fidelity.** For an enacted/chaptered bill, describe the law *as
+  enacted*; never carry introduced-version specifics unless present in the provided text.
+- **Copy legal parameters exactly.** Numeric thresholds ("more than 500" is NOT "500 or
+  more"), penalty type (criminal vs. civil), covered-entity scope (state agencies vs. any
+  person), and statutory definitions ("child" may mean under 13 — say what the statute says).
+- **Never summarize an amendment synopsis as the bill.** If a bill's official `summary`
+  reads like an amendment description ("Replaces everything after the enacting clause…",
+  "House Floor Amendment No. N…"), ignore it and write from `title` + `text_path`; with no
+  text available, describe the bill's subject at title level only.
+- **Don't assert absence.** Never claim "no bill text is available" or similar.
 
 ## Output
 

@@ -85,7 +85,11 @@ a. **Classifier** (only if `needs_classifier`): dispatch the **classifier**
 
 b. **Summarizer** (only if `needs_summarizer` AND classifier returned in-scope
    — out-of-scope bills do not get a fresh summary): dispatch the
-   **summarizer** subagent with `fresh` → set `bill.summary` to the returned
+   **summarizer** subagent with `fresh`, adding `text_path` — the bill's
+   existing `<id>.text.md` sidecar path under the wiki — when that sidecar
+   exists (D110: the summary is written from the bill text, not a possibly
+   stale official synopsis; note if the sidecar predates the text change, the
+   refresh re-extraction will update it). Set `bill.summary` to the returned
    prose.
 
 c. **Amendment-explainer** (only if `changed_amendment_numbers` is non-empty
@@ -124,7 +128,11 @@ re-renders pages, and reindexes the FTS5 store. It prints
 ### 7. Report
 Summarize: number of refreshable bills detected, subagent dispatch counts
 (classifier / summarizer / explainer calls), bills refreshed, bills flipped
-out (with reasons). Do not commit — leave the wiki changes for review.
+out (with reasons). Also flag any tracked bill whose `update_date` is older
+than its `latest_action_date` as **"stale cursor — consider forced refresh"**
+(the 2026-07 audit traced off-by-one vote tallies and months-stale pages to
+snapshots taken before the source finished recording a day's actions). Do not
+commit — leave the wiki changes for review.
 
 ## Notes
 - Keep `ANTHROPIC_API_KEY` unset so subagents use your plan session, not the API.

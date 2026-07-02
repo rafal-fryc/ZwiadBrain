@@ -64,7 +64,9 @@ the bill changes (D82). Commit `wiki/.rejects/` alongside the rendered pages.
 
 ### 5. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`
 `Read` `classified.json`. Dispatch the **batch-summarizer** subagent ONCE with the full list
-of in-scope bills (each bill's `id`, `title`, `summary`, `status`, sponsors, latest action).
+of in-scope bills (each bill's `id`, `title`, `summary`, `status`, sponsors, latest action —
+plus `text_path`, the bill's `<id>.text.md` sidecar path, for any bill that already has one:
+D110, the summary is then written from the bill text rather than the official synopsis).
 It returns a single `{id: summary}` JSON map. `Write` it to `summaries.json`, then run:
 ```
 uv run zwiadbrain apply-summaries --in data/runs/<id>/classified.json --summaries data/runs/<id>/summaries.json

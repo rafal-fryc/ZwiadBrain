@@ -1176,3 +1176,30 @@ elsewhere on the page. Both are pure tightenings (D43-compliant).
 attribution markup; fail-closed is the project's stated preference.
 **Revisit if:** Legitimate quotes start failing date-consistency because a page shows
 only an updated-on date materially later than original publication.
+
+## 2026-07-02 — 110. Enacted-bill summaries are written against the extracted enacted text
+**Chosen:** The summarizer / batch-summarizer prompts accept an optional `text_path` (the
+bill's `.text.md` Docling sidecar) and, when present, MUST write the summary from that
+latest/enacted text, using the official synopsis only for orientation. New binding rules:
+enacted-version fidelity, copy legal parameters exactly (numeric thresholds, criminal vs
+civil penalties, covered-entity scope, statutory definitions), never summarize an
+amendment synopsis as the bill, never assert "no bill text is available". The enacted
+backfill commands reorder to render → extract-text → summarize-with-text_path →
+apply-summaries → re-render (extract-text needs the committed page, so extraction cannot
+precede the first render); /zwiad-refresh and /zwiad-backfill pass an existing sidecar's
+path in the summarizer dispatch.
+**Alternatives:** Passing the full text inline in the prompt (rejected: enrolled texts
+run to hundreds of pages; the sidecar + `Read` keeps the dispatch small and lets the
+agent read as much as it needs); extracting before the first render (rejected: would
+need extract-text code changes for no benefit — the double render is cheap and hash-
+skipped).
+**Why:** The 2026-07-01 audit found summaries describing the INTRODUCED bill on enacted
+pages (IL HB 2557's removed "written consent"/"facial expressions"; VA HB 2024's wrong
+covered entities and penalty type; WA HB 1071's "500 or more" vs the statute's "more
+than 500"; one page whose Summary was an amendment synopsis). Root cause: LegiScan
+`description` / the Congress.gov latest summary reflect an earlier version and were
+passed to a summarizer that never saw the enacted text.
+**Trade-offs:** Enacted backfills render twice (cheap); summaries for bills without a
+sidecar still rely on the synopsis, mitigated by the new fidelity rules.
+**Revisit if:** Docling sidecar coverage is too low for the rule to bite — then consider
+staging enacted text at summarize time the way the leg-history verifier does.

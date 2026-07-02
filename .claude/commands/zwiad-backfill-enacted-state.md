@@ -64,33 +64,45 @@ with the taxonomy's current `scope_version` (D96). Commit `wiki/.rejects/` along
 After any scope-rule change (a `topics.yaml` `scope_version` bump), run
 `uv run zwiadbrain stale-rejects --scope state` to review rejects recorded under the old rules.
 
-### 5. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`
-`Read` `classified.json`. Dispatch **batch-summarizer** ONCE with the full in-scope list. `Write`
-the `{id: summary}` map to `summaries.json`, then:
+### 5. Render + extract text FIRST, then summarize from the enacted text (D110)
+
+These are enacted laws, and LegiScan's `description` is routinely the *introduced*-version
+synopsis — the 2026-07 accuracy audit found summaries carrying provisions that amendments
+had removed. So render + extract come first, and the summary is written from the extracted
+enacted text.
+
+**5a. Render + extract (Python, deterministic; extract is optional — skip, never fail):**
+```
+uv run zwiadbrain render-classified --in data/runs/<id>/classified.json
+uv run --no-sync zwiadbrain extract-text --in data/runs/<id>/classified.json
+```
+Pages render under `wiki/states/$1/bills/` (with the raw official summary, replaced in 5b);
+`extract-text` (requires Docling — `uv pip install docling`, a deliberately unlocked heavy
+extra, D68) writes `<id>.text.md` sidecars next to the new pages and links them from each
+page. If Docling is NOT installed, skip `extract-text`, note "extraction deferred" in the
+unit report, and continue — do NOT fail the unit. Deferred sidecars are backfilled later
+with `uv run --no-sync zwiadbrain extract-tracked` (skip-if-sidecar makes it resumable).
+Commit sidecars with the unit.
+
+**5b. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`:**
+`Read` `classified.json`. Dispatch **batch-summarizer** ONCE with the full in-scope list,
+adding to each bill whose sidecar exists a `text_path` — the path of
+`wiki/states/$1/bills/<id>.text.md` — so its summary is written from the enacted text, not
+the synopsis (bills without a sidecar go without `text_path`; the agent's enacted-fidelity
+rules still apply). `Write` the `{id: summary}` map to `summaries.json`, then:
 ```
 uv run zwiadbrain apply-summaries --in data/runs/<id>/classified.json --summaries data/runs/<id>/summaries.json
 ```
 Reports **pending** un-summarized bills (backfill gap 2). For bills with amendments, dispatch
 **amendment-explainer** and set `what_changed` by editing `classified.json` (disjoint fields).
 
-### 6. Render + index (Python, deterministic)
+### 6. Re-render + index (Python, deterministic)
 ```
 uv run zwiadbrain render-classified --in data/runs/<id>/classified.json
 uv run zwiadbrain reindex
 ```
-Pages render under `wiki/states/$1/bills/`.
-
-### 6a. Extract full text (optional — skip, never fail)
-If Docling is installed (`uv pip install docling`; a deliberately unlocked heavy extra — D68):
-```
-uv run --no-sync zwiadbrain extract-text --in data/runs/<id>/classified.json
-uv run zwiadbrain reindex
-```
-This writes `<id>.text.md` sidecars next to the new pages, links them from each page, and
-re-indexes so the full statutory text is searchable. If Docling is NOT installed, note
-"extraction deferred" in the unit report and continue — do NOT fail the unit. Deferred sidecars
-are backfilled later with `uv run --no-sync zwiadbrain extract-tracked` (skip-if-sidecar makes it
-resumable). Commit sidecars with the unit.
+Re-renders the pages with the applied plain-language summaries (cheap — unchanged pages are
+skipped) and indexes the sidecars so the full statutory text is searchable.
 
 ### 7. Flag significant laws for legislative history
 Append any **significant** enacted laws (named Act / high-salience) to

@@ -65,9 +65,32 @@ stamped with the taxonomy's current `scope_version` (D96). Commit `wiki/.rejects
 rendered pages. After any scope-rule change (a `topics.yaml` `scope_version` bump), run
 `uv run zwiadbrain stale-rejects --scope federal` to review rejects recorded under the old rules.
 
-### 5. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`
-`Read` `classified.json`. Dispatch the **batch-summarizer** ONCE with the full list of in-scope
-bills (`id`, `title`, `summary`, `status`, sponsors, latest action). It returns a single
+### 5. Render + extract text FIRST, then summarize from the enacted text (D110)
+
+These are enacted laws, and the official summary is often written for an earlier version —
+so render + extract come first, and the summary is written from the extracted enacted text.
+
+**5a. Render + extract (Python, deterministic; extract is optional — skip, never fail):**
+```
+uv run zwiadbrain render-classified --in data/runs/<id>/classified.json
+uv run --no-sync zwiadbrain extract-text --in data/runs/<id>/classified.json
+```
+Pages render first (with the raw official summary, replaced in 5b); `extract-text` (requires
+Docling — `uv pip install docling`, a deliberately unlocked heavy extra, D68) writes
+`<id>.text.md` sidecars next to the new pages and links them from each page. If Docling is
+NOT installed, skip `extract-text`, note "extraction deferred" in the unit report, and
+continue — do NOT fail the unit (deferred sidecars are backfilled later with
+`uv run --no-sync zwiadbrain extract-tracked`; skip-if-sidecar makes it resumable). Beware
+omnibus carriers (e.g. a full NDAA): their enrolled PDFs are thousands of pages — defer
+those via `extract-tracked --skip <id>` rather than extracting inline. Commit sidecars with
+the unit.
+
+**5b. Summarize the in-scope bills (subagent: `batch-summarizer`) → `summaries.json`:**
+`Read` `classified.json`. Dispatch the **batch-summarizer** ONCE with the full list of
+in-scope bills (`id`, `title`, `summary`, `status`, sponsors, latest action), adding to each
+bill whose sidecar exists a `text_path` — the path of its `<id>.text.md` under
+`wiki/federal/bills/` — so the summary is written from the enacted text, not a stale
+synopsis (bills without a sidecar go without `text_path`). It returns a single
 `{id: summary}` map. `Write` it to `summaries.json`, then:
 ```
 uv run zwiadbrain apply-summaries --in data/runs/<id>/classified.json --summaries data/runs/<id>/summaries.json
@@ -78,25 +101,13 @@ If an in-scope bill has amendments, dispatch the **amendment-explainer** subagen
 set each amendment's `what_changed` by editing `classified.json` directly (disjoint fields — order
 vs `apply-summaries` does not matter).
 
-### 6. Render + index (Python, deterministic)
+### 6. Re-render + index (Python, deterministic)
 ```
 uv run zwiadbrain render-classified --in data/runs/<id>/classified.json
 uv run zwiadbrain reindex
 ```
-
-### 6a. Extract full text (optional — skip, never fail)
-If Docling is installed (`uv pip install docling`; a deliberately unlocked heavy extra — D68):
-```
-uv run --no-sync zwiadbrain extract-text --in data/runs/<id>/classified.json
-uv run zwiadbrain reindex
-```
-This writes `<id>.text.md` sidecars next to the new pages, links them from each page, and
-re-indexes so the full statutory text is searchable. If Docling is NOT installed, note
-"extraction deferred" in the unit report and continue — do NOT fail the unit. Deferred sidecars
-are backfilled later with `uv run --no-sync zwiadbrain extract-tracked` (skip-if-sidecar makes it
-resumable). Beware omnibus carriers (e.g. a full NDAA): their enrolled PDFs are thousands of
-pages — defer those via `extract-tracked --skip <id>` rather than extracting inline. Commit
-sidecars with the unit.
+Re-renders the pages with the applied plain-language summaries (cheap — unchanged pages are
+skipped) and indexes the sidecars so the full statutory text is searchable.
 
 ### 7. Flag significant laws for legislative history
 For each rendered in-scope law that is **significant** (a named Act, or otherwise high-salience —

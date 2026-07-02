@@ -341,6 +341,52 @@ def dedup_statements(statements: Sequence[Statement]) -> list[Statement]:
     return out
 
 
+def extract_page_text(page: str) -> str:
+    """Public wrapper over :func:`_page_text` for callers outside the gate (D106).
+
+    The enrolled-text staging in the CLI must extract HTML to visible text EXACTLY
+    the way the grounding gate does (same script/style/comment stripping), so the
+    verifier judges narrative substance against the same text the gate would see.
+    """
+    return _page_text(page)
+
+
+def gate_narrative(narrative: str | None, verdict: object) -> tuple[str | None, str | None]:
+    """Fail-closed render gate for the Legislative Journey narrative (D106).
+
+    The narrative is LLM prose: until D106 it was the ONLY researched field that
+    reached the page unverified — the 2026-07-01 accuracy audit traced its largest
+    error class (wrong vote tallies, analysis-dates-as-vote-dates, other bills'
+    provisions) to exactly that gap.  The verifier now cross-checks the narrative
+    against the deterministic spine and the enrolled text, and this gate binds its
+    verdict at render time, mirroring the statement gate's fail-closed discipline.
+
+    *verdict* is the ``narrative_verdict`` object from the staging file:
+    ``{"checked": bool, "verdict": "pass"|"fail", "issues": [...]}``.
+
+    Returns ``(kept_narrative, drop_reason)``:
+
+    * no narrative (``None`` / blank) -> ``(None, None)`` — nothing to gate;
+    * ``verdict == "pass"``           -> ``(narrative, None)``;
+    * anything else — a ``"fail"`` verdict, a missing/malformed verdict object,
+      or a staging file that predates D106 — drops the narrative with a reason.
+      Fail-closed by design (D36/D43): an unverified narrative never renders.
+    """
+    if narrative is None or not narrative.strip():
+        return (None, None)
+    if not isinstance(verdict, dict):
+        return (None, "no narrative verdict (fail-closed)")
+    entry: dict[str, object] = verdict  # pyright: ignore[reportUnknownVariableType]
+    outcome = entry.get("verdict")
+    if outcome == "pass":
+        return (narrative, None)
+    if outcome == "fail":
+        issues = entry.get("issues")
+        count = len(issues) if isinstance(issues, list) else 0  # pyright: ignore[reportUnknownArgumentType]
+        return (None, f"narrative verdict 'fail' with {count} issue(s)")
+    return (None, f"invalid narrative verdict {outcome!r} (fail-closed)")
+
+
 def _page_text(page: str) -> str:
     """Extract human-visible text from an HTML page for quote-presence comparison.
 

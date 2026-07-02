@@ -294,11 +294,15 @@ def _write_verifier(
     *,
     statements: list[dict[str, object]] | None = None,
     related_media: list[dict[str, object]] | None = None,
+    narrative: dict[str, object] | None = None,
 ) -> None:
-    (run / "verifier.json").write_text(
-        json.dumps({"statements": statements or [], "related_media": related_media or []}),
-        encoding="utf-8",
-    )
+    payload: dict[str, object] = {
+        "statements": statements or [],
+        "related_media": related_media or [],
+    }
+    if narrative is not None:
+        payload["narrative"] = narrative
+    (run / "verifier.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
 def test_assemble_attaches_verdicts_keyed_by_merged_index(tmp_path: Path) -> None:
@@ -433,3 +437,87 @@ def test_assembler_output_renders_through_render_leg_history(
     assert result.exit_code == 0, result.output
     rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
     assert _QUOTE_CREC in rendered
+
+
+# --- narrative verdict plumbing (D106) ---------------------------------------
+
+
+def test_build_verifier_input_carries_narrative_and_spine_digest(tmp_path: Path) -> None:
+    """should write the merged narrative plus a votes/timeline/enactment spine digest"""
+    run = tmp_path / "run"
+    crec = _lane(statements=[_statement(quote=_QUOTE_CREC)], narrative="Journey.")
+    leghistory: dict[str, object] = {"bill": _bill(), "spine": _spine(), "leads": {}}
+    spine = leghistory["spine"]
+    assert isinstance(spine, dict)
+    spine["votes"] = [
+        {"date": "2024-05-01", "chamber": "House", "result": "Passed 100-0", "roll_call_url": None}
+    ]
+    _write_run(run, lane_files={"crec": crec}, leghistory=leghistory)
+
+    result = runner.invoke(app, ["build-verifier-input", "--run-dir", str(run)])
+    assert result.exit_code == 0, result.output
+
+    vin = json.loads((run / "verifier-input.json").read_text(encoding="utf-8"))
+    assert vin["narrative"] == "Journey."
+    assert vin["spine"]["votes"] == [
+        {"date": "2024-05-01", "chamber": "House", "result": "Passed 100-0", "roll_call_url": None}
+    ]
+    assert vin["spine"]["timeline"] == []
+    assert vin["spine"]["enactment"] is None
+
+
+def test_assemble_passes_through_a_pass_narrative_verdict(tmp_path: Path) -> None:
+    """should write narrative_verdict pass when the verifier's narrative block says pass"""
+    run = tmp_path / "run"
+    crec = _lane(statements=[_statement(quote=_QUOTE_CREC)], narrative="Journey.")
+    _write_run(run, lane_files={"crec": crec})
+    _write_verifier(
+        run,
+        statements=[
+            {
+                "index": 0,
+                "speaker": "Rep. Jane Doe",
+                "quote_prefix": _QUOTE_CREC[:40],
+                "on_subject": True,
+                "verified": True,
+                "note": "ok",
+            }
+        ],
+        narrative={"checked": True, "verdict": "pass", "issues": []},
+    )
+
+    result = runner.invoke(app, ["assemble-leg-history-input", "--run-dir", str(run)])
+    assert result.exit_code == 0, result.output
+
+    render_input = json.loads((run / "leghistory-research.json").read_text(encoding="utf-8"))
+    assert render_input["narrative_verdict"] == {"checked": True, "verdict": "pass", "issues": []}
+
+
+def test_assemble_fails_closed_when_verifier_has_no_narrative_block(tmp_path: Path) -> None:
+    """should write a fail narrative_verdict when the verifier returned no narrative block"""
+    run = tmp_path / "run"
+    crec = _lane(statements=[_statement(quote=_QUOTE_CREC)], narrative="Journey.")
+    _write_run(run, lane_files={"crec": crec})
+    _write_verifier(run, statements=[])
+
+    result = runner.invoke(app, ["assemble-leg-history-input", "--run-dir", str(run)])
+    assert result.exit_code == 0, result.output
+
+    render_input = json.loads((run / "leghistory-research.json").read_text(encoding="utf-8"))
+    verdict = render_input["narrative_verdict"]
+    assert verdict["checked"] is True
+    assert verdict["verdict"] == "fail"
+
+
+def test_assemble_marks_missing_narrative_unchecked(tmp_path: Path) -> None:
+    """should write checked false when there is no merged narrative to verify"""
+    run = tmp_path / "run"
+    press = _lane(statements=[_statement(quote=_QUOTE_PRESS, source_type="press")])
+    _write_run(run, lane_files={"press": press})
+    _write_verifier(run, statements=[])
+
+    result = runner.invoke(app, ["assemble-leg-history-input", "--run-dir", str(run)])
+    assert result.exit_code == 0, result.output
+
+    render_input = json.loads((run / "leghistory-research.json").read_text(encoding="utf-8"))
+    assert render_input["narrative_verdict"] == {"checked": False}

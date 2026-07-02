@@ -34,6 +34,7 @@ from zwiadbrain.pipeline.leg_history import (
     collect_leads,
     collect_state_leads,
     dedup_statements,
+    gate_narrative,
     ground_items,
     ground_related,
     reground_with_render,
@@ -1678,3 +1679,47 @@ def test_assemble_state_spine_defaults_empty_committee_reports() -> None:
     spine = assemble_state_spine(_enacted_state_bill(), [])
 
     assert spine.committee_reports == []
+
+
+# ---------------------------------------------------------------------------
+# gate_narrative (D106)
+# ---------------------------------------------------------------------------
+
+
+def test_gate_narrative_passes_nothing_through_when_narrative_absent() -> None:
+    """should return (None, None) for a missing or blank narrative"""
+    assert gate_narrative(None, {"checked": False}) == (None, None)
+    assert gate_narrative("   ", None) == (None, None)
+
+
+def test_gate_narrative_keeps_narrative_on_pass_verdict() -> None:
+    """should keep the narrative when the verifier verdict is pass"""
+    kept, reason = gate_narrative("Journey.", {"checked": True, "verdict": "pass", "issues": []})
+    assert kept == "Journey."
+    assert reason is None
+
+
+def test_gate_narrative_drops_narrative_on_fail_verdict_with_issue_count() -> None:
+    """should drop the narrative and report the issue count when the verdict is fail"""
+    verdict = {
+        "checked": True,
+        "verdict": "fail",
+        "issues": [{"claim": "37-0", "problem": "spine says 30-0", "evidence": "roll call"}],
+    }
+    kept, reason = gate_narrative("Journey.", verdict)
+    assert kept is None
+    assert reason == "narrative verdict 'fail' with 1 issue(s)"
+
+
+def test_gate_narrative_drops_narrative_when_verdict_missing() -> None:
+    """should fail-closed drop a narrative that has no verdict object (pre-D106 staging)"""
+    kept, reason = gate_narrative("Journey.", None)
+    assert kept is None
+    assert reason == "no narrative verdict (fail-closed)"
+
+
+def test_gate_narrative_drops_narrative_on_malformed_verdict_value() -> None:
+    """should fail-closed drop when the verdict value is neither pass nor fail"""
+    kept, reason = gate_narrative("Journey.", {"checked": True, "verdict": "maybe"})
+    assert kept is None
+    assert reason == "invalid narrative verdict 'maybe' (fail-closed)"

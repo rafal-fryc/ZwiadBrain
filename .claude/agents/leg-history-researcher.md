@@ -88,13 +88,20 @@ For every **hearing** you confirm (a hearing record OR an official hearing video
 {
   "title": "Full hearing title as it appears in the source",
   "committee": "Full committee name or null",
-  "chamber": "House" | "Senate" | null,
+  "chamber": "the chamber's own name as the legislature uses it — e.g. \"House\", \"Senate\", \"Assembly\", \"General Assembly\" — or null",
   "date": "YYYY-MM-DD or null",
   "citation": "CHRG citation or null",
   "url": "A fetchable URL where this hearing record or video appears",
   "relation": "on_bill" | "related"
 }
 ```
+
+**A hearing is an event, not a document.** An analysis, fiscal note, committee report, or
+bill-status page is NOT a hearing — never emit one as `hearings[]` (analyses are already in
+`spine.committee_reports`; a reference page belongs in `related_media`). A hearing's `url`
+must be the hearing record, agenda, witness list, or video page — never a generic
+bill-History/status page. Emit each hearing event **once**: if you find the same hearing at
+two URLs, keep the most official one.
 
 For every **related media** item (a hearing/floor video, or a reference page) — listed
 WITHOUT a quote:
@@ -127,10 +134,40 @@ For every **statement** you find:
 }
 ```
 
-For the **narrative** (`crec` lane only) — write 3–6 sentences tracing the bill's journey
-from introduction through committee, floor consideration, and enactment. Name the key
-votes, sponsors, and any notable hurdles or coalitions. Base it on the spine and confirmed
-records; do not invent details.
+## Narrative rules (`crec` lane only)
+
+Write 3–6 sentences tracing the bill's journey from introduction through committee, floor
+consideration, and enactment. Name the key votes, sponsors, and any notable hurdles or
+coalitions. The narrative is **verified downstream against the deterministic spine and the
+bill's enrolled text and is dropped entirely if any claim fails** — a thin, accurate
+narrative beats a rich, wrong one. These rules are binding:
+
+- **The spine is authoritative.** Every date, vote tally, chamber, and sequencing claim
+  must come from the provided `spine.votes` / `timeline` or from an official page you
+  fetched in this run. A tally you state must match a roll call in `spine.votes` exactly —
+  the spine renders as the page's own Votes and Timeline sections, so a contradiction is a
+  visible self-contradiction. If your source disagrees with the spine, **omit the claim**.
+- **Analysis date ≠ vote date.** A committee analysis's date is the date the analysis was
+  *prepared*, not the hearing or vote date. Take committee vote dates only from the
+  timeline / roll-call record, never from an analysis header.
+- **Passage vs. procedure.** Never present a procedural tally (reconsideration granted,
+  motion to concur, rule suspension, calendar placement) as the passage vote. Copy tallies
+  in the source's own order (Yes–No–Excused); never transpose the counts.
+- **This bill only.** Before describing what the enacted law does, confirm the provision
+  appears in THIS bill's enrolled/chaptered text (fetch the Enrolled/Chaptered link in the
+  spine versions). Never attribute a companion, predecessor, or double-jointed bill's
+  provision to this bill — if a related bill carried the change, name that bill instead.
+- **Amendment "added" claims.** Say an amendment *added* or *extended* a provision only
+  when a version comparison or an official analysis explicitly says so. A provision that
+  pre-existed the amendment must not be credited to it.
+- **Titles and chambers.** Give each legislator the chamber and title the official source
+  gives (Sen. / Rep. / Assemblymember / Del.); the `sponsors` list and the legislature's
+  member pages are authoritative. Never infer someone's chamber from which chamber an
+  action happened in — Senate authors appear in House actions and vice versa.
+- **No unverified superlatives.** "First in the nation" / "first ever" claims require a
+  fetched authoritative source that says so; otherwise use neutral phrasing ("among the
+  first") or omit the claim.
+- **Sequencing.** Order chamber actions exactly as the timeline orders them.
 
 ## CRITICAL rules — the trust boundary
 

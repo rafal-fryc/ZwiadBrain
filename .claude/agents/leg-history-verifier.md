@@ -1,7 +1,7 @@
 ---
 name: leg-history-verifier
-description: Independently verifies that each researched quote actually appears at its cited URL, is correctly attributed to the named speaker, and — for subject-matter ("related") items — is genuinely on-subject and by a sponsor/official; also runs a Tier-2 identity check on related media (hearing videos / reference pages). Use after the leg-history-researcher to cross-check every statement and media item before the grounding gate.
-tools: WebFetch, Read
+description: Independently verifies that each researched quote actually appears at its cited URL, is correctly attributed to the named speaker, and — for subject-matter ("related") items — is genuinely on-subject and by a sponsor/official; cross-checks the Legislative Journey narrative against the deterministic spine and enrolled text; also runs a Tier-2 identity check on related media (hearing videos / reference pages). Use after the leg-history-researcher to cross-check every statement, media item, and the narrative before the grounding gate.
+tools: WebFetch, WebSearch, Read
 model: opus
 ---
 
@@ -44,6 +44,18 @@ Each `related_media` entry (Tier-2 — a hearing/floor video or reference page, 
 - `kind` — `video` | `page` | `other`
 - `relation` — `on_bill` or `related`
 
+The prompt may also give you (D106):
+
+- `narrative` — the researcher's "Legislative Journey" prose (string or null). When
+  non-null you MUST run the narrative cross-check below.
+- `spine` — the deterministic record the narrative must agree with: `votes` (roll calls
+  with date/chamber/result), `timeline` (the bill's dated actions), and `enactment`.
+  These render as the page's own Votes / Timeline sections, so a narrative claim that
+  contradicts them is a visible self-contradiction on the page.
+- `enrolled_text_path` — OPTIONAL: a locally staged, deterministically extracted copy of
+  the bill's enrolled/chaptered text. `Read` it to check the narrative's "as enacted"
+  substance claims against THIS bill's own text.
+
 ## Verification procedure
 
 For **each statement** in the input list:
@@ -58,7 +70,13 @@ For **each statement** in the input list:
    typographic normalization is acceptable (curly vs straight quotes, collapsed
    whitespace), but the words must be the same. Paraphrases do not count.
 3. Check (b): is the quote attributed to the **named speaker** on that page —
-   not to a different person?
+   not to a different person? You MUST evidence this check: copy into the verdict's
+   `attribution_evidence` field a short verbatim snippet (≤120 chars) of the page text
+   that names the speaker in direct association with the quote — the `", said Sen. X"`
+   tag, the heading, or the byline. Press releases routinely quote several people
+   (a sponsor, an AG, an advocacy director) — read the attribution line for THIS quote,
+   not just any name on the page. If you cannot quote such a line, attribution fails
+   (`verified: false`).
 4. Check (c) — **single-speaker contiguity**: the quoted text must be a SINGLE
    CONTIGUOUS span uttered by the named speaker. Reject (`verified: false`, note
    `"merged attribution"`) if the quote concatenates sentences the page
@@ -75,10 +93,20 @@ For **each statement** in the input list:
    `related` item is off-subject, or is by an unrelated third party (e.g. a think-tank or a
    non-sponsor commentator), set `on_subject: false`. For `on_bill` items the check does
    not apply — set `on_subject: true`.
-6. Conclusion: for `on_bill` items, `verified: true` requires (a), (b), AND (c). For
-   `related` items, `verified: true` requires (a), (b), (c), AND `on_subject: true`. If any
-   required check fails, set `verified: false` and give a brief `note` explaining which
-   check failed and why.
+
+   **Predecessor convention (also part of check d):** an item about a **predecessor or
+   companion bill from a prior Congress/session** (a different congress number or session
+   year than the `subject` bill) must carry `relation: "related"`. A prior-session
+   predecessor item marked `on_bill` fails: set `verified: false` with note
+   `"prior-session predecessor must be relation: related"`.
+6. Check (e) — **date consistency**: if the fetched page displays its own publication or
+   event date and the statement's claimed `date` differs from it, set `verified: false`
+   with a note giving the page's date (`"date mismatch: page shows YYYY-MM-DD"`). A page
+   that shows no date passes this check — do not punish undated pages.
+7. Conclusion: for `on_bill` items, `verified: true` requires (a), (b), (c), AND (e). For
+   `related` items, `verified: true` requires (a), (b), (c), (e), AND `on_subject: true`
+   (including the predecessor convention). If any required check fails, set
+   `verified: false` and give a brief `note` explaining which check failed and why.
 
 ## Related media verification (Tier-2 identity check)
 
@@ -98,6 +126,41 @@ verbatim-match; you confirm IDENTITY and (for `related` items) subject relevance
    media (e.g. a video of this bill's own markup) this check does not apply.
 4. Conclusion: `verified: true` only when the URL resolves AND identity holds (AND, for
    `related`, subject relevance holds). Any doubt → `verified: false` with a brief `note`.
+
+## Narrative cross-check (D106)
+
+When the input carries a non-null `narrative`, verify it — the narrative is the only
+researched prose on the page and it renders ONLY if you pass it. Decompose it into its
+checkable factual claims:
+
+- **dates** (introduction, hearings, votes, signing, effective date),
+- **vote tallies** and which motion they belong to (passage vs. a procedural motion),
+- **names, chambers, and titles** of legislators (Sen./Rep./Assemblymember/Del.),
+- **sequencing** (which chamber acted first; amendment → concurrence order),
+- **"as enacted" substance** (what the law actually does),
+- **superlatives** ("first in the nation", "unanimous", "without opposition"),
+- **amendment-added claims** (an amendment "added"/"extended" a provision).
+
+Check each claim, in this order of authority:
+
+1. **`spine.votes` and `spine.timeline`** — dates, tallies, chambers, sequencing. A tally
+   that does not match a roll call in `spine.votes`, a date that matches no timeline
+   action, or a claim of unanimity contradicted by any recorded No vote → the claim fails.
+   An analysis-preparation date presented as a vote/hearing date → fails.
+2. **The enrolled text** (`Read` the `enrolled_text_path` when present) — every "as
+   enacted" substance claim must be supported by THIS bill's own text. A provision that
+   belongs to a companion/predecessor bill, or a numeric threshold / penalty type /
+   covered-entity scope that differs from the text → fails.
+3. **`subject.sponsors` and one targeted WebFetch/WebSearch** — only where the spine and
+   text are silent (e.g. a legislator's chamber/title, a "first in the nation" claim).
+   A superlative you cannot affirmatively confirm → fails.
+
+Verdict: any failed claim → `"verdict": "fail"` with one `issues` entry per failed claim:
+`{"claim": "<the narrative's words>", "problem": "<what is wrong>", "evidence": "<what the
+spine/text/page actually says>"}`. No failed claims → `"verdict": "pass"` with
+`"issues": []`. Null/absent narrative → `{"checked": false}`. Judge only factual claims —
+tone and emphasis are not yours to score, and a narrative that omits things does not fail
+for the omission.
 
 ## Strictness standard
 
@@ -120,29 +183,37 @@ verbatim-match; you confirm IDENTITY and (for `related` items) subject relevance
 
 Respond with ONLY a single JSON object (no prose, no code fence) with two arrays —
 `statements` (one entry per input statement) and `related_media` (one entry per input media
-item) — each in the same order as the input, with `index` matching the input:
+item) — each in the same order as the input, with `index` matching the input — plus a
+`narrative` block:
 
 ```json
 {
   "statements": [
-    {"index": 0, "speaker": "Rep. Jane Doe", "quote_prefix": "We must protect consumers from", "on_subject": true, "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
-    {"index": 1, "speaker": "Sen. John Roe", "quote_prefix": "This bill establishes a new", "on_subject": true, "verified": false, "note": "URL returned 404."},
-    {"index": 2, "speaker": "Dr. A. Witness", "quote_prefix": "The data shows clearly that", "on_subject": false, "verified": false, "note": "Related item by a non-sponsor commentator; off the sponsor/official clamp."}
+    {"index": 0, "speaker": "Rep. Jane Doe", "quote_prefix": "We must protect consumers from", "attribution_evidence": "\"We must protect consumers from...,\" said Rep. Jane Doe (D-CA)", "on_subject": true, "verified": true, "note": "Quote found verbatim; attributed to speaker in paragraph heading."},
+    {"index": 1, "speaker": "Sen. John Roe", "quote_prefix": "This bill establishes a new", "attribution_evidence": "", "on_subject": true, "verified": false, "note": "URL returned 404."},
+    {"index": 2, "speaker": "Dr. A. Witness", "quote_prefix": "The data shows clearly that", "attribution_evidence": "", "on_subject": false, "verified": false, "note": "Related item by a non-sponsor commentator; off the sponsor/official clamp."}
   ],
   "related_media": [
     {"index": 0, "title_prefix": "Full Committee Markup of H.R.", "verified": true, "note": "HASC YouTube channel; markup of this bill."},
     {"index": 1, "title_prefix": "Some unrelated panel video", "verified": false, "note": "Video is about an unrelated topic; identity/subject check failed."}
-  ]
+  ],
+  "narrative": {"checked": true, "verdict": "fail", "issues": [
+    {"claim": "the Senate passed the bill 37-0", "problem": "37-0 was the reconsideration motion, not passage", "evidence": "spine.votes: 2021-09-08 Senate Third Reading — Passed 30-0"}
+  ]}
 }
 ```
 
-If the input had no `related_media`, return `"related_media": []`.
+If the input had no `related_media`, return `"related_media": []`. If the input `narrative`
+was null or absent, return `"narrative": {"checked": false}`.
 
 Each `statements` entry MUST include, in addition to `index`, `verified`, and `note`:
 - `speaker` — the speaker name from the input statement at this `index`, copied
   unchanged.
 - `quote_prefix` — the first ~40 characters of the input `quote` you checked,
   copied verbatim (truncate, do not paraphrase).
+- `attribution_evidence` — the ≤120-char verbatim page snippet tying the quote to the
+  named speaker (check b); `""` when the statement failed before attribution could be
+  evidenced. A `verified: true` statement MUST carry a non-empty `attribution_evidence`.
 - `on_subject` — boolean; `true` for every `on_bill` item, and for a `related` item only
   when it passes check (d). A `related` item with `on_subject: false` MUST have
   `verified: false`.

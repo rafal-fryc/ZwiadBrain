@@ -1124,3 +1124,55 @@ marker buried past page 12 of a long *scanned* PDF will not ground (front-loaded
 practice — signing statements are 1-2 pp, media identity is on page 1).
 **Revisit if:** Extraction latency becomes a bottleneck (consider a pooled long-lived
 worker), or a real quote is shown to live past the page cap in a scanned source.
+
+## 2026-07-02 — 106. Narrative gate: verifier cross-check + fail-closed render drop (extends D36/D40)
+**Chosen:** The Legislative Journey narrative is now verified before it renders. The
+`build-verifier-input` step also emits the merged `narrative`, a deterministic `spine`
+digest (roll-call votes, action timeline, enactment), and — when a narrative is present —
+a staged enrolled/chaptered text (`verifier-enrolled.txt`, same deterministic fetch +
+extraction the gate uses). The `leg-history-verifier` decomposes the narrative into
+factual claims (dates, tallies, chambers, sequencing, "as enacted" substance,
+superlatives, amendment-added claims) and checks each against the spine, timeline, and
+enrolled text, returning `{"checked", "verdict": "pass"|"fail", "issues": [...]}`. The
+assembler binds this fail-closed (`narrative_verdict`), the orchestrator runs ONE bounded
+narrative-repair retry on a fail, and `render-leg-history` gates via `gate_narrative`:
+only a "pass" narrative renders; a fail, missing, or malformed verdict (including
+pre-D106 staging files) drops the narrative with an audit line. The researcher prompt
+gains binding narrative rules (spine-authoritative tallies, analysis-date ≠ vote-date,
+passage vs procedure, this-bill-only substance, no unverified superlatives,
+titles/chambers per official source).
+**Alternatives:** A separate narrative-verifier agent (rejected: the existing verifier
+already runs once per bill on an independent model per D36 — one more block in the same
+round-trip is cheaper and keeps one trust boundary); deterministic regex checks of
+tallies in Python (rejected: narrative claims are prose — matching "37-0" to the right
+motion needs judgment, which is exactly what the verifier is for).
+**Why:** The 2026-07-01 accuracy audit (docs/accuracy-review-2026-07-01.md) found ~35 of
+~81 confirmed errors in narratives — the ONLY researched field that reached the page
+unverified. Wrong tallies contradicting the page's own Votes section, analysis dates as
+vote dates, other bills' provisions, false "first in the nation"/unanimity claims.
+**Trade-offs:** Bills whose narrative repeatedly fails render without a Legislative
+Journey (fail-closed, accepted); replaying pre-D106 run dirs through the new CLI drops
+their narratives (run dirs are transient); one extra fetch per run for the enrolled text.
+**Revisit if:** The narrative drop rate stays high after the repair step — that is a
+researcher-prompt recall problem (fix the prompt per D43, never loosen the gate).
+
+## 2026-07-02 — 107. Verifier: statement date-consistency check + attribution evidence
+**Chosen:** Two tightenings to the statement checks. (e) date consistency: a statement
+whose claimed `date` differs from the date the fetched page itself displays is
+`verified: false` (undated pages pass). Attribution evidence: every verdict must carry
+`attribution_evidence` — a ≤120-char verbatim page snippet tying the quote to the named
+speaker; a `verified: true` verdict without one is invalid, and if no such line can be
+quoted, attribution fails.
+**Alternatives:** Pipeline-side parsing of `attribution_evidence` against the page
+(rejected for now: the gate cannot judge attribution semantics; the field's value is that
+it forces the verifier to locate the attribution line and leaves an audit trail in
+verifier.json).
+**Why:** The audit found statements dated by the event they describe rather than the
+source's publication date (e.g. 2025-10-01 vs the article's 2025-10-09), and one quote
+attributed to the bill sponsor that the source attributes to an ADL director (IL HB 2954)
+— a misattribution that passed the old check (b) because the sponsor's name appeared
+elsewhere on the page. Both are pure tightenings (D43-compliant).
+**Trade-offs:** Slightly lower recall on pages with ambiguous dating or unusual
+attribution markup; fail-closed is the project's stated preference.
+**Revisit if:** Legitimate quotes start failing date-consistency because a page shows
+only an updated-on date materially later than original publication.

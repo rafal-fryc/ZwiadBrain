@@ -83,6 +83,8 @@ from zwiadbrain.pipeline.leg_history import (
     collect_leads,
     collect_state_leads,
     dedup_statements,
+    extract_page_text,
+    gate_narrative,
     ground_items,
     ground_related,
     merge_lanes,
@@ -2138,6 +2140,89 @@ def _stage_pdf_texts(run_dir: Path, urls: list[str]) -> dict[str, Path]:
     return staged
 
 
+_ENROLLED_CODE_HINTS: tuple[str, ...] = ("enrolled", "chaptered")
+_ENROLLED_TEXT_MAX_CHARS = 600_000  # keep the staged file readable by the verifier
+
+
+def _spine_digest(spine: object, bill: Bill) -> dict[str, object]:
+    """Deterministic spine digest for the verifier's narrative cross-check (D106).
+
+    Carries the three record sets a narrative makes checkable claims against: the
+    roll-call ``votes``, the bill's action ``timeline``, and the ``enactment``
+    block.  Pure re-serialization of ``leghistory.json`` data — no network, no LLM.
+    """
+    votes: list[dict[str, object]] = []
+    enactment: object = None
+    if isinstance(spine, dict):
+        spine_obj: dict[str, object] = spine  # pyright: ignore[reportUnknownVariableType]
+        raw_votes = spine_obj.get("votes")
+        if isinstance(raw_votes, list):
+            vote_items: list[object] = list(raw_votes)  # pyright: ignore[reportUnknownArgumentType]
+            for v in vote_items:
+                if isinstance(v, dict):
+                    vote: dict[str, object] = v  # pyright: ignore[reportUnknownVariableType]
+                    votes.append(
+                        {k: vote.get(k) for k in ("date", "chamber", "result", "roll_call_url")}
+                    )
+        enactment = spine_obj.get("enactment")
+    timeline: list[dict[str, object]] = [
+        {
+            "date": action.date.isoformat() if action.date else None,
+            "chamber": action.chamber,
+            "text": action.text,
+        }
+        for action in bill.actions
+    ]
+    return {"votes": votes, "timeline": timeline, "enactment": enactment}
+
+
+def _stage_enrolled_text(run_dir: Path, spine: object) -> Path | None:
+    """Stage the enrolled/chaptered bill text for the verifier's substance check (D106).
+
+    Picks the enrolled (else chaptered, else last) text version from the spine,
+    fetches it with the SAME deterministic fetch the grounding gate uses
+    (``_fetch_url``: Docling for PDFs), extracts visible text from HTML exactly
+    like the gate (:func:`extract_page_text`), and writes it to
+    ``<run dir>/verifier-enrolled.txt``.  The verifier ``Read``s this file to
+    check the narrative's "as enacted" claims against THIS bill's own text —
+    the audit's wrong-law-conflation class.  Any failure stages nothing: the
+    verifier then judges substance best-effort against fetched pages instead.
+    """
+    if not isinstance(spine, dict):
+        return None
+    spine_obj: dict[str, object] = spine  # pyright: ignore[reportUnknownVariableType]
+    raw_versions = spine_obj.get("versions")
+    if not isinstance(raw_versions, list):
+        return None
+    versions: list[dict[str, object]] = []
+    version_items: list[object] = list(raw_versions)  # pyright: ignore[reportUnknownArgumentType]
+    for v in version_items:
+        if isinstance(v, dict):
+            version: dict[str, object] = v  # pyright: ignore[reportUnknownVariableType]
+            if version.get("url"):
+                versions.append(version)
+    if not versions:
+        return None
+    chosen: dict[str, object] | None = None
+    for hint in _ENROLLED_CODE_HINTS:
+        for version in versions:
+            if hint in str(version.get("code") or "").lower():
+                chosen = version
+                break
+        if chosen is not None:
+            break
+    if chosen is None:
+        chosen = versions[-1]  # versions are staged oldest-first; last ≈ latest text
+    status, text = _fetch_url(str(chosen["url"]))
+    if status != 200 or not text.strip():
+        return None
+    if text.lstrip()[:1] == "<":
+        text = extract_page_text(text)
+    path = run_dir / "verifier-enrolled.txt"
+    path.write_text(text[:_ENROLLED_TEXT_MAX_CHARS], encoding="utf-8")
+    return path.resolve()
+
+
 @app.command(name="build-verifier-input")
 def build_verifier_input(
     run_dir: Annotated[
@@ -2191,6 +2276,14 @@ def build_verifier_input(
                 entry["pdf_text_path"] = str(pdf_texts[m.url])
             return entry
 
+        # D106: the narrative + spine digest (votes / timeline / enactment) travel to the
+        # verifier so it can cross-check the narrative's dates, tallies, and sequencing;
+        # the enrolled text (when stageable) anchors its "as enacted" substance check.
+        spine_payload = leghistory.get("spine")
+        enrolled_path = (
+            _stage_enrolled_text(run_dir, spine_payload) if merged.narrative else None
+        )
+
         verifier_input = {
             "subject": {
                 "citation": bill.bill_number,
@@ -2200,14 +2293,21 @@ def build_verifier_input(
             },
             "statements": [_stmt_entry(i, s) for i, s in enumerate(merged.statements)],
             "related_media": [_media_entry(i, m) for i, m in enumerate(merged.related_media)],
+            "narrative": merged.narrative,
+            "spine": _spine_digest(spine_payload, bill),
         }
+        if enrolled_path is not None:
+            verifier_input["enrolled_text_path"] = str(enrolled_path)
         path = stage_json(verifier_input, name="verifier-input.json", out=run_dir)
         if pdf_texts:
             typer.echo(f"  staged pdf text for {len(pdf_texts)} url(s) under verifier-pdfs/")
+        if enrolled_path is not None:
+            typer.echo(f"  staged enrolled text -> {enrolled_path}")
 
         typer.echo(
             f"verifier-input: {len(merged.statements)} statement(s),"
             f" {len(merged.related_media)} media,"
+            f" narrative={'yes' if merged.narrative else 'no'},"
             f" {len(merged.dropped_lanes)} lane(s) dropped -> {path}"
         )
         for lane in merged.dropped_lanes:
@@ -2368,6 +2468,41 @@ def _attach_media_verdicts(
     return out, audit
 
 
+def _narrative_verdict(narrative: str | None, verifier: dict[str, object]) -> dict[str, object]:
+    """Bind the verifier's narrative block into a normalized ``narrative_verdict`` (D106).
+
+    Fail-closed: a merged narrative with no (or a malformed) narrative block in
+    ``verifier.json`` gets ``verdict: "fail"`` — the render gate then drops it,
+    mirroring how a statement with no verdict is ``verified: false``.  With no
+    narrative there is nothing to check: ``{"checked": false}``.
+    """
+    if not narrative:
+        return {"checked": False}
+    raw = verifier.get("narrative")
+    if isinstance(raw, dict):
+        block: dict[str, object] = raw  # pyright: ignore[reportUnknownVariableType]
+        outcome = block.get("verdict")
+        if outcome in ("pass", "fail"):
+            issues = block.get("issues")
+            issue_list: list[object] = (
+                list(issues)  # pyright: ignore[reportUnknownArgumentType]
+                if isinstance(issues, list)
+                else []
+            )
+            return {"checked": True, "verdict": outcome, "issues": issue_list}
+    return {
+        "checked": True,
+        "verdict": "fail",
+        "issues": [
+            {
+                "claim": "",
+                "problem": "no or malformed narrative verdict from verifier (fail-closed)",
+                "evidence": "",
+            }
+        ],
+    }
+
+
 @app.command(name="assemble-leg-history-input")
 def assemble_leg_history_input(
     run_dir: Annotated[
@@ -2399,6 +2534,8 @@ def assemble_leg_history_input(
             merged.related_media, verifier.get("related_media")
         )
 
+        narrative_verdict = _narrative_verdict(merged.narrative, verifier)
+
         render_input = {
             "bill": leghistory["bill"],
             "spine": leghistory["spine"],
@@ -2406,6 +2543,7 @@ def assemble_leg_history_input(
             "statements": [s.model_dump(mode="json") for s in merged.statements],
             "related_media": [m.model_dump(mode="json") for m in merged.related_media],
             "narrative": merged.narrative,
+            "narrative_verdict": narrative_verdict,
             "verdicts": verdicts,
             "media_verdicts": media_verdicts,
         }
@@ -2413,12 +2551,15 @@ def assemble_leg_history_input(
 
         verified_stmts = sum(1 for v in verdicts if v["verified"] is True)
         verified_media = sum(1 for v in media_verdicts if v["verified"] is True)
+        narrative_status = "absent"
+        if merged.narrative:
+            narrative_status = str(narrative_verdict.get("verdict", "fail"))
         typer.echo(
             f"render-input: {len(merged.statements)} statement(s)"
             f" ({verified_stmts} verifier-confirmed),"
             f" {len(merged.hearings)} hearing(s),"
             f" {len(merged.related_media)} media ({verified_media} confirmed),"
-            f" narrative={'yes' if merged.narrative else 'no'} -> {path}"
+            f" narrative={narrative_status} -> {path}"
         )
         for lane in merged.dropped_lanes:
             typer.echo(f"  dropped lane: {lane}")
@@ -2488,7 +2629,12 @@ def render_leg_history(
             raise ConfigError(
                 f"staging file 'narrative' must be a string, got {type(narrative_raw).__name__}"
             )
-        narrative = narrative_raw
+        # D106: the narrative renders only with a "pass" verdict from the verifier's
+        # spine/enrolled-text cross-check. A staging file without a narrative_verdict
+        # (including pre-D106 files) fail-closed drops it, like an unverified quote.
+        narrative, narrative_drop = gate_narrative(
+            narrative_raw, payload.get("narrative_verdict")
+        )
 
         # Build verdicts_by_original keyed by each entry's self-reported original index.
         # These indices refer to positions in the FULL raw statements list (before parse-drops).
@@ -2678,13 +2824,15 @@ def render_leg_history(
             f" / {hearing_parse_drops} parse-drop / {hearing_ground_drops} ground-drop | "
             f"media: {media_input} input / {media_kept} grounded"
             f" / {media_parse_drops} parse-drop / {media_ground_drops} ground-drop | "
-            f"narrative={'yes' if narrative else 'no'} | "
+            f"narrative={'yes' if narrative else ('dropped' if narrative_drop else 'no')} | "
             f"page {page_status}"
         )
 
         # ------------------------------------------------------------------ #
         # Per-drop audit lines
         # ------------------------------------------------------------------ #
+        if narrative_drop is not None:
+            typer.echo(f"  dropped narrative: {narrative_drop}")
         for identifier, reason in parse_dropped_statements:
             typer.echo(f"  dropped statement: {identifier} — {reason}")
         for identifier, reason in parse_dropped_hearings:

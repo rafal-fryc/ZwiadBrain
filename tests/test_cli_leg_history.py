@@ -334,3 +334,87 @@ def test_render_leg_history_routes_state_bill_to_states_path(tmp_path: Path) -> 
     page = wiki / "states" / "ca" / "bills" / "ca-2023-sb-362.md"
     assert page.exists()
     assert "Senate Third Reading" in page.read_text(encoding="utf-8")
+
+
+# --- narrative render gate (D106) --------------------------------------------
+
+
+def _narrative_staging(narrative_verdict: object) -> dict[str, object]:
+    staging: dict[str, object] = {
+        "bill": _bill(),
+        "spine": _spine(),
+        "hearings": [],
+        "statements": [],
+        "verdicts": [],
+        "narrative": "The bill passed both chambers unanimously.",
+    }
+    if narrative_verdict is not None:
+        staging["narrative_verdict"] = narrative_verdict
+    return staging
+
+
+def test_render_leg_history_keeps_narrative_with_pass_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should render the Legislative Journey when the narrative verdict is pass"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch_ok)
+    staging = _narrative_staging({"checked": True, "verdict": "pass", "issues": []})
+    staging_file = tmp_path / "staging.json"
+    staging_file.write_text(json.dumps(staging), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = runner.invoke(
+        app, ["render-leg-history", "--in", str(staging_file), "--wiki", str(wiki)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "narrative=yes" in result.output
+
+    rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
+    assert "The bill passed both chambers unanimously." in rendered
+
+
+def test_render_leg_history_drops_narrative_on_fail_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should drop the narrative and report the drop when the verdict is fail"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch_ok)
+    staging = _narrative_staging(
+        {
+            "checked": True,
+            "verdict": "fail",
+            "issues": [{"claim": "unanimously", "problem": "60-1 vote", "evidence": "spine"}],
+        }
+    )
+    staging_file = tmp_path / "staging.json"
+    staging_file.write_text(json.dumps(staging), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = runner.invoke(
+        app, ["render-leg-history", "--in", str(staging_file), "--wiki", str(wiki)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "narrative=dropped" in result.output
+    assert "dropped narrative:" in result.output
+
+    rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
+    assert "The bill passed both chambers unanimously." not in rendered
+
+
+def test_render_leg_history_drops_narrative_when_staging_has_no_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should fail-closed drop the narrative from a pre-D106 staging file with no verdict"""
+    monkeypatch.setattr("zwiadbrain.cli._fetch_url", _fake_fetch_ok)
+    staging = _narrative_staging(None)
+    staging_file = tmp_path / "staging.json"
+    staging_file.write_text(json.dumps(staging), encoding="utf-8")
+    wiki = tmp_path / "wiki"
+
+    result = runner.invoke(
+        app, ["render-leg-history", "--in", str(staging_file), "--wiki", str(wiki)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "narrative=dropped" in result.output
+
+    rendered = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
+    assert "The bill passed both chambers unanimously." not in rendered

@@ -80,6 +80,10 @@ parallel (separate `Task` calls in a single message): `crec`, `hearings`,
 - `leads.hearings` — GovInfo hearing leads (mainly for the `hearings` lane)
 - `spine.floor_consideration`, `spine.committee_reports`, `spine.enactment` — anchors
   (mainly for the `crec` and `signing` lanes)
+- **`crec` lane only (D106):** also pass `spine.votes` and the bill's action timeline
+  (`bill.actions` from `leghistory.json`), with this sentence: "The narrative must agree
+  with these — they render as the page's own Votes and Timeline sections, and a verifier
+  cross-checks every narrative date/tally/sequencing claim against them."
 
 For a FEDERAL bill, remind the `crec` dispatch that its lane also collects **CRS
 products** (Legal Sidebars / In Focus / Reports from crsreports.congress.gov and
@@ -142,28 +146,54 @@ For each PDF source url it also stages the gate's deterministic Docling extracti
 `<run dir>/verifier-pdfs/` and stamps the affected entries with a `pdf_text_path` (D78b) —
 the verifier `Read`s that file instead of WebFetching raw PDF bytes it cannot parse.
 
+The verifier input also carries (D106): the merged `narrative`, a `spine` digest (`votes`,
+`timeline`, `enactment`) the narrative must agree with, and — when a narrative is present
+and the enrolled/chaptered text could be fetched — an `enrolled_text_path` staged at
+`<run dir>/verifier-enrolled.txt` for the narrative's "as enacted" substance check.
+
 ### 5. Dispatch the verifier subagent
 
 `Read` `<run dir>/verifier-input.json` and dispatch the **leg-history-verifier** subagent
-over it. Pass the `subject` block, the `statements` array, and the `related_media` array
-exactly as written — each entry already carries its `index`; do not re-number or reorder
-them (entries with a `pdf_text_path` keep it — the verifier reads the staged extraction).
+over it. Pass the `subject` block, the `statements` array, the `related_media` array, and
+the D106 fields (`narrative`, `spine`, `enrolled_text_path` when present) exactly as
+written — each entry already carries its `index`; do not re-number or reorder them
+(entries with a `pdf_text_path` keep it — the verifier reads the staged extraction).
 The verifier independently fetches each `source_url` / `url` (falling back to the Wayback
 Machine when a live fetch is bot-blocked, mirroring the gate), applies the verbatim +
-attribution + contiguity checks to statements (and, for `related` items, the
-subject-relevance clamp) and a Tier-2 identity check to media, and returns an object with
-two arrays:
+attribution (+ evidence snippet) + contiguity + date-consistency checks to statements
+(and, for `related` items, the subject-relevance clamp), a Tier-2 identity check to media,
+and the narrative cross-check against the spine / enrolled text, and returns an object:
 
 ```json
 {
-  "statements": [{"index": 0, "speaker": "...", "quote_prefix": "...", "on_subject": true, "verified": true, "note": "..."}, ...],
-  "related_media": [{"index": 0, "title_prefix": "...", "verified": true, "note": "..."}, ...]
+  "statements": [{"index": 0, "speaker": "...", "quote_prefix": "...", "attribution_evidence": "...", "on_subject": true, "verified": true, "note": "..."}, ...],
+  "related_media": [{"index": 0, "title_prefix": "...", "verified": true, "note": "..."}, ...],
+  "narrative": {"checked": true, "verdict": "pass" | "fail", "issues": [{"claim": "...", "problem": "...", "evidence": "..."}]}
 }
 ```
 
 **Write the verifier's output object, unmodified, to `<run dir>/verifier.json`.** Do not
 reorder or re-key it — the assembler binds each verdict to its merged item by `index` and
 re-checks the verifier's echo.
+
+### 5b. Narrative repair — one bounded retry (D106)
+
+If `verifier.json` has `narrative.verdict == "fail"`:
+
+1. Re-dispatch the **leg-history-researcher** ONCE in narrative-repair mode: `lane: crec`,
+   the same shared context as step 3 (including `spine.votes` + the timeline), PLUS the
+   failed narrative and the verifier's `issues` list, with the instruction: "Rewrite the
+   narrative correcting exactly these issues; drop any claim you cannot ground in the
+   spine or an official source. Return the standard JSON shape — you may reuse the lane's
+   other arrays unchanged."
+2. Overwrite ONLY the `narrative` field of `<run dir>/lane-crec.json` with the repaired
+   narrative (leave the lane's statements/hearings/media exactly as first returned).
+3. Re-run steps 4–5 once (statements are unchanged, so re-verification is idempotent; the
+   verifier re-checks the repaired narrative).
+
+If the repaired narrative fails again, proceed — the render gate drops it (fail-closed,
+D36/D43-consistent), and the page renders with no Legislative Journey rather than a wrong
+one. Never loop more than once.
 
 ### 6. Assemble the render input (Python)
 
@@ -205,7 +235,8 @@ Summarize:
 - Statements: input count / grounded count (from the render output line)
 - Hearings: input count / grounded count (from the render output line)
 - Related media: input count / grounded count (from the render output line)
-- Narrative: present/absent
+- Narrative: present + verified / dropped (with the verifier's issues, and whether the
+  step-5b repair ran) / absent
 - The rendered page separates **On This Bill** (the bill's own record, under the
   normal sections) from **Related (Subject Matter)** items (sponsor/official
   statements and hearings on the bill's topic) and a **Related Media** section (Tier-2

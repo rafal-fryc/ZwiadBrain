@@ -508,12 +508,15 @@ class CongressSource:
           the date.
         * The same roll call can be referenced from several actions (passage,
           message-to-the-other-chamber, etc.); votes are deduplicated by
-          ``roll_call_url``, keeping the earliest date seen.
+          ``roll_call_url``, keeping the earliest date seen. URL-less votes are
+          deduplicated by ``(date, chamber)`` (D111) — a URL-less recorded vote
+          referenced from two actions previously produced two identical rows.
         """
         congress, bill_type, number = native_id.split("/")
         path = f"/bill/{congress}/{bill_type}/{number}/actions"
         actions = _items(self._get_json(path).get("actions"))
         by_url: dict[str, Vote] = {}
+        seen_urlless: set[tuple[dt.date | None, str | None]] = set()
         votes: list[Vote] = []
         for action in actions:
             for rv in _items(action.get("recordedVotes")):
@@ -526,6 +529,10 @@ class CongressSource:
                 )
                 url = vote.roll_call_url
                 if url is None:
+                    key = (vote.date, vote.chamber)
+                    if key in seen_urlless:
+                        continue
+                    seen_urlless.add(key)
                     votes.append(vote)
                     continue
                 seen = by_url.get(url)

@@ -776,6 +776,8 @@ def _make_leg_history_staging(tmp_path: Path) -> Path:
         "hearings": [h.model_dump(mode="json") for h in hearings],
         "statements": [s.model_dump(mode="json") for s in statements],
         "narrative": narrative,
+        # D106: a narrative renders only with a pass verdict from the verifier.
+        "narrative_verdict": {"checked": True, "verdict": "pass", "issues": []},
         "verdicts": verdicts,
     }
     path = tmp_path / "leghistory_staging.json"

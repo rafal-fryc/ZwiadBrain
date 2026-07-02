@@ -804,6 +804,7 @@ def merge_lanes(lanes: Mapping[str, object | None]) -> MergedResearch:
 
     seen_statements: set[tuple[str, str]] = set()
     seen_hearing_urls: set[str] = set()
+    seen_hearing_events: set[tuple[dt.date, str, str]] = set()
     seen_media_urls: set[str] = set()
 
     narrative: str | None = None
@@ -851,6 +852,15 @@ def merge_lanes(lanes: Mapping[str, object | None]) -> MergedResearch:
                 if hearing.url in seen_hearing_urls:
                     continue
                 seen_hearing_urls.add(hearing.url)
+            # Identity dedup (D111): the same hearing EVENT found at two different urls
+            # (e.g. an official record page and an aggregator) previously rendered twice.
+            # Applied only when date + committee + chamber are all present — a missing
+            # field is not an identity, so partial rows are never collapsed.
+            if hearing.date is not None and hearing.committee and hearing.chamber:
+                event = (hearing.date, hearing.committee.strip().lower(), hearing.chamber)
+                if event in seen_hearing_events:
+                    continue
+                seen_hearing_events.add(event)
             hearings.append(hearing)
 
         for i, item in enumerate(media_items):

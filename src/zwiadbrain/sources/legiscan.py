@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -102,14 +103,34 @@ def _obj(value: Any) -> dict[str, Any]:
 
 
 def _parse_date(value: Any) -> dt.date | None:
-    """Parse a LegiScan ``YYYY-MM-DD`` date, treating the ``0000-00-00`` placeholder as None."""
+    """Parse a LegiScan ``YYYY-MM-DD`` date, treating placeholders as None.
+
+    ``0000-00-00`` and epoch-era placeholders (``1969-12-31`` appeared on 2026-session
+    text-version dates — D111) both mean "LegiScan has no real date": any parsed year
+    before 1990 is treated as a placeholder, not a legislative date.
+    """
     text = str(value or "")
     if not text or text.startswith("0000"):
         return None
     try:
-        return dt.date.fromisoformat(text[:10])
+        parsed = dt.date.fromisoformat(text[:10])
     except ValueError:
         return None
+    return None if parsed.year < 1990 else parsed
+
+
+# HTML fragments occasionally leak into LegiScan roll-call descriptions (the audit found
+# `AB1146lass="statusCell">` rendered into a page's Votes section — D111). Strip whole
+# tags first, then any orphaned attribute residue left by a truncated opening tag.
+_HTML_TAG_RE = re.compile(r"<[^>]*>")
+_HTML_ATTR_RESIDUE_RE = re.compile(r"[a-zA-Z-]+=\"[^\"]*\">?")
+
+
+def _sanitize_desc(desc: str) -> str:
+    """Remove HTML tag fragments and attribute residue from a roll-call description."""
+    cleaned = _HTML_TAG_RE.sub("", desc)
+    cleaned = _HTML_ATTR_RESIDUE_RE.sub("", cleaned)
+    return " ".join(cleaned.split())
 
 
 def _vote_result(vote: dict[str, Any]) -> str | None:
@@ -120,7 +141,7 @@ def _vote_result(vote: dict[str, Any]) -> str | None:
     roll call carries neither a description nor a ``passed`` flag.
     """
     parts: list[str] = []
-    desc = str(vote.get("desc") or "").strip()
+    desc = _sanitize_desc(str(vote.get("desc") or "").strip())
     if desc:
         parts.append(desc)
     passed = vote.get("passed")
@@ -135,24 +156,105 @@ def _vote_result(vote: dict[str, Any]) -> str | None:
     return " — ".join(parts) if parts else None
 
 
-def _parse_votes(detail: dict[str, Any]) -> list[Vote]:
+# Lower-chamber names by state (D111). LegiScan reports the lower chamber as "H"/"House"
+# everywhere, but several legislatures name it differently — the audit found CA committee
+# votes rendered under chamber "House". Minimal map: the campaign states plus the obvious
+# same-name neighbors; anything unlisted keeps "House".
+_LOWER_CHAMBER_BY_STATE: dict[str, str] = {
+    "CA": "Assembly",
+    "NY": "Assembly",
+    "NV": "Assembly",
+    "WI": "Assembly",
+    "NJ": "General Assembly",
+    "MD": "House of Delegates",
+    "VA": "House of Delegates",
+    "WV": "House of Delegates",
+}
+
+
+def _normalize_chamber(state: str, raw: str | None) -> str | None:
+    """Correct a spelled-out ``"House"`` to the state's own lower-chamber name.
+
+    Deliberately narrow (D111): single-letter codes (``H``/``S``/``A``) pass through
+    unchanged — they are jurisdiction-neutral abbreviations used across the rendered
+    timeline/votes and renaming them would churn every state page for no accuracy
+    gain. Only the WORD ``"House"`` is wrong on a state whose lower chamber is not a
+    House (CA/NY Assembly, VA House of Delegates, ...), so only that is remapped.
+    """
+    if raw is None:
+        return None
+    if raw.strip().upper() == "HOUSE":
+        return _LOWER_CHAMBER_BY_STATE.get(state.upper(), "House")
+    return raw
+
+
+def _collapse_offset_duplicates(votes: list[Vote]) -> list[Vote]:
+    """Collapse phantom vote pairs that differ only by an off-by-one date (D111).
+
+    Stale LegiScan snapshots produced pairs like a 2025-09-12 AND a 2025-09-13 row for
+    the same Senate concurrence (identical chamber + result) when the official record
+    shows exactly one vote. When two votes share ``(chamber, result)`` and their dates
+    are exactly 1 day apart, keep the one with a state-hosted ``roll_call_url``; when
+    neither or both have one, keep the LATER date (the correct one in both audit cases:
+    CA AB 2273 08-29/08-30 and CA SB 53 09-12/09-13). This is a documented heuristic —
+    see DECISIONS 111 for the revisit condition.
+    """
+    out: list[Vote] = []
+    for vote in votes:
+        prev = out[-1] if out else None
+        if (
+            prev is not None
+            and prev.chamber == vote.chamber
+            and prev.result == vote.result
+            and prev.date is not None
+            and vote.date is not None
+            and (vote.date - prev.date).days == 1
+        ):
+            keep = vote  # later date wins by default
+            if prev.roll_call_url and not vote.roll_call_url:
+                keep = prev
+            out[-1] = keep
+            continue
+        out.append(vote)
+    return out
+
+
+def _parse_votes(detail: dict[str, Any], *, state: str = "") -> list[Vote]:
     """Map a getBill ``votes`` array (roll-call summaries) to :class:`Vote` records.
 
     ``roll_call_url`` prefers the state's own vote page (``state_link``) and falls back
     to the LegiScan roll-call page (``url``), matching the text-version url precedence in
     :meth:`LegiScanSource._to_bill`. Sorted oldest-first (undated last) like the timeline.
+
+    Dedup (D111 — the audit found the same roll call rendered 2-4 times): first-wins by
+    ``roll_call_url`` when present, else by ``(date, chamber, result)``; then exact
+    off-by-one-day phantom pairs are collapsed (:func:`_collapse_offset_duplicates`).
     """
     votes = [
         Vote(
             date=_parse_date(v.get("date")),
-            chamber=_opt_str(v.get("chamber")),
+            chamber=_normalize_chamber(state, _opt_str(v.get("chamber"))),
             result=_vote_result(v),
             roll_call_url=_opt_str(v.get("state_link") or v.get("url")),
         )
         for v in _items(detail.get("votes"))
     ]
     votes.sort(key=lambda v: (v.date is None, v.date or dt.date.min))
-    return votes
+    seen_urls: set[str] = set()
+    seen_keys: set[tuple[dt.date | None, str | None, str | None]] = set()
+    deduped: list[Vote] = []
+    for vote in votes:
+        if vote.roll_call_url is not None:
+            if vote.roll_call_url in seen_urls:
+                continue
+            seen_urls.add(vote.roll_call_url)
+        else:
+            key = (vote.date, vote.chamber, vote.result)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+        deduped.append(vote)
+    return _collapse_offset_duplicates(deduped)
 
 
 def _supplement_is_analysis(s: dict[str, Any]) -> bool:
@@ -333,9 +435,10 @@ class LegiScanSource:
         leads need — without a second API call (getBill already returns all three).
         """
         detail = _obj(self._get("getBill", id=native_id).get("bill"))
+        state = str(detail.get("state") or self.state).upper()
         return StateLegHistoryInputs(
             bill=self._to_bill(detail),
-            votes=_parse_votes(detail),
+            votes=_parse_votes(detail, state=state),
             supplement_media=_parse_supplement_media(detail),
             committee_analyses=_parse_committee_analyses(detail),
         )

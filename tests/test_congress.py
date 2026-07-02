@@ -798,3 +798,36 @@ def test_discover_logs_when_payload_count_exceeds_returned_window(
         with caplog.at_level(logging.WARNING, logger="zwiadbrain.sources.congress"):
             _source().discover(congress=118, limit=2)
     assert any("5000" in rec.getMessage() for rec in caplog.records)
+
+
+def test_recorded_votes_dedups_urlless_votes_by_date_and_chamber() -> None:
+    """should keep one row when the same url-less recorded vote appears on two actions (D111)"""
+    payload: dict[str, Any] = {
+        "actions": [
+            {
+                "actionDate": "2023-12-13",
+                "text": "Senate agreed to conference report.",
+                "type": "Floor",
+                "recordedVotes": [
+                    {"rollNumber": "343", "chamber": "Senate", "congress": 118,
+                     "date": "2023-12-13T22:00:00Z"}
+                ],
+            },
+            {
+                "actionDate": "2023-12-13",
+                "text": "Message on Senate action sent to the House.",
+                "type": "Floor",
+                "recordedVotes": [
+                    {"rollNumber": "343", "chamber": "Senate", "congress": 118,
+                     "date": "2023-12-13T22:00:00Z"}
+                ],
+            },
+        ]
+    }
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/bill/118/hr/8818/actions").respond(json=payload)
+        votes = _source().recorded_votes("118/hr/8818")
+
+    assert len(votes) == 1
+    assert votes[0].chamber == "Senate"
+    assert votes[0].date == dt.date(2023, 12, 13)

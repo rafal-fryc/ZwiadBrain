@@ -1234,3 +1234,32 @@ belonged to the prior Congress's bill).
 the accurate presentation for prior-session material.
 **Trade-offs:** Some genuinely-continuous campaigns read as "related" material; accepted.
 **Revisit if:** A rendering need arises to group predecessor material explicitly.
+
+## 2026-07-02 — 111. Deterministic-layer hardening: vote dedup + sanitization, chamber word fix, epoch-date guard, hearing identity dedup
+**Chosen:** Five small fixes in the deterministic layer, each test-first. (1) LegiScan
+`_parse_votes` dedups first-wins by `roll_call_url`, else `(date, chamber, result)`, and a
+`_collapse_offset_duplicates` post-pass folds pairs sharing `(chamber, result)` whose
+dates are exactly 1 day apart (keep the state-hosted-url row, else the LATER date — the
+correct one in both audit cases, CA AB 2273 and CA SB 53). (2) `_vote_result` strips HTML
+tag fragments/attribute residue from roll-call descriptions (the `AB1146lass="statusCell">`
+corruption). (3) `_normalize_chamber` remaps ONLY the spelled-out word "House" to the
+state's own lower-chamber name (CA/NY/NV/WI Assembly, NJ General Assembly, VA/WV/MD House
+of Delegates); single-letter codes (H/S/A) pass through — they are jurisdiction-neutral
+abbreviations, and renaming them would churn every state page's timeline/votes for no
+accuracy gain (a deliberate narrowing of the planned "H"+"House" map). (4) `_parse_date`
+treats any year < 1990 as a placeholder (the 1969-12-31 epoch dates on CO 2026 version
+lists). (5) `merge_lanes` dedups hearings by `(date, committee, chamber)` identity after
+the url dedup, only when all three are present. Federal: `recorded_votes` dedups URL-less
+votes by `(date, chamber)`. Version `code` labels stay LegiScan-verbatim — NO
+"Conference Sub" relabel heuristic (inferring "no conference occurred" invents new wrong
+labels); the two mislabeled VA pages are page fixes in docs/accuracy-fixes-TODO.md.
+**Why:** The 2026-07-01 audit found the same roll call rendered 2–4×, phantom ±1-day vote
+pairs, an HTML fragment in a Votes line, "House" hearings on CA pages, epoch dates on CO
+2026 pages, and the same hearing listed from two sources.
+**Trade-offs:** (1)'s ±1-day collapse is the only heuristic rule in the set — it can in
+principle fold two real same-motion votes on consecutive days with identical tallies;
+judged acceptable because a reconsidered-and-repassed motion virtually always changes the
+tally or the description.
+**Revisit if:** A real consecutive-day same-tally same-motion vote pair surfaces (drop the
+heuristic and prefer forced refresh), or LegiScan starts reporting spelled-out chambers
+routinely (extend the map).

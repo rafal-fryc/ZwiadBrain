@@ -328,3 +328,136 @@ def test_list_session_enacted_drops_memorializing_resolutions() -> None:
         cands = _source(state="ny").list_session_enacted(1624)
     assert [c.native_id for c in cands] == ["10", "11"]
     assert cands[0].raw.get("number") == "A1746"
+
+
+# --- vote sanitization, dedup, and date/chamber guards (D111) -----------------
+
+
+def _vote(
+    *,
+    date: str = "2023-05-31",
+    chamber: str = "S",
+    desc: str = "Senate Third Reading",
+    passed: int = 1,
+    yea: int = 30,
+    nay: int = 8,
+    state_link: str | None = None,
+    url: str | None = None,
+) -> dict[str, object]:
+    return {
+        "date": date,
+        "chamber": chamber,
+        "desc": desc,
+        "passed": passed,
+        "yea": yea,
+        "nay": nay,
+        "state_link": state_link,
+        "url": url,
+    }
+
+
+def test_vote_result_strips_html_fragments_from_desc() -> None:
+    """should strip HTML tags and attribute residue from a corrupted roll-call desc"""
+    from zwiadbrain.sources.legiscan import _vote_result  # pyright: ignore[reportPrivateUsage]
+
+    corrupted = _vote(desc='Assembly 3rd Reading AB1146lass="statusCell"> By Berman')
+    assert _vote_result(corrupted) == "Assembly 3rd Reading AB1146 By Berman — Passed 30-8"
+
+
+def test_parse_votes_dedups_identical_urlless_rows() -> None:
+    """should keep exactly one row for repeated votes sharing date, chamber, and result"""
+    from zwiadbrain.sources.legiscan import _parse_votes  # pyright: ignore[reportPrivateUsage]
+
+    detail = {"votes": [_vote(), _vote(), _vote(), _vote(date="2023-06-02", chamber="A")]}
+    votes = _parse_votes(detail, state="CA")
+    assert len(votes) == 2
+    assert votes[0].date == dt.date(2023, 5, 31)
+    assert votes[1].date == dt.date(2023, 6, 2)
+
+
+def test_parse_votes_dedups_by_roll_call_url() -> None:
+    """should keep the first row when two votes share a roll-call url"""
+    from zwiadbrain.sources.legiscan import _parse_votes  # pyright: ignore[reportPrivateUsage]
+
+    detail = {
+        "votes": [
+            _vote(state_link="https://state.gov/vote/1"),
+            _vote(desc="Different desc", state_link="https://state.gov/vote/1"),
+        ]
+    }
+    votes = _parse_votes(detail, state="CA")
+    assert len(votes) == 1
+    assert votes[0].result == "Senate Third Reading — Passed 30-8"
+
+
+def test_parse_votes_collapses_one_day_offset_phantom_pair() -> None:
+    """should collapse two identical votes dated one day apart, keeping the later date
+
+    Encodes the CA SB 53 audit case: a phantom 2025-09-12 Senate concurrence row next to
+    the real 2025-09-13 vote (official record shows exactly one vote, on the 13th).
+    """
+    from zwiadbrain.sources.legiscan import _parse_votes  # pyright: ignore[reportPrivateUsage]
+
+    detail = {
+        "votes": [
+            _vote(date="2025-09-12", desc="Senate Concurrence", yea=29, nay=8),
+            _vote(date="2025-09-13", desc="Senate Concurrence", yea=29, nay=8),
+        ]
+    }
+    votes = _parse_votes(detail, state="CA")
+    assert len(votes) == 1
+    assert votes[0].date == dt.date(2025, 9, 13)
+
+
+def test_parse_votes_offset_pair_prefers_row_with_roll_call_url() -> None:
+    """should keep the url-bearing row of a one-day phantom pair even when it is earlier"""
+    from zwiadbrain.sources.legiscan import _parse_votes  # pyright: ignore[reportPrivateUsage]
+
+    detail = {
+        "votes": [
+            _vote(date="2022-08-29", desc="Assembly 3rd Reading", yea=33, nay=0,
+                  state_link="https://leginfo.legislature.ca.gov/vote/1"),
+            _vote(date="2022-08-30", desc="Assembly 3rd Reading", yea=33, nay=0),
+        ]
+    }
+    votes = _parse_votes(detail, state="CA")
+    assert len(votes) == 1
+    assert votes[0].roll_call_url == "https://leginfo.legislature.ca.gov/vote/1"
+
+
+def test_parse_votes_keeps_genuinely_distinct_votes() -> None:
+    """should never collapse votes that differ in result or are more than a day apart"""
+    from zwiadbrain.sources.legiscan import _parse_votes  # pyright: ignore[reportPrivateUsage]
+
+    detail = {
+        "votes": [
+            _vote(date="2023-05-31", desc="Senate Third Reading"),
+            _vote(date="2023-06-01", desc="Assembly Concurrence", chamber="A", yea=60, nay=2),
+            _vote(date="2023-06-05", desc="Senate Third Reading"),
+        ]
+    }
+    votes = _parse_votes(detail, state="CA")
+    assert len(votes) == 3
+
+
+def test_normalize_chamber_corrects_spelled_out_house_only() -> None:
+    """should remap the word House to the state's lower chamber and leave letter codes alone"""
+    from zwiadbrain.sources.legiscan import (
+        _normalize_chamber,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    assert _normalize_chamber("CA", "House") == "Assembly"
+    assert _normalize_chamber("VA", "House") == "House of Delegates"
+    assert _normalize_chamber("TX", "House") == "House"
+    assert _normalize_chamber("CA", "H") == "H"  # letter codes are jurisdiction-neutral
+    assert _normalize_chamber("CA", "Senate") == "Senate"
+    assert _normalize_chamber("CA", None) is None
+
+
+def test_parse_date_treats_epoch_placeholder_as_none() -> None:
+    """should return None for the 1969-12-31 epoch placeholder and keep real dates"""
+    from zwiadbrain.sources.legiscan import _parse_date  # pyright: ignore[reportPrivateUsage]
+
+    assert _parse_date("1969-12-31") is None
+    assert _parse_date("0000-00-00") is None
+    assert _parse_date("2026-01-05") == dt.date(2026, 1, 5)

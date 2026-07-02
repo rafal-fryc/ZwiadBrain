@@ -521,3 +521,34 @@ def test_assemble_marks_missing_narrative_unchecked(tmp_path: Path) -> None:
 
     render_input = json.loads((run / "leghistory-research.json").read_text(encoding="utf-8"))
     assert render_input["narrative_verdict"] == {"checked": False}
+
+
+def test_merge_lanes_dedups_hearings_by_event_identity_across_urls() -> None:
+    """should collapse the same hearing event found at two different urls (D111)"""
+    a = {
+        "title": "APCP Hearing on AB 1355",
+        "committee": "Privacy and Consumer Protection",
+        "chamber": "Assembly",
+        "date": "2019-04-23",
+        "url": "https://official.example.gov/hearing",
+        "relation": "on_bill",
+    }
+    b = dict(a, url="https://aggregator.example.com/same-hearing")
+    partial = {
+        "title": "Undated partial hearing",
+        "committee": None,
+        "chamber": None,
+        "date": None,
+        "url": "https://example.gov/partial-1",
+        "relation": "on_bill",
+    }
+    partial2 = dict(partial, url="https://example.gov/partial-2")
+    merged = merge_lanes(
+        {"hearings": _lane(hearings=[a, partial]), "press": _lane(hearings=[b, partial2])}
+    )
+    urls = [h.url for h in merged.hearings]
+    assert "https://official.example.gov/hearing" in urls  # first (lane-order) copy wins
+    assert "https://aggregator.example.com/same-hearing" not in urls
+    # Partial rows (missing date/committee/chamber) are never identity-collapsed.
+    assert "https://example.gov/partial-1" in urls
+    assert "https://example.gov/partial-2" in urls

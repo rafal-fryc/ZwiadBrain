@@ -65,7 +65,7 @@ Example rows (delete once real entries land):
 <!-- Law-brain-driven tier B: remaining untracked states AL/PA/TN/UT (backfilled 2026-07-02). -->
 | ut-2022-sb-227 | SB 227 (2022) — Utah Consumer Privacy Act (UCPA) | US-UT | landmark comprehensive state consumer-privacy statute (4th in US) | done | /zwiad-leg-history ut/1593499 |
 | ut-2024-sb-149 | SB 149 (2024) — Utah Artificial Intelligence Policy Act (UAIPA) | US-UT | FIRST US state AI-specific consumer-protection law; generative-AI disclosure + AI sandbox | done | /zwiad-leg-history ut/1828750 |
-| tn-2023-hb-1181 | HB 1181 (2023) — Tennessee Information Protection Act (TIPA) | US-TN | comprehensive state consumer-privacy statute; unique NIST-Privacy-Framework affirmative defense | flagged | /zwiad-leg-history tn/1688520 |
+| tn-2023-hb-1181 | HB 1181 (2023) — Tennessee Information Protection Act (TIPA) | US-TN | comprehensive state consumer-privacy statute; unique NIST-Privacy-Framework affirmative defense | done | /zwiad-leg-history tn/1688520 |
 | tn-2023-hb-2091 | HB 2091 (Pub. Ch. 588, 2024) — ELVIS Act (voice/likeness right of publicity) | US-TN | landmark: first US law adding "voice" to the right of publicity w/ AI-tool secondary liability; NO FAKES Act analog | done | /zwiad-leg-history tn/1826894 |
 | al-2026-hb-351 | HB 351 (2026) — Alabama Personal Data Protection Act (APDPA) | US-AL | comprehensive state consumer-privacy statute (21st in US); lowest 25,000-consumer threshold | flagged | /zwiad-leg-history al/2101947 |
 | al-2024-hb-21 | HB 21 (2024) — Alabama Genetic Data Privacy Act | US-AL | state DTC-genetic-testing privacy statute (consent + deletion; AG-enforced) | flagged | /zwiad-leg-history al/1785848 |

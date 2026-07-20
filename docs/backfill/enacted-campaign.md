@@ -93,6 +93,33 @@ pending a dedup decision.
 
 **Wave totals:** 13 units run (12 rendered + VT empty), **20 new law pages**, 12 marquee acts flagged for leg-history, ~39 rejects recorded. NJ-2024 dedup resolved.
 
+## Tier B — remaining untracked law-brain states (2026-07-02)
+
+The wave (above) covered the comprehensive consumer-privacy acts in newly-surfaced states. **Tier B**
+finishes the law-brain cross-check by backfilling the remaining untracked states the corpus flagged —
+**AL, PA, TN, UT** (MO's only flagged item, the Algorithmic Freedom Rule, was *promulgated and
+withdrawn* → skipped). Method: **recall** per (state × session), `--skip-existing`. **Status
+`committed`** (user-approved 2026-07-20; all 3 flagged items kept as-is). Two recall-seed gaps were fixed first (D94 pattern,
+no scope change / no `scope_version` bump): added privacy seeds `genetic data` / `genetic information` /
+`genetic testing` / `information protection act` and AI seeds `right of publicity` / `likeness` — without
+them recall silently dropped AL HB 21, TN TIPA (HB 1181), and the TN ELVIS Act (HB 2091).
+
+| Unit | Run year | Status | enacted(recall) | in | out | pages | flagged | Notes |
+|------|----------|--------|----------------:|---:|----:|------:|--------:|-------|
+| al / 2024 | 2024 | committed | 2 | 1 | 1 | 1 | 1 | **HB 21 Alabama Genetic Data Privacy Act** (DTC genetic testing; consent + deletion; AG civil penalty; flagged). Out: hb-453 (critical-infra trespass — intruder liability, not D95). |
+| al / 2026 | 2026 | committed | 3 | 2 | 1 | 2 | 1 | **HB 351 APDPA** (21st US comprehensive privacy law; 25,000-consumer floor; eff. May 2027; flagged) + **SB 63** (health-insurer AI in coverage determinations — bonus in-scope AI law, not law-brain-flagged; text-grounded). Out: sb-118 (state criminal-justice biometric system, D86). ⚠ 2026 session (current-year); APDPA text extraction failed (portal) → summary from confirmed parameters. |
+| pa / 2023-24 | 2024 | committed | 3 | 2 | 1 | 2 | 0 | **HB 739 Insurance Data Security Act** (NAIC model — licensee infosec program + Commissioner notice) + **SB 824 / Act 33 of 2024** (BPINA breach overhaul: AG notice >500 residents, 12-mo credit monitoring; text-grounded). Out: sb-8 (mammography/BRCA insurance-coverage mandate — incidental). |
+| tn / 2023-24 | 2023 | committed | 15 | 5 | 10 | 5 | 3 | 113th GA (single 2023-24 session, id 2002). In: **HB 1181 TIPA** (comprehensive; NIST-framework affirmative defense; flagged), **HB 2091 ELVIS Act** (voice/likeness + AI-tool secondary liability; landmark; flagged), **HB 1310 Genetic Information Privacy Act** (flagged), **HB 1309** (life-insurer genetic non-discrimination, Pub. Ch. 246; text-grounded), **HB 2434** (cybersecurity class-action safe harbor, Pub. Ch. 991). 10 out incl. **2 documented OVERRIDES of classifier-in** ⚠: hb-2163 (AI-generated CSAM criminal law — person-facing criminal, D86/deepfake-criminal precedent) and hb-2265 (critical-infra cyber-vandalism criminal — attacker liability, no operator duty, not D95); rest govt (AI council hb-2325, state ransomware hb-1733, public-univ student data hb-1837, school AI policy hb-1630, DCS records hb-91), physical vandalism hb-482, NIL hb-1059, govt gene study hb-2222. ⚠ 4/5 in-scope sidecars extracted thin/failed (portal) → marquee summaries from confirmed parameters; hb-1309 text-grounded. |
+| ut / 2022 | 2022 | committed | 4 | 1 | 3 | 1 | 1 | **SB 227 Utah Consumer Privacy Act (UCPA)** (4th US comprehensive privacy law; flagged; summary from confirmed parameters — portal extraction thin). Out: hb-280 (state Cybersecurity Commission), hb-345 (public-safety-employee data in GRAMA), sb-226 (public higher-ed data governance) — all D86 govt. |
+| ut / 2024 | 2024 | committed | 7 | 3 | 4 | 3 | 1 | **SB 149 UAIPA** (first US state AI-specific consumer law; flagged) + **SB 98** (PIPA breach-notice to AG + Cyber Center at 500+) + **SB 215 Motor Vehicle Consumer Data Protection** ⚠ (text-grounded reveals it is a **B2B dealer-data-system rights** law — franchisor/OEM access to "protected dealer data" — not consumer privacy as the title implies; **flagged for keep/reject review**). Out: hb-491 (Government Data Privacy Act — state agencies' own data, D86), hb-538 (state hires scrub service for its officials — no private-broker duty, D86), hb-41 (state Health Data Authority ops, D86), hb-502 (physical critical-infra/mining land-use). |
+
+**Tier B totals:** 6 units, all **`committed`** (user-approved 2026-07-20). **14 new law pages** (AL 3, PA 2, TN 5, UT 4),
+7 marquee acts flagged for leg-history (UCPA, UAIPA, TIPA, ELVIS, APDPA, AL Genetic Data Privacy Act,
+TN Genetic Information Privacy Act), 20 rejects recorded. Bonus in-scope catches not on the law-brain
+list: AL SB 63 (health-AI) and UT SB 215 (dealer data — flagged as borderline). **3 borderline items
+resolved by user (2026-07-20): all kept as-is** — the 2 TN classifier-overrides (hb-2163 AI-CSAM, hb-2265
+cyber-vandalism) and UT SB 215 (kept as cyber/privacy, not rejected as B2B commercial-data law).
+
 ## Progress
 
 - Federal: **4 / 4 units done** (119 partial — Congress in session, re-run at sine die: S 146 / TAKE IT DOWN Act + HR 2808 / Homebuyers Privacy Protection Act; 118: HR 815 / PADFAA+TikTok; 117: HR 7776 / Daniel Anderl Act; 116: HR 7898 / HIPAA Safe Harbor). ~1,010 enacted laws classified, 5 in-scope via units (+ CIRCIA via D99).

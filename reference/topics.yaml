@@ -28,6 +28,8 @@ topics:
       - "chatbot"
       - "digital replica"
       - "AI transparency"
+      - "right of publicity"
+      - "likeness"
 
   privacy:
     label: "Consumer Privacy & Data Protection"
@@ -49,6 +51,10 @@ topics:
       - "health data"
       - "biological data"
       - "addictive feed"
+      - "genetic data"
+      - "genetic information"
+      - "genetic testing"
+      - "information protection act"
 
   cyber:
     label: "Cybersecurity"

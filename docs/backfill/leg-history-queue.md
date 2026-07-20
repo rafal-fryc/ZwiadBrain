@@ -69,4 +69,4 @@ Example rows (delete once real entries land):
 | tn-2023-hb-2091 | HB 2091 (Pub. Ch. 588, 2024) — ELVIS Act (voice/likeness right of publicity) | US-TN | landmark: first US law adding "voice" to the right of publicity w/ AI-tool secondary liability; NO FAKES Act analog | done | /zwiad-leg-history tn/1826894 |
 | al-2026-hb-351 | HB 351 (2026) — Alabama Personal Data Protection Act (APDPA) | US-AL | comprehensive state consumer-privacy statute (21st in US); lowest 25,000-consumer threshold | flagged | /zwiad-leg-history al/2101947 |
 | al-2024-hb-21 | HB 21 (2024) — Alabama Genetic Data Privacy Act | US-AL | state DTC-genetic-testing privacy statute (consent + deletion; AG-enforced) | flagged | /zwiad-leg-history al/1785848 |
-| tn-2023-hb-1310 | HB 1310 (2023) — Tennessee Genetic Information Privacy Act | US-TN | state DTC-genetic-testing privacy statute | flagged | /zwiad-leg-history tn/1688672 |
+| tn-2023-hb-1310 | HB 1310 (2023) — Tennessee Genetic Information Privacy Act | US-TN | state DTC-genetic-testing privacy statute | done | /zwiad-leg-history tn/1688672 |

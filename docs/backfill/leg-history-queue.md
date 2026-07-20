@@ -49,13 +49,13 @@ Example rows (delete once real entries land):
 | 119-s-146 | PL 119-12 — TAKE IT DOWN Act (NCII/deepfake ban + 48-hour platform removal duty, FTC-enforced) | US | landmark: first federal statute regulating AI-generated intimate imagery and platform takedown duties; active FTC enforcement since May 2026 (see ftc-2026-nudify-tool-operators) | done | /zwiad-leg-history 119/s/146 |
 
 <!-- Law-brain-driven new-states privacy wave (backfilled 2026-07-02; comprehensive state privacy acts + notable named Acts). -->
-| ct-2022-sb-6 | SB 6 (P.A. 22-15, 2022) — Connecticut Data Privacy Act (CTDPA) | US-CT | landmark comprehensive state consumer-privacy statute (4th in US) | flagged | /zwiad-leg-history ct/1585736 |
+| ct-2022-sb-6 | SB 6 (P.A. 22-15, 2022) — Connecticut Data Privacy Act (CTDPA) | US-CT | landmark comprehensive state consumer-privacy statute (5th in US) | done | /zwiad-leg-history ct/1585736 |
 | or-2023-sb-619 | SB 619 (2023) — Oregon Consumer Privacy Act (OCPA) | US-OR | comprehensive state consumer-privacy statute; broad "personal data" + nonprofit reach | flagged | /zwiad-leg-history or/1647172 |
 | de-2023-hb-154 | HB 154 (2023) — Delaware Personal Data Privacy Act (DPDPA) | US-DE | comprehensive state consumer-privacy statute; low applicability thresholds | flagged | /zwiad-leg-history de/1764243 |
 | fl-2023-s-262 | SB 262 (2023) — Florida Digital Bill of Rights | US-FL | comprehensive privacy for large controllers + children-online + platform provisions | flagged | /zwiad-leg-history fl/1726624 |
 | in-2023-sb-5 | SB 5 (2023) — Indiana Consumer Data Protection Act | US-IN | comprehensive state consumer-privacy statute (VA-model) | flagged | /zwiad-leg-history in/1648620 |
 | ky-2024-hb-15 | HB 15 (Acts Ch. 72, 2024) — Kentucky Consumer Data Protection Act | US-KY | comprehensive state consumer-privacy statute | flagged | /zwiad-leg-history ky/1836575 |
-| md-2024-hb-567 | HB 567 (2024) — Maryland Online Data Privacy Act (MODPA) | US-MD | comprehensive privacy with strongest-in-US data-minimization | flagged | /zwiad-leg-history md/1826294 |
+| md-2024-hb-567 | HB 567 (2024) — Maryland Online Data Privacy Act (MODPA) | US-MD | comprehensive privacy with strongest-in-US data-minimization | done | /zwiad-leg-history md/1826294 |
 | md-2024-hb-603 | HB 603 (2024) — Maryland Kids Code (Age-Appropriate Design) | US-MD | children's online design-code statute (AADC family; litigation-prone) | flagged | /zwiad-leg-history md/1826424 |
 | mn-2023-hf-4757 | HF 4757 (2024) — Minnesota Consumer Data Privacy Act (MCDPA) | US-MN | comprehensive privacy w/ novel right to contest profiling; omnibus-vehicle CAVEAT | flagged | /zwiad-leg-history mn/1861147 |
 | ne-2023-lb-1074 | LB 1074 (2024) — Nebraska Data Privacy Act | US-NE | comprehensive state consumer-privacy statute (TX-model); omnibus-vehicle CAVEAT | flagged | /zwiad-leg-history ne/1803810 |
@@ -63,10 +63,10 @@ Example rows (delete once real entries land):
 | nj-2022-s-332 | S 332 (P.L.2023 c.266) — New Jersey Data Privacy Act | US-NJ | comprehensive state consumer-privacy statute; rulemaking authority | flagged | /zwiad-leg-history nj/1555075 |
 
 <!-- Law-brain-driven tier B: remaining untracked states AL/PA/TN/UT (backfilled 2026-07-02). -->
-| ut-2022-sb-227 | SB 227 (2022) — Utah Consumer Privacy Act (UCPA) | US-UT | landmark comprehensive state consumer-privacy statute (4th in US) | flagged | /zwiad-leg-history ut/1593499 |
-| ut-2024-sb-149 | SB 149 (2024) — Utah Artificial Intelligence Policy Act (UAIPA) | US-UT | FIRST US state AI-specific consumer-protection law; generative-AI disclosure + AI sandbox | flagged | /zwiad-leg-history ut/1828750 |
+| ut-2022-sb-227 | SB 227 (2022) — Utah Consumer Privacy Act (UCPA) | US-UT | landmark comprehensive state consumer-privacy statute (4th in US) | done | /zwiad-leg-history ut/1593499 |
+| ut-2024-sb-149 | SB 149 (2024) — Utah Artificial Intelligence Policy Act (UAIPA) | US-UT | FIRST US state AI-specific consumer-protection law; generative-AI disclosure + AI sandbox | done | /zwiad-leg-history ut/1828750 |
 | tn-2023-hb-1181 | HB 1181 (2023) — Tennessee Information Protection Act (TIPA) | US-TN | comprehensive state consumer-privacy statute; unique NIST-Privacy-Framework affirmative defense | flagged | /zwiad-leg-history tn/1688520 |
-| tn-2023-hb-2091 | HB 2091 (Pub. Ch. 588, 2024) — ELVIS Act (voice/likeness right of publicity) | US-TN | landmark: first US law adding "voice" to the right of publicity w/ AI-tool secondary liability; NO FAKES Act analog | flagged | /zwiad-leg-history tn/1826894 |
+| tn-2023-hb-2091 | HB 2091 (Pub. Ch. 588, 2024) — ELVIS Act (voice/likeness right of publicity) | US-TN | landmark: first US law adding "voice" to the right of publicity w/ AI-tool secondary liability; NO FAKES Act analog | done | /zwiad-leg-history tn/1826894 |
 | al-2026-hb-351 | HB 351 (2026) — Alabama Personal Data Protection Act (APDPA) | US-AL | comprehensive state consumer-privacy statute (21st in US); lowest 25,000-consumer threshold | flagged | /zwiad-leg-history al/2101947 |
 | al-2024-hb-21 | HB 21 (2024) — Alabama Genetic Data Privacy Act | US-AL | state DTC-genetic-testing privacy statute (consent + deletion; AG-enforced) | flagged | /zwiad-leg-history al/1785848 |
 | tn-2023-hb-1310 | HB 1310 (2023) — Tennessee Genetic Information Privacy Act | US-TN | state DTC-genetic-testing privacy statute | flagged | /zwiad-leg-history tn/1688672 |

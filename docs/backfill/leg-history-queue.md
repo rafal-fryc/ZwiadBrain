@@ -60,7 +60,7 @@ Example rows (delete once real entries land):
 | mn-2023-hf-4757 | HF 4757 (2024) — Minnesota Consumer Data Privacy Act (MCDPA) | US-MN | comprehensive privacy w/ novel right to contest profiling; omnibus-vehicle CAVEAT | flagged | /zwiad-leg-history mn/1861147 |
 | ne-2023-lb-1074 | LB 1074 (2024) — Nebraska Data Privacy Act | US-NE | comprehensive state consumer-privacy statute (TX-model); omnibus-vehicle CAVEAT | flagged | /zwiad-leg-history ne/1803810 |
 | ri-2024-h-7787 | H 7787 (2024) — Rhode Island Data Transparency and Privacy Protection Act | US-RI | comprehensive state consumer-privacy statute; identical companion S 2500 also enacted | done | /zwiad-leg-history ri/1857250 |
-| nj-2022-s-332 | S 332 (P.L.2023 c.266) — New Jersey Data Privacy Act | US-NJ | comprehensive state consumer-privacy statute; rulemaking authority | flagged | /zwiad-leg-history nj/1555075 |
+| nj-2022-s-332 | S 332 (P.L.2023 c.266) — New Jersey Data Privacy Act | US-NJ | comprehensive state consumer-privacy statute; rulemaking authority | done | /zwiad-leg-history nj/1555075 |
 
 <!-- Law-brain-driven tier B: remaining untracked states AL/PA/TN/UT (backfilled 2026-07-02). -->
 | ut-2022-sb-227 | SB 227 (2022) — Utah Consumer Privacy Act (UCPA) | US-UT | landmark comprehensive state consumer-privacy statute (4th in US) | done | /zwiad-leg-history ut/1593499 |

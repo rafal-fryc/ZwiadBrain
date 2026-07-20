@@ -54,7 +54,7 @@ Example rows (delete once real entries land):
 | de-2023-hb-154 | HB 154 (2023) — Delaware Personal Data Privacy Act (DPDPA) | US-DE | comprehensive state consumer-privacy statute; low applicability thresholds | done | /zwiad-leg-history de/1764243 |
 | fl-2023-s-262 | SB 262 (2023) — Florida Digital Bill of Rights | US-FL | comprehensive privacy for large controllers + children-online + platform provisions | done | /zwiad-leg-history fl/1726624 |
 | in-2023-sb-5 | SB 5 (2023) — Indiana Consumer Data Protection Act | US-IN | comprehensive state consumer-privacy statute (VA-model) | done | /zwiad-leg-history in/1648620 |
-| ky-2024-hb-15 | HB 15 (Acts Ch. 72, 2024) — Kentucky Consumer Data Protection Act | US-KY | comprehensive state consumer-privacy statute | flagged | /zwiad-leg-history ky/1836575 |
+| ky-2024-hb-15 | HB 15 (Acts Ch. 72, 2024) — Kentucky Consumer Data Protection Act | US-KY | comprehensive state consumer-privacy statute | done | /zwiad-leg-history ky/1836575 |
 | md-2024-hb-567 | HB 567 (2024) — Maryland Online Data Privacy Act (MODPA) | US-MD | comprehensive privacy with strongest-in-US data-minimization | done | /zwiad-leg-history md/1826294 |
 | md-2024-hb-603 | HB 603 (2024) — Maryland Kids Code (Age-Appropriate Design) | US-MD | children's online design-code statute (AADC family; litigation-prone) | flagged | /zwiad-leg-history md/1826424 |
 | mn-2023-hf-4757 | HF 4757 (2024) — Minnesota Consumer Data Privacy Act (MCDPA) | US-MN | comprehensive privacy w/ novel right to contest profiling; omnibus-vehicle CAVEAT | flagged | /zwiad-leg-history mn/1861147 |

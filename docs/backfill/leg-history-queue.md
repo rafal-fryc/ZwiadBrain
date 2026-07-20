@@ -50,7 +50,7 @@ Example rows (delete once real entries land):
 
 <!-- Law-brain-driven new-states privacy wave (backfilled 2026-07-02; comprehensive state privacy acts + notable named Acts). -->
 | ct-2022-sb-6 | SB 6 (P.A. 22-15, 2022) — Connecticut Data Privacy Act (CTDPA) | US-CT | landmark comprehensive state consumer-privacy statute (5th in US) | done | /zwiad-leg-history ct/1585736 |
-| or-2023-sb-619 | SB 619 (2023) — Oregon Consumer Privacy Act (OCPA) | US-OR | comprehensive state consumer-privacy statute; broad "personal data" + nonprofit reach | flagged | /zwiad-leg-history or/1647172 |
+| or-2023-sb-619 | SB 619 (2023) — Oregon Consumer Privacy Act (OCPA) | US-OR | comprehensive state consumer-privacy statute; broad "personal data" + nonprofit reach | done | /zwiad-leg-history or/1647172 |
 | de-2023-hb-154 | HB 154 (2023) — Delaware Personal Data Privacy Act (DPDPA) | US-DE | comprehensive state consumer-privacy statute; low applicability thresholds | flagged | /zwiad-leg-history de/1764243 |
 | fl-2023-s-262 | SB 262 (2023) — Florida Digital Bill of Rights | US-FL | comprehensive privacy for large controllers + children-online + platform provisions | flagged | /zwiad-leg-history fl/1726624 |
 | in-2023-sb-5 | SB 5 (2023) — Indiana Consumer Data Protection Act | US-IN | comprehensive state consumer-privacy statute (VA-model) | flagged | /zwiad-leg-history in/1648620 |

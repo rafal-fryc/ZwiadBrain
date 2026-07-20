@@ -1,0 +1,175 @@
+﻿{
+    "generated_at":  "2026-03-27T00:38:03.268Z",
+    "total_provisions":  2709,
+    "total_cases":  284,
+    "topics":  {
+                   "tsr":  {
+                               "count":  68,
+                               "shard":  "tsr-provisions.json",
+                               "category":  "statutory",
+                               "label":  "TSR"
+                           },
+                   "glba":  {
+                                "count":  252,
+                                "shard":  "glba-provisions.json",
+                                "category":  "statutory",
+                                "label":  "GLBA"
+                            },
+                   "section-5-only":  {
+                                          "count":  1549,
+                                          "shard":  "section-5-only-provisions.json",
+                                          "category":  "statutory",
+                                          "label":  "Section 5 Only"
+                                      },
+                   "fcra":  {
+                                "count":  393,
+                                "shard":  "fcra-provisions.json",
+                                "category":  "statutory",
+                                "label":  "FCRA"
+                            },
+                   "coppa":  {
+                                 "count":  417,
+                                 "shard":  "coppa-provisions.json",
+                                 "category":  "statutory",
+                                 "label":  "COPPA"
+                             },
+                   "health-breach-notification":  {
+                                                      "count":  106,
+                                                      "shard":  "health-breach-notification-provisions.json",
+                                                      "category":  "statutory",
+                                                      "label":  "Health Breach Notification"
+                                                  },
+                   "can-spam":  {
+                                    "count":  14,
+                                    "shard":  "can-spam-provisions.json",
+                                    "category":  "statutory",
+                                    "label":  "CAN-SPAM"
+                                },
+                   "pa-telemarketing":  {
+                                            "count":  34,
+                                            "shard":  "pa-telemarketing-provisions.json",
+                                            "category":  "practice_area",
+                                            "label":  "Telemarketing"
+                                        },
+                   "pa-financial-practices":  {
+                                                  "count":  397,
+                                                  "shard":  "pa-financial-practices-provisions.json",
+                                                  "category":  "practice_area",
+                                                  "label":  "Financial Practices"
+                                              },
+                   "pa-privacy":  {
+                                      "count":  1332,
+                                      "shard":  "pa-privacy-provisions.json",
+                                      "category":  "practice_area",
+                                      "label":  "Privacy"
+                                  },
+                   "pa-data-security":  {
+                                            "count":  784,
+                                            "shard":  "pa-data-security-provisions.json",
+                                            "category":  "practice_area",
+                                            "label":  "Data Security"
+                                        },
+                   "pa-deceptive-design-dark-patterns":  {
+                                                             "count":  59,
+                                                             "shard":  "pa-deceptive-design-dark-patterns-provisions.json",
+                                                             "category":  "practice_area",
+                                                             "label":  "Deceptive Design / Dark Patterns"
+                                                         },
+                   "pa-ai-automated-decision-making":  {
+                                                           "count":  27,
+                                                           "shard":  "pa-ai-automated-decision-making-provisions.json",
+                                                           "category":  "practice_area",
+                                                           "label":  "AI / Automated Decision-Making"
+                                                       },
+                   "pa-surveillance":  {
+                                           "count":  104,
+                                           "shard":  "pa-surveillance-provisions.json",
+                                           "category":  "practice_area",
+                                           "label":  "Surveillance"
+                                       },
+                   "pa-other":  {
+                                    "count":  87,
+                                    "shard":  "pa-other-provisions.json",
+                                    "category":  "practice_area",
+                                    "label":  "Other"
+                                },
+                   "rt-prohibition":  {
+                                          "count":  503,
+                                          "shard":  "rt-prohibition-provisions.json",
+                                          "category":  "remedy_type",
+                                          "label":  "Prohibition"
+                                      },
+                   "rt-monetary-penalty":  {
+                                               "count":  142,
+                                               "shard":  "rt-monetary-penalty-provisions.json",
+                                               "category":  "remedy_type",
+                                               "label":  "Monetary Penalty"
+                                           },
+                   "rt-consumer-redress":  {
+                                               "count":  71,
+                                               "shard":  "rt-consumer-redress-provisions.json",
+                                               "category":  "remedy_type",
+                                               "label":  "Consumer Redress"
+                                           },
+                   "rt-order-administration":  {
+                                                   "count":  645,
+                                                   "shard":  "rt-order-administration-provisions.json",
+                                                   "category":  "remedy_type",
+                                                   "label":  "Order Administration"
+                                               },
+                   "rt-compliance-monitoring":  {
+                                                    "count":  644,
+                                                    "shard":  "rt-compliance-monitoring-provisions.json",
+                                                    "category":  "remedy_type",
+                                                    "label":  "Compliance Monitoring"
+                                                },
+                   "rt-recordkeeping":  {
+                                            "count":  287,
+                                            "shard":  "rt-recordkeeping-provisions.json",
+                                            "category":  "remedy_type",
+                                            "label":  "Recordkeeping"
+                                        },
+                   "rt-third-party-assessment":  {
+                                                     "count":  148,
+                                                     "shard":  "rt-third-party-assessment-provisions.json",
+                                                     "category":  "remedy_type",
+                                                     "label":  "Third-Party Assessment"
+                                                 },
+                   "rt-comprehensive-security-program":  {
+                                                             "count":  103,
+                                                             "shard":  "rt-comprehensive-security-program-provisions.json",
+                                                             "category":  "remedy_type",
+                                                             "label":  "Comprehensive Security Program"
+                                                         },
+                   "rt-data-deletion":  {
+                                            "count":  89,
+                                            "shard":  "rt-data-deletion-provisions.json",
+                                            "category":  "remedy_type",
+                                            "label":  "Data Deletion"
+                                        },
+                   "rt-other":  {
+                                    "count":  9,
+                                    "shard":  "rt-other-provisions.json",
+                                    "category":  "remedy_type",
+                                    "label":  "Other"
+                                },
+                   "rt-consumer-notification":  {
+                                                    "count":  71,
+                                                    "shard":  "rt-consumer-notification-provisions.json",
+                                                    "category":  "remedy_type",
+                                                    "label":  "Consumer Notification"
+                                                },
+                   "rt-algorithmic-destruction":  {
+                                                      "count":  3,
+                                                      "shard":  "rt-algorithmic-destruction-provisions.json",
+                                                      "category":  "remedy_type",
+                                                      "label":  "Algorithmic Destruction"
+                                                  },
+                   "rt-biometric-ban":  {
+                                            "count":  2,
+                                            "shard":  "rt-biometric-ban-provisions.json",
+                                            "category":  "remedy_type",
+                                            "label":  "Biometric Ban"
+                                        }
+               }
+}

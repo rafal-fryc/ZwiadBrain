@@ -1,0 +1,358 @@
+{
+  "topic": "can-spam",
+  "generated_at": "2026-03-27T00:38:02.859Z",
+  "total_provisions": 14,
+  "provisions": [
+    {
+      "provision_number": "I",
+      "title": "Prohibition Against Misrepresentations",
+      "category": "prohibition",
+      "summary": "Defendant is permanently restrained from misrepresenting its privacy and security practices, compliance program memberships (including HIPAA and Privacy Shield), HIPAA regulatory status, and the independent status of endorsers or reviewers of its products.",
+      "verbatim_text": "8 A. The extent to which Defendant maintains and protects the privacy, security, confidentiality, or 9 integrity of any Personal Information or Customer Information;\n\n10 B. The extent to which Defendant is a member of, adheres to, complies with, is certified by, is 11 endorsed by, or otherwise participates in any privacy, security or other compliance program 12 sponsored by a government or any self-regulatory or standard-setting organization, or any entity 13 that certifies compliance with HIPAA;\n\n14 C. The extent to which Defendant is regulated by HIPAA, and the extent to which Defendant’s 15 privacy and information practices are in compliance with HIPAA requirements; and\n\n16 D. The status of any person providing an endorsement or review of a product or service offered or 17 sold by Defendant, or any business owned or controlled by Defendant, including a 18 misrepresentation that the endorser or reviewer is an independent or ordinary user of the product 19 or service or an ordinary customer of the business.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security",
+        "Privacy"
+      ],
+      "remedy_types": [
+        "Prohibition"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "II",
+      "title": "Mandated Information Security Program",
+      "category": "affirmative_obligation",
+      "summary": "Defendant must establish, implement, and maintain for 20 years a comprehensive information security program protecting Personal Information and Customer Information, including documented policies, designated personnel, risk assessments, safeguards, and vendor oversight.",
+      "verbatim_text": "21 IT IS FURTHER ORDERED that Defendant and any business that Defendant controls 22 directly, or indirectly, in connection with the collection, maintenance, use, or disclosure of, or provision 23 of access to, Personal Information or Customer Information, must, within sixty (60) days after entry of 24 this Order, establish and implement, and thereafter maintain for twenty (20) years after entry of this 25 Order, a comprehensive information security program (“Information Security Program”) that protects 26 27 28 6 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 7 of 24 1 the security, confidentiality, and integrity of Personal Information and Customer Information. To 2 satisfy this requirement, Defendant must, at a minimum:\n\n3 A. Document in writing the content, implementation, and maintenance of the Information Security 4 Program;\n\n5 B. Provide the written program and any material evaluations thereof or updates thereto to 6 Defendant’s board of directors or governing body or, if no such board or equivalent governing 7 body exists, to a senior officer of Defendant responsible for Defendant’s Information Security 8 Program at least once every twelve (12) months and promptly (not to exceed thirty (30) days) 9 after a Covered Incident;\n\n10 C. Designate a qualified employee or employees to coordinate and be responsible for the 11 Information Security Program;\n\n12 D. Assess and document, at least once every twelve (12) months and promptly (not to exceed thirty 13 (30)days) following a Covered Incident, internal and external risks to the security, 14 confidentiality, or integrity of Personal Information and Customer Information that could result 15 in the (1) unauthorized collection, maintenance, use, alteration, or disclosure of, or provision of 16 access to, Personal Information or Customer Information; or the (2) misuse, loss, theft, 17 destruction, or other compromise of such information;\n\n18 E. Design, implement, maintain, and document safeguards that control for the internal and external 19 risks Defendant identifies to the security, confidentiality, or integrity of Personal Information 20 and Customer Information identified in response to Provision II.D. Each safeguard shall be 21 based on the volume and sensitivity of the Personal Information or Customer Information that is 22 at risk, and the likelihood that the risk could be realized and result in the (1) unauthorized 23 collection, maintenance, use, alteration, or disclosure of the Personal Information or Customer 24 Information; or the (2) misuse, loss, theft, destruction, or other compromise of such information. 25 Such safeguards must also include: 26 1. Training of all of Defendant’s employees, at least once every twelve (12) months, on how to 27 safeguard Personal Information and Customer Information; 28 7 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 8 of 24 1 2. Implementing technical measures to log and monitor Defendant’s networks and assets for 2 anomalous activity and active threats. Such measures shall require Defendant to determine 3 baseline system activity and identify and respond to anomalous events and unauthorized 4 attempts to access or exfiltrate Personal Information or Customer Information; 5 3. Implementing data access controls for all assets (including databases) storing Personal 6 Information or Customer Information and technical measures, policies, and procedures to 7 minimize or prevent online attacks resulting from the misuse of valid credentials, including: 8 (a)restricting inbound and outbound connections; (b) requiring and enforcing strong 9 passwords or other credentials; (c) preventing the reuse of known compromised credentials 10 to access Personal Information or Customer Information; (d) implementing routine 11 password resets for known compromised credentials; and (e) limiting employee, contractor, 12 or authorized third party access to what is needed to perform that employee, contractor, or 13 authorized third party’s job function and establish regular documented review of such access 14 privileges; 15 4. Requiring multi-factor authentication methods for all employees, contractors, and affiliates 16 in order to access any assets (including databases) storing Personal Information or Customer 17 Information. Such multi-factor authentication methods for all employees, contractors, and 18 affiliates should not include telephone calls or SMS-based authentication methods and must 19 be resistant to phishing attacks. Defendant may use equivalent, widely-adopted industry 20 authentication options that are not multi-factor, if the person responsible for the Information 21 Security Program under sub-Provision II.C: (1) approves in writing the use of such 22 equivalent authentication options; and (2) documents a written explanation of how the 23 authentication options are widely adopted and at least equivalent to the security provided by 24 multi-factor authentication; 25 5. Developing and implementing configuration standards to harden system components against 26 known threats and vulnerabilities. New system components shall not be granted access to 27 28 8 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 9 of 24 1 Defendant’s network, resources, Personal Information, or Customer Information until they 2 meet Defendant’s configuration standards; 3 6. Encryption of, at a minimum, all Personal Information and Customer Information on 4 Defendant’s computer networks, including but not limited to cloud storage; 5 7. Policies and procedures to ensure that all information technology (“IT”) assets on 6 Defendant’s network with access to Personal Information or Customer Information are 7 securely installed and inventoried at least once every twelve (12) months; 8 8. Implementing vulnerability and patch management measures, policies, and procedures that 9 require confirmation that any directives to apply patches or remediate vulnerabilities are 10 received and completed and that include timelines for addressing vulnerabilities that account 11 for the severity and exploitability of the risk implicated. 12 9. Identify and document a comprehensive IT asset inventory that includes hardware, software, 13 and location of the assets; 14 10. Designing and implementing protections such as network intrusion protection, host intrusion 15 protection, and file integrity monitoring, across Defendant’s network and IT assets; 16 11. Designing, implementing, and maintaining measures to limit unauthorized access in any 17 network or system that stores, collects, maintains, or processes Personal Information or 18 Customer Information, such as segmentation of networks and databases and properly 19 configured firewalls; and 20 12. Technical measures, procedures, and policy provisions to address the maintenance of any 21 type of information related to customers that was not being collected or maintained by 22 Defendant as of the entry date of this Order, including a determination of whether the 23 safeguards that control for the internal and external risks to the security, confidentiality, or 24 integrity of Customer Information should be applied to this new type of information.\n\n25 F. Assess, at least once every twelve (12) months and promptly (not to exceed thirty (30) days) 26 following a Covered Incident, the sufficiency of any safeguards in place to address the internal 27 28 9 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 10 of 24 1 and external risks to the security, confidentiality, or integrity of Personal Information and 2 Customer Information, and modify the Information Security Program based on the results;\n\n3 G. Test and monitor the effectiveness of the safeguards at least once every twelve (12) months and 4 promptly (not to exceed thirty (30) days) following a Covered Incident, and modify the 5 Information Security Program based on the results. Such testing and monitoring must include 6 vulnerability testing of Defendant’s network(s) once every four (4) months and promptly (not to 7 exceed thirty (30) days) after a Covered Incident, and penetration testing of Defendant’s 8 network(s) at least once every twelve (12) months and promptly (not to exceed thirty (30) days) 9 after a Covered Incident;\n\n10 H. Select and retain service providers capable of safeguarding Personal Information and Customer 11 Information they access through or receive from Defendant, and contractually require service 12 providers to implement and maintain safeguards sufficient to address the internal and external 13 risks to the security, confidentiality, or integrity of Personal Information and Customer 14 Information; and\n\n15 I. Evaluate and adjust the Information Security Program in light of any changes to Defendant’s 16 operations or business arrangements, a Covered Incident, new or more efficient technological or 17 operational methods to control for the risks identified in Provision II.D of this Order, or any 18 other circumstances that Defendant knows or has reason to know may have an impact on the 19 effectiveness of the Information Security Program or any of its individual safeguards. At a 20 minimum, Defendant must evaluate the Information Security Program at least once every 21 twelve (12) months and modify the Information Security Program based on the results.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Comprehensive Security Program"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "III",
+      "title": "Information Security Assessments by a Third Party",
+      "category": "assessment",
+      "summary": "Defendant must obtain initial and biennial third-party information security assessments from a qualified, independent Assessor pre-approved by the FTC, covering the first 180 days and each two-year period thereafter for 20 years, with each assessment evaluating the Information Security Program and submitted to the Commission.",
+      "verbatim_text": "26 A. The Assessments must be obtained from a qualified, objective, independent third-party 27 professional (“Assessor”), who: (1) uses procedures and standards generally accepted in the 28 10 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 11 of 24 1 profession; (2) conducts an independent review of the Information Security Program; (3) retains 2 all documents relevant to each Assessment for five (5) years after completion of such 3 Assessment; and (4) will provide such documents to the Commission within ten (10) days of 4 receipt of a written request from a representative of the Commission. No documents may be 5 withheld on the basis of a claim of confidentiality, proprietary or trade secrets, work product 6 protection, attorney-client privilege, statutory exemption, or any similar claim.\n\n7 B. For each Assessment, Defendant must provide the Associate Director for Enforcement for the 8 Bureau of Consumer Protection at the Federal Trade Commission with the name, affiliation, and 9 qualifications of the proposed Assessor, whom the Associate Director shall have the authority to 10 approve in her or his sole discretion. 11 C. The reporting period for the Assessments must cover: (1) the first 180 days after the entry date\n\n11 C. The reporting period for the Assessments must cover: (1) the first 180 days after the entry date 12 of the Order for the initial Assessment; and (2) each two-year period thereafter for twenty (20) 13 years after entry of the Order for the biennial Assessments.\n\n14 D. Each Assessment must, for the entire assessment period: 15 1. Determine whether Defendant has implemented and maintained the Information Security 16 Program required by Provision II of this Order, titled Mandated Information Security 17 Program; 18 2. Assess the effectiveness of Defendant’s implementation and maintenance of sub-Provisions 19 II.A-I; 20 3. Identify any gaps or weaknesses in, or instances of material noncompliance with, the 21 Information Security Program; 22 4. Address the status of gaps or weaknesses in, or instances of material noncompliance with, 23 the Information Security Program that were identified in any prior Assessment required by 24 this Order; and 25 5. Identify specific evidence (including documents reviewed, sampling and testing performed, 26 and interviews conducted) examined to make such determinations, assessments, and 27 identifications, and explain why the evidence that the Assessor examined is: (a) appropriate 28 11 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 12 of 24 1 for assessing an enterprise of Defendant’s size, complexity, and risk profile; and (b) 2 sufficient to justify the Assessor’s findings. No finding of any Assessment shall rely 3 primarily on assertions or attestations by Defendant’s management. The Assessment must 4 be signed by the Assessor, state that the Assessor conducted an independent review of the 5 Information Security Program and did not rely primarily on assertions or attestations by 6 Defendant’s management, and state the number of hours that each member of the 7 assessment team worked on the Assessment. To the extent that Defendant revises, updates, 8 or adds one or more safeguards required under Provision II of this Order during an 9 Assessment period, the Assessment must assess the effectiveness of the revised, updated, or 10 added safeguard(s) for the time period in which it was in effect, and provide a separate 11 statement detailing the basis for each revised, updated, or additional safeguard.\n\n12 E. Each Assessment must be completed within 60 days after the end of the reporting period to 13 which the Assessment applies. Unless otherwise directed by a Commission representative in 14 writing, Defendant must submit the initial Assessment to the Commission within ten (10) days 15 after the Assessment has been completed via email to DEbrief@ftc.gov or by overnight courier 16 (not the U.S. Postal Service) to: Associate Director for Enforcement, Bureau of Consumer 17 Protection, Federal Trade Commission, 600 Pennsylvania Avenue NW, Washington, DC 20580. 18 The subject line must begin: “United States v. Verkada Inc., FTC File No. 2123068.” All 19 subsequent biennial Assessments must be retained by Defendant until the Order is terminated 20 and provided to the Associate Director for Enforcement within ten (10) days of request. The 21 initial Assessment and any subsequent biennial Assessment provided to the Commission must 22 be marked, in the upper right-hand corner of each page, with the words “DPIP Assessment” in 23 red lettering.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Third-Party Assessment"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "IV",
+      "title": "Cooperation with Third Party Information Security Assessor",
+      "category": "affirmative_obligation",
+      "summary": "Defendant must fully cooperate with the third-party Assessor by providing all relevant information, network access, and disclosing all material facts without misrepresentation.",
+      "verbatim_text": "1 A. Provide or otherwise make available to the Assessor all information and material in its 2 possession, custody, or control that is relevant to the Assessment for which there is no 3 reasonable claim of privilege;\n\n4 B. Provide or otherwise make available to the Assessor information about Defendant’s network(s), 5 systems, and IT assets so that the Assessor can determine the scope of the Assessment, and 6 visibility to those portions of the network(s), systems, and IT assets deemed in scope; and\n\n7 C. Disclose all material facts to the Assessor, and not misrepresent in any manner, expressly or by 8 implication, any fact material to the Assessor’s: (1) determination of whether Defendant has 9 implemented and maintained the Information Security Program required by Provision II of this 10 Order, titled Mandated Information Security Program; (2) assessment of the effectiveness of the 11 implementation and maintenance of sub-Provisions II.A-I; or (3) identification of any gaps or 12 weaknesses in, or instances of material noncompliance with, the Information Security Program.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Third-Party Assessment"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "V",
+      "title": "Annual Certification",
+      "category": "compliance_reporting",
+      "summary": "Defendant must annually submit a sworn certification from a senior corporate manager or officer confirming compliance with the Order, the absence of uncorrected material noncompliance, and a description of all Covered Incidents during the certified period.",
+      "verbatim_text": "15 A. One (1) year after the entry date of this Order, and each year thereafter for twenty (20) years 16 after entry of this Order, provide the Commission with a certification from a senior corporate 17 manager, or, if no such senior corporate manager exists, a senior officer of Verkada Inc. 18 responsible for Defendant’s Information Security Program that: (1) Defendant has established, 19 implemented, and maintained the requirements of this Order; (2) Defendant is not aware of any 20 material noncompliance that has not been (a) corrected or (b) disclosed to the Commission; and 21 (3)includes a brief description of all Covered Incidents during the certified period. The 22 certification must be based on the personal knowledge of the senior corporate manager, senior 23 officer, or subject matter experts upon whom the senior corporate manager or senior officer 24 reasonably relies in making the certification.\n\n25 B. Unless otherwise directed by a Commission representative in writing, submit all annual 26 certifications to the Commission pursuant to this Order via email to DEbrief@ftc.gov or by 27 overnight courier (not the U.S. Postal Service) to Associate Director for Enforcement, Bureau of 28 13 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 14 of 24 1 Consumer Protection, Federal Trade Commission, 600 Pennsylvania Avenue NW, Washington, 2 DC 20580. The subject line must begin, “United States v. Verkada Inc., FTC File No. 3 2123068.”",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Compliance Monitoring"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "VI",
+      "title": "Covered Incident Reports",
+      "category": "compliance_reporting",
+      "summary": "For 20 years, Defendant must submit a report to the Commission within 10 days of notifying any U.S. government entity of a Covered Incident, including the date, description, affected information types, number of affected consumers, remediation steps taken, and copies of notices sent.",
+      "verbatim_text": "5 IT IS FURTHER ORDERED that, for twenty (20) years after entry of this Order, within ten 6 (10)days of any notification to a United States federal, state, or local entity of a Covered Incident, 7 Defendant must submit a report to the Commission. The report must include, to the extent possible: 8 A. The date, estimated date, or estimated date range when the Covered Incident occurred; 9 B. A description of the facts relating to the Covered Incident, including the causes of the Covered 10 Incident, if known; 11 C. A description of each type of information that was affected by the Covered Incident; 12 D. The number of consumers whose information was affected by the Covered Incident; 13 E. The acts that Defendant has taken to date to remediate the Covered Incident and protect 14 Personal Information and Customer Information from further exposure or access, and protect 15 affected consumers from identity theft or other harm that may result from the Covered Incident; 16 and 17 F. A representative copy of any materially different notice sent by Defendant to consumers or to 18 any U.S. federal, state, or local government entity.\n\n19 Unless otherwise directed by a Commission representative in writing, all Covered Incident reports to 20 the Commission pursuant to this Order must be emailed to DEbrief@ftc.gov or sent by overnight 21 courier (not the U.S. Postal Service) to Associate Director for Enforcement, Bureau of Consumer 22 Protection, Federal Trade Commission, 600 Pennsylvania Avenue NW, Washington, DC 20580. The 23 subject line must begin, “United States v. Verkada Inc., FTC File No. 2123068.”",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Compliance Monitoring"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "VII",
+      "title": "Prohibitions Concerning Commercial Email",
+      "category": "prohibition",
+      "summary": "Defendant is permanently restrained from violating Section 5 of the CAN-SPAM Act, including by sending commercial emails without a physical postal address or opt-out notice, and by failing to honor opt-out requests within 10 business days.",
+      "verbatim_text": "4 A. Initiating, procuring, or transmitting, or assisting others in initiating, procuring, or transmitting, 5 a Commercial Electronic Mail Message that does not: (1) provide a physical postal address of 6 the sender, or (2) provide a Clear and Conspicuous notice of opportunity to decline to receive 7 further Commercial Electronic Mail Messages from the sender; and\n\n8 B. Failing to honor a recipient’s request not to receive further Commercial Electronic Mail 9 Messages from Defendant at the recipient’s Electronic Mail Address more than 10 business 10 days after the recipient’s request.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Other"
+      ],
+      "remedy_types": [
+        "Prohibition"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "VIII",
+      "title": "Monetary Judgment for Civil Penalty",
+      "category": "affirmative_obligation",
+      "summary": "Judgment of $2,950,000 is entered against Defendant as a civil penalty, to be paid to the U.S. Treasury within 7 days of entry of this Order by electronic fund transfer.",
+      "verbatim_text": "Judgment in the amount of two million nine hundred fifty thousand dollars ($2,950,000) is 14 entered in favor of Plaintiff against Defendant as a civil penalty. 15 Defendant is ordered to pay to Plaintiff, by making payment to the Treasurer of the United 16 States, $2,950,000 which as Defendant stipulates, its undersigned counsel holds in escrow for 17 no purpose other than payment to Plaintiff. Such payment must be made within seven (7) days 18 of entry of this Order by electronic fund transfer in accordance with instructions to be provided 19 by a representative of Plaintiff.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Monetary Penalty"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "IX",
+      "title": "Additional Monetary Provisions",
+      "category": "affirmative_obligation",
+      "summary": "Defendant relinquishes all rights to assets transferred under this Order, acknowledges that Complaint facts may be taken as true in future proceedings, and confirms its Taxpayer Identification Number may be used for collecting delinquent amounts.",
+      "verbatim_text": "A. Defendant relinquishes dominion and all legal and equitable right, title, and interest in all assets 23 transferred pursuant to this Order and may not seek the return of any assets.\n\nB. The facts alleged in the Complaint will be taken as true, without further proof, in any 25 subsequent civil litigation by or on behalf of the Commission or Plaintiff, including in a 26 proceeding to enforce its rights to any payment or monetary judgment pursuant to this Order.\n\nC.Defendant acknowledges that its Taxpayer Identification Numbers (Social Security Number or 28 15 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 16 of 24 1 Employer Identification Numbers), which Defendant previously submitted to the Commission, 2 may be used for collecting and reporting on any delinquent amount arising out of this Order, in 3 accordance with 31 U.S.C. § 7701.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Consumer Redress"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "X",
+      "title": "Order Acknowledgments",
+      "category": "acknowledgment",
+      "summary": "Defendant must submit a sworn acknowledgment of receipt of this Order within 7 days, deliver copies to key personnel within 7 days and to future personnel before they assume responsibilities, and obtain signed acknowledgments from all recipients within 30 days of delivery.",
+      "verbatim_text": "7 Defendant, within seven (7) days of entry of this Order, must submit to the Commission an 8 acknowledgment of receipt of this Order sworn under penalty of perjury.\n\n9 For ten (10) years after entry of this Order, Defendant must deliver a copy of this Order to: (1) 10 all principals, officers, directors, and LLC managers and members; (2) all employees having 11 managerial responsibilities for conduct related to the subject matter of the Order and all agents 12 and representatives who have managerial responsibility for conduct related to the subject matter 13 of the Order; and (3) any business entity resulting from any change in structure as set forth in 14 the Provision titled Compliance Reporting. Delivery must occur within seven (7) days of entry 15 of this Order for current personnel. For all others, delivery must occur before they assume their 16 responsibilities.\n\n17 From each individual or entity to which Defendant delivered a copy of this Order, Defendant 18 must obtain, within thirty (30) days, a signed and dated acknowledgment of receipt of this 19 Order.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Order Administration"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "XI",
+      "title": "Compliance Reporting",
+      "category": "compliance_reporting",
+      "summary": "Defendant must submit an initial sworn compliance report one year after entry and sworn compliance notices within 14 days of structural or contact changes for 20 years, and notify the Commission of any bankruptcy filing within 14 days.",
+      "verbatim_text": "One year after entry of this Order, Defendant must submit a compliance report, sworn under 23 penalty of perjury, which does the following: (1) identify the primary physical, postal, and 24 email address and telephone number, as designated points of contact, which representatives of 25 the Commission and Plaintiff may use to communicate with Defendant; (2) identify all of 26 Defendant’s businesses by all of their names, telephone numbers, and physical, postal, email, 27 and Internet addresses; (3) describe the activities of each business, including the goods and 28 16 STIPULATED PROPOSED ORDER CASE NO. Case 3:24-cv-06153-CRB Document 6 Filed 09/04/24 Page 17 of 24 1 services offered, the means of advertising, marketing, and sales; (4) describe in detail whether 2 and how Defendant is in compliance with each Provision of this Order; and (5) provide a copy 3 of each Order Acknowledgment obtained pursuant to this Order, unless previously submitted to 4 the Commission.\n\n5 For twenty (20) years after entry of this Order, Defendant must submit a compliance notice, 6 sworn under penalty of perjury, within fourteen (14) days of any change in: (1) any designated 7 point of contact; or (2) the structure of Defendant or any entity that Defendant has any 8 ownership interest in or controls directly or indirectly that may affect compliance obligations 9 arising under this Order, including: creation, merger, sale, or dissolution of the entity or any 10 subsidiary, parent, or affiliate that engages in any acts or practices subject to this Order.\n\n11 Defendant must submit to the Commission notice of the filing of any bankruptcy petition, 12 insolvency proceeding, or similar proceeding by or against Defendant within fourteen (14) days 13 of its filing.\n\n14 Any submission to the Commission required by this Order to be sworn under penalty of perjury 15 must be true and accurate and comply with 28 U.S.C. § 1746, such as by concluding: “I declare 16 under penalty of perjury under the laws of the United States of America that the foregoing is 17 true and correct. Executed on: _____” and supplying the date, signatory’s full name, title (if 18 applicable), and signature.\n\n19 Unless otherwise directed by a Commission representative in writing, all submissions to the 20 Commission pursuant to this Order must be emailed to DEbrief@ftc.gov or sent by overnight 21 courier (not the U.S. Postal Service) to: Associate Director for Enforcement, Bureau of 22 Consumer Protection, Federal Trade Commission, 600 Pennsylvania Avenue NW, Washington, 23 DC 20580. The subject line must begin: “United States v. Verkada Inc., FTC File No. 24 2123068.”",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Compliance Monitoring"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "XII",
+      "title": "Recordkeeping",
+      "category": "recordkeeping",
+      "summary": "Defendant must create and retain for 5 years specific records for 20 years after entry of this Order, including accounting records, personnel records, consumer complaints, compliance records, advertising materials, and commercial email records.",
+      "verbatim_text": "1 IT IS FURTHER ORDERED that Defendant must create certain records for twenty (20) years 2 after entry of the Order, and retain each such record for five (5) years. Specifically, Defendant must 3 create and retain the following records: 4 A. Accounting records showing the revenues from all goods or services sold; 5 B. Personnel records showing, for each individual working for Defendant, whether as an employee\n\n5 B. Personnel records showing, for each individual working for Defendant, whether as an employee 6 or otherwise, that individual’s: name; addresses; telephone numbers; job title or position; dates 7 of service; and (if applicable) the reason for termination; 8 C. Records of all consumer complaints and refund requests concerning the subject matter of the\n\n8 C. Records of all consumer complaints and refund requests concerning the subject matter of the 9 Order, whether received directly or indirectly, such as through a third party, and any response; 10 D. All records necessary to demonstrate full compliance with each Provision of this Order,\n\n10 D. All records necessary to demonstrate full compliance with each Provision of this Order, 11 including all submissions to the Commission; 12 E. A copy of each unique advertisement or other marketing material making a representation\n\n12 E. A copy of each unique advertisement or other marketing material making a representation 13 subject to this Order; 14 F. A copy of each unique Commercial Electronic Mail Message template making a representation\n\n14 F. A copy of each unique Commercial Electronic Mail Message template making a representation 15 subject to this Order; 16 G. Records sufficient to show, by campaign, the number of Commercial Electronic Mail Messages\n\n16 G. Records sufficient to show, by campaign, the number of Commercial Electronic Mail Messages 17 sent, and the notice provided to Commercial Electronic Mail Message recipients of the 18 opportunity to unsubscribe from the receipt of further Commercial Electronic Mail Messages; 19 H. Records sufficient to show that each Commercial Electronic Mail Message recipient’s\n\n19 H. Records sufficient to show that each Commercial Electronic Mail Message recipient’s 20 unsubscribe request, submitted via the manner specified in the Commercial Electronic Mail 21 Message, has been honored no more than ten (10) business days after receipt of such request, or 22 if not, for each such request, the date of the request, date of each subsequent Commercial 23 Electronic Mail Message, the reason the request was not honored, and a copy of the 24 Commercial Electronic Mail Message; and 25 I. Records sufficient to show the number of Commercial Electronic Mail Messages, by campaign,\n\n25 I. Records sufficient to show the number of Commercial Electronic Mail Messages, by campaign, 26 that (1) included the sender’s valid physical postal address, and (2) did not include the sender’s 27 valid physical postal address.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Recordkeeping"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "XIII",
+      "title": "Compliance Monitoring",
+      "category": "monitoring",
+      "summary": "The Commission and Plaintiff retain broad rights to monitor Defendant's compliance, including obtaining additional reports, conducting depositions and discovery, communicating directly with Defendant, interviewing affiliated persons, and using undercover methods.",
+      "verbatim_text": "4 A. Within fourteen (14) days of receipt of a written request from a representative of the 5 Commission or Plaintiff, Defendant must: submit additional compliance reports or other 6 requested information, which must be sworn under penalty of perjury; appear for depositions; 7 and produce documents for inspection and copying. The Commission and Plaintiff are also 8 authorized to obtain discovery, without further leave of court, using any of the procedures 9 prescribed by Federal Rules of Civil Procedure 29, 30 (including telephonic depositions), 31, 10 33, 34, 36, 45, and 69.\n\n11 B. For matters concerning this Order, the Commission and Plaintiff are authorized to communicate 12 directly with Defendant. Defendant must permit representatives of the Commission and 13 Plaintiff to interview any employee or other person affiliated with Defendant who has agreed to 14 such an interview. The person interviewed may have counsel present.\n\n15 C. The Commission and Plaintiff may use all other lawful means, including posing, through their 16 representatives as consumers, suppliers, or other individuals or entities, to Defendant or any 17 individual or entity affiliated with Defendant, without the necessity of identification or prior 18 notice. Nothing in this Order limits the Commission’s lawful use of compulsory process, 19 pursuant to Sections 9 and 20 of the FTC Act, 15 U.S.C. §§ 49, 57b-1.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Compliance Monitoring"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    },
+    {
+      "provision_number": "XIV",
+      "title": "Retention of Jurisdiction",
+      "category": "duration",
+      "summary": "The Court retains jurisdiction over this matter for purposes of construction, modification, and enforcement of this Order.",
+      "verbatim_text": "21 IT IS FURTHER ORDERED that this Court retains jurisdiction of this matter for purposes of 22 construction, modification, and enforcement of this Order.",
+      "violation_type": "both",
+      "statutory_topics": [
+        "CAN-SPAM"
+      ],
+      "practice_areas": [
+        "Data Security"
+      ],
+      "remedy_types": [
+        "Order Administration"
+      ],
+      "case_id": "08.24_verkada",
+      "company_name": "Verkada Inc.",
+      "date_issued": "2024-08-15",
+      "year": 2024,
+      "administration": "Biden",
+      "legal_authority": "Section 5(a) of the Federal Trade Commission Act, 15 U.S.C. § 45(a), and Section 7(a) of the Controlling the Assault of Non-Solicited Pornography and Marketing Act of 2003 (CAN-SPAM Act), 15 U.S.C. § 7706(a)",
+      "ftc_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2123068-verkada-inc-us-v",
+      "docket_number": "3:24-cv-06153"
+    }
+  ]
+}

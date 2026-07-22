@@ -817,6 +817,36 @@
     "id": "nj-2024-s-3432",
     "scope_version": "D95"
   },
+  "1901523": {
+    "cursor": "de68a6b38ca86e9e4bbb29abb4f7ad68",
+    "id": "ny-2025-a-426",
+    "scope_version": "D95"
+  },
+  "1902589": {
+    "cursor": "e05375c091cad000591d1ea08ab9e506",
+    "id": "ny-2025-s-822",
+    "scope_version": "D95"
+  },
+  "1908459": {
+    "cursor": "b9cb87cb31b1d6553c527c203da3ccea",
+    "id": "ny-2025-s-1353",
+    "scope_version": "D95"
+  },
+  "1934805": {
+    "cursor": "7867b82ffa79b3e33376a25cca6feafb",
+    "id": "ny-2025-a-3005",
+    "scope_version": "D95"
+  },
+  "1935197": {
+    "cursor": "c86c07d6e96bde62b4f03012567ad4ab",
+    "id": "ny-2025-s-3008",
+    "scope_version": "D95"
+  },
+  "1942260": {
+    "cursor": "f6d9cfaec7f61eb5d82ed2a2b9726e9d",
+    "id": "ny-2025-a-3307",
+    "scope_version": "D95"
+  },
   "1958430": {
     "cursor": "ac9f7a6afdebc5e0e7d5faa633c552b6",
     "id": "ga-2025-sb-111",
@@ -829,6 +859,26 @@
   "1980067": {
     "cursor": "f22d6af632fc2653b1d8b39644c7cf67",
     "id": "ca-2025-ab-1170"
+  },
+  "2025948": {
+    "cursor": "322bd04a8ec80fed8638e43a1ac10a26",
+    "id": "ny-2025-s-7599",
+    "scope_version": "D95"
+  },
+  "2026921": {
+    "cursor": "90de88fb6e3b6f5ab37ea8f33c236ad0",
+    "id": "ny-2025-s-7672",
+    "scope_version": "D95"
+  },
+  "2030806": {
+    "cursor": "9feedfe7fd28adf1ea029da51564f969",
+    "id": "ny-2025-s-7882",
+    "scope_version": "D95"
+  },
+  "2068608": {
+    "cursor": "4b43fca9fce81ec050af0e1cb532af8b",
+    "id": "ny-2025-s-8831",
+    "scope_version": "D95"
   },
   "2073151": {
     "cursor": "fb060fb87511e8a38fdeae60275e7a15",

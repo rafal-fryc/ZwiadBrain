@@ -691,6 +691,11 @@
     "id": "co-2024-hb-1147",
     "scope_version": "D95"
   },
+  "1831630": {
+    "cursor": "8c4c641f422cb475615d347d99a1376f",
+    "id": "la-2024-sb-6",
+    "scope_version": "D95"
+  },
   "1835303": {
     "cursor": "2addbece3b400ea712ec73076f292fa2",
     "id": "nj-2024-a-3540",
@@ -752,9 +757,19 @@
     "cursor": "217b9bd968b336e4bae3296aa9859ad5",
     "id": "ca-2023-sb-1288"
   },
+  "1854288": {
+    "cursor": "006196299cd44618d42d4fef7e6aec87",
+    "id": "la-2024-sb-48",
+    "scope_version": "D95"
+  },
   "1857035": {
     "cursor": "c315c0b0c40a985e4aafbab2130c4087",
     "id": "de-2023-hb-316",
+    "scope_version": "D95"
+  },
+  "1857789": {
+    "cursor": "56ff4b72e09278a8c25fe9be2d98b6df",
+    "id": "la-2024-hb-507",
     "scope_version": "D95"
   },
   "1858282": {

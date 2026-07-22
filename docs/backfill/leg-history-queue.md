@@ -74,3 +74,4 @@ Example rows (delete once real entries land):
 <!-- Law-brain cross-check gap fill (backfilled 2026-07-22). -->
 | ia-2023-sf-262 | SF 262 (2023) — Iowa Consumer Data Protection Act | US-IA | comprehensive state consumer-privacy statute (6th in US); notably narrow — no opt-out of profiling/targeted ads, opt-out-only for sensitive data | flagged | /zwiad-leg-history ia/1705487 |
 | la-2026-sb-386 | SB 386 (2026) — Louisiana Data Privacy Act (LDPA) | US-LA | comprehensive state consumer-privacy statute (22nd in US; eff. 2027); distinctive "we may sell your sensitive/biometric data" notice regime | flagged | /zwiad-leg-history la/2127305 |
+| nh-2024-sb-255 | SB 255 (2024) — New Hampshire Data Privacy Act (RSA 507-H) | US-NH | comprehensive state consumer-privacy statute (VA/CT model; eff. 2025); low 35k/10k thresholds | flagged | /zwiad-leg-history nh/1793280 |

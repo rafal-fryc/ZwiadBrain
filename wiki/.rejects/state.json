@@ -974,9 +974,29 @@
     "id": "wa-2025-hb-2606",
     "scope_version": "D95"
   },
+  "2087832": {
+    "cursor": "10c7c41942cf11365be30f29a539f129",
+    "id": "ri-2026-h-7173",
+    "scope_version": "D95"
+  },
   "2088515": {
     "cursor": "a46f0dc6eb40cb57091b0fbf9d90f8cc",
     "id": "ny-2025-s-9008"
+  },
+  "2091502": {
+    "cursor": "89803752254be7a47a8fc08766ec73d8",
+    "id": "ri-2026-s-2203",
+    "scope_version": "D95"
+  },
+  "2091516": {
+    "cursor": "bbeecf74337ea440c162d88b80bc86a0",
+    "id": "ri-2026-s-2195",
+    "scope_version": "D95"
+  },
+  "2091875": {
+    "cursor": "6c360ede6a751e775377ff4fcde7f81a",
+    "id": "ri-2026-s-2197",
+    "scope_version": "D95"
   },
   "2094456": {
     "cursor": "a203d98e579448e58fe5f918ec9f9db2",
@@ -1000,6 +1020,16 @@
   "2116827": {
     "cursor": "20d9f85c0d4543ec1ecd43715b3f2f14",
     "id": "la-2026-hb-119",
+    "scope_version": "D95"
+  },
+  "2116858": {
+    "cursor": "4662077cadaec1c95d101a9d95552e04",
+    "id": "ri-2026-s-2601",
+    "scope_version": "D95"
+  },
+  "2116929": {
+    "cursor": "56fd486a98235e25eb5dabc26c2676b6",
+    "id": "ri-2026-s-2570",
     "scope_version": "D95"
   },
   "2118439": {

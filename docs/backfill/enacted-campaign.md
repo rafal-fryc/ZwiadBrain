@@ -113,6 +113,18 @@ them recall silently dropped AL HB 21, TN TIPA (HB 1181), and the TN ELVIS Act (
 | ut / 2022 | 2022 | committed | 4 | 1 | 3 | 1 | 1 | **SB 227 Utah Consumer Privacy Act (UCPA)** (4th US comprehensive privacy law; flagged; summary from confirmed parameters — portal extraction thin). Out: hb-280 (state Cybersecurity Commission), hb-345 (public-safety-employee data in GRAMA), sb-226 (public higher-ed data governance) — all D86 govt. |
 | ut / 2024 | 2024 | committed | 7 | 3 | 4 | 3 | 1 | **SB 149 UAIPA** (first US state AI-specific consumer law; flagged) + **SB 98** (PIPA breach-notice to AG + Cyber Center at 500+) + **SB 215 Motor Vehicle Consumer Data Protection** ⚠ (text-grounded reveals it is a **B2B dealer-data-system rights** law — franchisor/OEM access to "protected dealer data" — not consumer privacy as the title implies; **flagged for keep/reject review**). Out: hb-491 (Government Data Privacy Act — state agencies' own data, D86), hb-538 (state hires scrub service for its officials — no private-broker duty, D86), hb-41 (state Health Data Authority ops, D86), hb-502 (physical critical-infra/mining land-use). |
 
+## Untracked comprehensive-privacy gap fill (2026-07-22)
+
+Post-Tier-B: filling remaining untracked states that enacted a comprehensive consumer-privacy act.
+Method: **recall** per (state × session), `--skip-existing`. **Status `in-review`** (uncommitted,
+pending user approval).
+
+| Unit | Run year | Status | enacted(recall) | in | out | pages | flagged | Notes |
+|------|----------|--------|----------------:|---:|----:|------:|--------:|-------|
+| ia / 2023 | 2023 | in-review | 4 | 2 | 2 | 2 | 1 | 90th GA (session id 2023). Recall→4. In: **SF 262 Iowa Consumer Data Protection Act** (6th US comprehensive privacy law, eff. 2025-01-01; flagged — notably narrow: no opt-out of profiling/targeted ads, opt-out-only sensitive data, AG-only enforcement + 90-day cure) + **HF 553** (cybersecurity affirmative-defense safe harbor, new Iowa Code ch. 554G; TN HB 2434 precedent). Out: hf-143 (ransomware criminal penalties — attacker liability, D86), hf-2185 (prior vehicle-owner PII in DMV title records — govt recordkeeping, D86; borderline, classifier conf 0.62). Both in-scope text sidecars extracted cleanly; summaries text-grounded. |
+
+**Gap-fill totals (so far):** 1 unit (ia/2023) in-review, 2 new law pages, 1 marquee act flagged.
+
 **Tier B totals:** 6 units, all **`committed`** (user-approved 2026-07-20). **14 new law pages** (AL 3, PA 2, TN 5, UT 4),
 7 marquee acts flagged for leg-history (UCPA, UAIPA, TIPA, ELVIS, APDPA, AL Genetic Data Privacy Act,
 TN Genetic Information Privacy Act), 20 rejects recorded. Bonus in-scope catches not on the law-brain

@@ -70,3 +70,6 @@ Example rows (delete once real entries land):
 | al-2026-hb-351 | HB 351 (2026) — Alabama Personal Data Protection Act (APDPA) | US-AL | comprehensive state consumer-privacy statute (21st in US); lowest 25,000-consumer threshold | done | /zwiad-leg-history al/2101947 |
 | al-2024-hb-21 | HB 21 (2024) — Alabama Genetic Data Privacy Act | US-AL | state DTC-genetic-testing privacy statute (consent + deletion; AG-enforced) | done | /zwiad-leg-history al/1785848 |
 | tn-2023-hb-1310 | HB 1310 (2023) — Tennessee Genetic Information Privacy Act | US-TN | state DTC-genetic-testing privacy statute | done | /zwiad-leg-history tn/1688672 |
+
+<!-- Untracked comprehensive-privacy gap fill: IA (backfilled 2026-07-22). -->
+| ia-2023-sf-262 | SF 262 (2023) — Iowa Consumer Data Protection Act | US-IA | comprehensive state consumer-privacy statute (6th in US); notably narrow — no opt-out of profiling/targeted ads, opt-out-only for sensitive data | flagged | /zwiad-leg-history ia/1705487 |

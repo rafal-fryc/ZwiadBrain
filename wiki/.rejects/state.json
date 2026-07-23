@@ -461,6 +461,11 @@
     "cursor": "9e147c0bb3d940ea4a6e2cdfa746e046",
     "id": "ny-2023-a-2833"
   },
+  "1685461": {
+    "cursor": "5b3bfeab03cbfe09cd5b297e7e3cdcda",
+    "id": "me-2023-ld-375",
+    "scope_version": "D95"
+  },
   "1686454": {
     "cursor": "cd9ecbacd2a49f95a7be1b44e620373e",
     "id": "ca-2023-scr-17"
@@ -536,6 +541,11 @@
   "1714018": {
     "cursor": "de0e311b81b2d6585e478acc42704699",
     "id": "il-2023-hb-3882",
+    "scope_version": "D95"
+  },
+  "1718653": {
+    "cursor": "9d3c972f7e9f69a9f1edcd22ddb50f92",
+    "id": "me-2023-ld-877",
     "scope_version": "D95"
   },
   "1732728": {
@@ -651,6 +661,11 @@
   "1811981": {
     "cursor": "e7098279032943465312534ffcdbf15d",
     "id": "va-2024-sb-487",
+    "scope_version": "D95"
+  },
+  "1812863": {
+    "cursor": "3ad81220fd8ff5186aae6fb2a0240d05",
+    "id": "me-2023-ld-2165",
     "scope_version": "D95"
   },
   "1814351": {
@@ -837,6 +852,11 @@
     "id": "ny-2025-s-822",
     "scope_version": "D95"
   },
+  "1903898": {
+    "cursor": "a6fb7b46b45c4debec76f51168971ef9",
+    "id": "me-2025-ld-109",
+    "scope_version": "D95"
+  },
   "1906535": {
     "cursor": "1d9a053a78b5ebe7d398e59cd69772a4",
     "id": "il-2025-hb-576",
@@ -927,6 +947,11 @@
     "id": "ut-2025-hb-355",
     "scope_version": "D95"
   },
+  "1948837": {
+    "cursor": "eae4cece82ecc99f3d11142bb19c8389",
+    "id": "me-2025-ld-310",
+    "scope_version": "D95"
+  },
   "1953640": {
     "cursor": "e807ea4b3e7d6793a7ff67952ed0060a",
     "id": "il-2025-hb-2568",
@@ -952,6 +977,11 @@
     "id": "il-2025-sb-1920",
     "scope_version": "D95"
   },
+  "1961463": {
+    "cursor": "1b9bad0d2e9e8180d53f358f8b9c9f31",
+    "id": "me-2025-ld-517",
+    "scope_version": "D95"
+  },
   "1963192": {
     "cursor": "ace8bb6c653aa6fc1402e1c90a4a14f2",
     "id": "il-2025-hb-3851",
@@ -966,6 +996,16 @@
     "id": "co-2025-sb-170",
     "scope_version": "D95"
   },
+  "1977966": {
+    "cursor": "48295eac0f9b5a5ee37fc0e331afe454",
+    "id": "me-2025-ld-729",
+    "scope_version": "D95"
+  },
+  "1977994": {
+    "cursor": "b87d62b37217e827dfc3927711f14e4f",
+    "id": "me-2025-ld-645",
+    "scope_version": "D95"
+  },
   "1978757": {
     "cursor": "27cbf54cc5697e568c174a43f5e32041",
     "id": "ca-2025-sb-524",
@@ -978,6 +1018,11 @@
   "1986015": {
     "cursor": "2ff5f5affa837087903cc5aef51bd916",
     "id": "or-2025-sb-1121",
+    "scope_version": "D95"
+  },
+  "1994860": {
+    "cursor": "ae6b55005d60d79a1be1b1fd57a7e25e",
+    "id": "me-2025-ld-977",
     "scope_version": "D95"
   },
   "2009609": {
@@ -1000,6 +1045,11 @@
     "id": "ny-2025-s-7882",
     "scope_version": "D95"
   },
+  "2065383": {
+    "cursor": "d5b76f82663cacaae9afa27259b87394",
+    "id": "me-2025-ld-2092",
+    "scope_version": "D95"
+  },
   "2068608": {
     "cursor": "4b43fca9fce81ec050af0e1cb532af8b",
     "id": "ny-2025-s-8831",
@@ -1013,6 +1063,11 @@
   "2073151": {
     "cursor": "fb060fb87511e8a38fdeae60275e7a15",
     "id": "al-2026-sb-118",
+    "scope_version": "D95"
+  },
+  "2077632": {
+    "cursor": "f74b4fa20b98f263cd5271a0957a9862",
+    "id": "me-2025-ld-2167",
     "scope_version": "D95"
   },
   "2079907": {

@@ -1,10 +1,10 @@
 {
   "snapshot": "reference\\orrick-ai-tracker-2026-07.yaml",
   "totals": {
-    "tracker_laws": 302,
+    "tracker_laws": 298,
     "tracked": 38,
-    "rejected": 29,
-    "gap": 182,
+    "rejected": 30,
+    "gap": 177,
     "citation_only": 96,
     "year_mismatch": 0,
     "unkeyable": 0
@@ -128,7 +128,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://www.azleg.gov/legtext/56leg/2R/laws/0193.pdf"
       ],
@@ -153,7 +153,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://www.azleg.gov/legtext/56leg/2R/laws/0199.pdf"
       ],
@@ -569,31 +569,6 @@
       "key": [
         "de",
         "H",
-        "233"
-      ],
-      "state": "de",
-      "jurisdiction": "US-DE",
-      "bill_number": "HB 233",
-      "names": [
-        "Delaware Artificial Intelligence Commission Act"
-      ],
-      "topics": [
-        "AI in Government"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": null,
-      "urls": [
-        "https://legis.delaware.gov/BillDetail/140866"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "de",
-        "H",
         "353"
       ],
       "state": "de",
@@ -744,31 +719,6 @@
       "key": [
         "ga",
         "S",
-        "466"
-      ],
-      "state": "ga",
-      "jurisdiction": "US-GA",
-      "bill_number": "SB 466",
-      "names": [
-        "Amendment of Georgia CSAM Law"
-      ],
-      "topics": [
-        "AI CSAM"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": null,
-      "urls": [
-        "https://www.legis.ga.gov/api/legislation/document/20232024/223269"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ga",
-        "S",
         "540"
       ],
       "state": "ga",
@@ -812,7 +762,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=HB&billnumber=2137&year=2026"
       ],
@@ -837,7 +787,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=HB&billnumber=2319&year=2026"
       ],
@@ -887,7 +837,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=SB&billnumber=2135&year=2026"
       ],
@@ -937,7 +887,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=SB&billnumber=3001&year=2026"
       ],
@@ -1642,7 +1592,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2026,
       "urls": [
         "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/hb1563t.pdf"
       ],
@@ -2409,7 +2359,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "https://gc.nh.gov/bill_status/billinfo.aspx?id=1393&sy=2026"
       ],
@@ -2462,31 +2412,6 @@
       "year_hint": 2026,
       "urls": [
         "https://www.njleg.state.nj.us/bill-search/2026/A4085"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ny",
-        "H",
-        "433"
-      ],
-      "state": "ny",
-      "jurisdiction": "US-NY",
-      "bill_number": "A 433",
-      "names": [
-        "Automated Employment Decision-Making in State Government As amended by S8831"
-      ],
-      "topics": [
-        "AI in Government"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": null,
-      "urls": [
-        "https://www.nysenate.gov/legislation/laws/STT/-CH57-A"
       ],
       "wiki_ids": [],
       "reject_ids": []
@@ -2599,31 +2524,6 @@
       "key": [
         "ny",
         "S",
-        "8793"
-      ],
-      "state": "ny",
-      "jurisdiction": "US-NY",
-      "bill_number": "S 8793",
-      "names": [
-        "Relates to prohibiting the procurement of certain technology and products which pose a state or national security risk"
-      ],
-      "topics": [
-        "Artificial Intelligence"
-      ],
-      "sources": [
-        "multistate"
-      ],
-      "year_hint": 2025,
-      "urls": [
-        "https://assembly.state.ny.us/leg/?bn=S08793&term=2025&Summary=Y&Actions=Y"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ny",
-        "S",
         "8828"
       ],
       "state": "ny",
@@ -2675,31 +2575,6 @@
       "key": [
         "ny",
         "S",
-        "9006"
-      ],
-      "state": "ny",
-      "jurisdiction": "US-NY",
-      "bill_number": "S 9006",
-      "names": [
-        "Enacts into law major components of legislation necessary to implement the state education, labor, housing and family assistance budget for the 2026-2027 state fiscal year"
-      ],
-      "topics": [
-        "Artificial Intelligence"
-      ],
-      "sources": [
-        "multistate"
-      ],
-      "year_hint": 2025,
-      "urls": [
-        "https://assembly.state.ny.us/leg/?bn=S09006&term=2025&Summary=Y&Actions=Y"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ny",
-        "S",
         "9832"
       ],
       "state": "ny",
@@ -2739,7 +2614,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "http://www.oklegislature.gov/BillInfo.aspx?Bill=HB3244&session=2600"
       ],
@@ -2764,7 +2639,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://www.oklegislature.gov/BillInfo.aspx?Bill=hb3642&Session=2400"
       ],
@@ -2867,7 +2742,7 @@
         "orrick",
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/ok-sb-1734.pdf",
         "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB1734&session=2600"
@@ -2893,7 +2768,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB2184&session=2600"
       ],
@@ -3393,32 +3268,6 @@
       "key": [
         "tx",
         "H",
-        "441"
-      ],
-      "state": "tx",
-      "jurisdiction": "US-TX",
-      "bill_number": "HB 441",
-      "names": [
-        "Unlawful Production or Distribution of Certain Sexually Explicit Material"
-      ],
-      "topics": [
-        "AI in Social Media & Online Platforms",
-        "AI Intimate Images"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": 2025,
-      "urls": [
-        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00441F.pdf"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "tx",
-        "H",
         "581"
       ],
       "state": "tx",
@@ -3486,6 +3335,32 @@
       "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00020F.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "441"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 441",
+      "names": [
+        "Unlawful Production or Distribution of Certain Sexually Explicit Material"
+      ],
+      "topics": [
+        "AI in Social Media & Online Platforms",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00441F.pdf"
       ],
       "wiki_ids": [],
       "reject_ids": []
@@ -4612,7 +4487,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://legiscan.com/WI/text/SB314/id/2817005"
       ],
@@ -5870,6 +5745,33 @@
       "wiki_ids": [],
       "reject_ids": [
         "ct-2026-sb-417"
+      ]
+    },
+    {
+      "key": [
+        "de",
+        "H",
+        "333"
+      ],
+      "state": "de",
+      "jurisdiction": "US-DE",
+      "bill_number": "HB 333",
+      "names": [
+        "Delaware Artificial Intelligence Commission Act"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": 2023,
+      "urls": [
+        "https://legis.delaware.gov/BillDetail/140866"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "de-2023-hb-333"
       ]
     },
     {

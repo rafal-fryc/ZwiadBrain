@@ -288,6 +288,22 @@ def test_apply_corrections_rejects_an_exclusion_that_matches_nothing() -> None:
         apply_corrections(_correctable(), corrections)
 
 
+def test_apply_corrections_rejects_two_corrections_for_the_same_law() -> None:
+    """should fail loudly rather than silently letting the last duplicate win
+
+    A year-only pin written next to an earlier rename silently overrode it, so DE
+    HB 233 kept resolving to the wrong bill.
+    """
+    corrections = {
+        "corrections": [
+            {"state": "va", "bill_number": "B 2678", "correct_number": "HB 2678", "why": "a"},
+            {"state": "va", "bill_number": "B 2678", "year": 2019, "why": "b"},
+        ]
+    }
+    with pytest.raises(ConfigError, match="duplicate"):
+        apply_corrections(_correctable(), corrections)
+
+
 def test_apply_corrections_rejects_a_correction_that_matches_nothing() -> None:
     """should fail loudly on a stale correction rather than silently doing nothing"""
     corrections = {

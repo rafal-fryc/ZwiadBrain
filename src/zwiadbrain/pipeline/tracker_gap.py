@@ -250,12 +250,26 @@ def apply_corrections(
     """
     entries = cast(list[dict[str, Any]], data.get("corrections") or [])
     dropped = cast(list[dict[str, Any]], data.get("exclusions") or [])
-    index: dict[tuple[str, str], dict[str, Any]] = {
-        (str(e["state"]).lower(), str(e["bill_number"])): e for e in entries
-    }
-    excluded: dict[tuple[str, str], dict[str, Any]] = {
-        (str(e["state"]).lower(), str(e["bill_number"])): e for e in dropped
-    }
+
+    def keyed(
+        rows: list[dict[str, Any]], label: str
+    ) -> dict[tuple[str, str], dict[str, Any]]:
+        # Built explicitly rather than by comprehension: a dict comprehension lets a
+        # second entry for the same law silently win, which is how a year-only pin
+        # written next to an earlier rename quietly undid it.
+        out: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in rows:
+            key = (str(row["state"]).lower(), str(row["bill_number"]))
+            if key in out:
+                raise ConfigError(
+                    f"duplicate tracker {label} for {key[0]} {key[1]} —"
+                    " merge them into one entry"
+                )
+            out[key] = row
+        return out
+
+    index = keyed(entries, "correction")
+    excluded = keyed(dropped, "exclusion")
     used: set[tuple[str, str]] = set()
     out: list[TrackerLaw] = []
     for law in laws:

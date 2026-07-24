@@ -72,6 +72,58 @@ corrections:
       text-grounding showed it binds counties/cities/school districts, not commercial
       employers (D86).
 
+  - state: de
+    bill_number: "HB 233"
+    correct_number: "HB 333"
+    year: 2023
+    why: >-
+      Orrick's anchor text says HB 233 but its link (BillDetail/140866) is HB 333 of the
+      152nd General Assembly — "AN ACT TO AMEND TITLE 29 ... RELATING TO THE ARTIFICIAL
+      INTELLIGENCE COMMISSION", signed 2024-07-17. Already in the reject ledger as
+      de-2023-hb-333 (state AI Commission study body, D86).
+
+  - state: tx
+    bill_number: "HB 441"
+    correct_number: "SB 441"
+    year: 2025
+    why: >-
+      Orrick's anchor text says HB 441 but its own link is 'SB00441F.pdf' in the 89R
+      session. Texas HB 441 of 89R is not this law.
+
+  # --- MultiState biennium-first-year hints (the bill is a second-session law) ---
+  - state: hi
+    bill_number: "HB 2137"
+    year: 2026
+    why: "MultiState keys the biennium's first year; capitol.hawaii.gov shows the 2026 session."
+  - state: hi
+    bill_number: "HB 2319"
+    year: 2026
+    why: "MultiState keys the biennium's first year; capitol.hawaii.gov shows the 2026 session."
+  - state: hi
+    bill_number: "SB 2135"
+    year: 2026
+    why: "MultiState keys the biennium's first year; capitol.hawaii.gov shows the 2026 session."
+  - state: hi
+    bill_number: "SB 3001"
+    year: 2026
+    why: "MultiState keys the biennium's first year; capitol.hawaii.gov shows the 2026 session."
+  - state: nh
+    bill_number: "SB 622"
+    year: 2026
+    why: "Link carries 'sy=2026'; MultiState's key named the biennium's first year."
+  - state: ok
+    bill_number: "HB 3244"
+    year: 2026
+    why: "Link carries 'session=2600' — Oklahoma's 2026 Regular Session."
+  - state: ok
+    bill_number: "SB 1734"
+    year: 2026
+    why: "Oklahoma's 2026 Regular Session; MultiState's key named the biennium's first year."
+  - state: ok
+    bill_number: "SB 2184"
+    year: 2026
+    why: "Link carries 'session=2600' — Oklahoma's 2026 Regular Session."
+
   # --- session-year pins (opaque or biennium-only tracker links) ---
   # Every gap row without a link-derived year is pinned here. Without a pin, a bill
   # number that matches in exactly ONE scanned session resolves to it — and a state
@@ -87,13 +139,8 @@ corrections:
     year: 2024
     why: "Link path '/legtext/56leg/2R/' is the 56th Legislature 2nd Regular Session = 2024."
 
-  - state: de
-    bill_number: "HB 233"
-    year: 2023
-    why: >-
-      legis.delaware.gov/BillDetail/140866 is an opaque id; the Delaware AI Commission Act
-      was effective 2024-07-17, i.e. the 152nd General Assembly (2023-2024). Without this
-      pin it resolved to a 2021 psychologist-licensure bill of the same number.
+  # (DE HB 233 is corrected to HB 333 above — Orrick's anchor text disagrees with its
+  # own link — so it needs no pin here.)
 
   - state: md
     bill_number: "HB 1563"
@@ -222,3 +269,38 @@ exclusions:
       New York State Operations Budget (Chapter 50, signed 2026-06-09; same-as A 10000-D).
       Absent from LegiScan's NY masterlist entirely. A pure appropriations vehicle — the
       first taxonomy disqualifier — so no classifier pass is warranted.
+
+  - state: ny
+    bill_number: "S 9006"
+    why: >-
+      Another New York budget Article VII vehicle ("Enacts into law major components of
+      legislation necessary to implement the state fiscal plan"), same class as A 10005
+      and S 9000. LegiScan has no 2025-2026 S 9006; the number resolves only to an
+      unrelated 2017-2018 bill on the town of Camillus.
+
+  - state: ny
+    bill_number: "S 8793"
+    why: >-
+      Chapter 19 of 2026 (signed 2026-02-13; same-as A 9456) — aligns STATE and municipal
+      procurement rules with the federal ban on buying security-risk technology. A
+      government-procurement law with no private-sector obligation, so out under D86
+      regardless; and LegiScan carries no 2025-2026 S 8793, resolving the number only to
+      an unrelated 2019-2020 bill about the Village of Patchogue.
+
+  - state: ny
+    bill_number: "A 433"
+    why: >-
+      Orrick links the codified statute (STT ch. 57-A), not a bill, and its "A 433" does
+      not identify one: New York A 433 of 2023-2024 is a Buster's Law animal-welfare bill
+      and A 433 of 2019-2020 regulates "key persons". The government-AEDT subject matter
+      it describes is already covered by tracked/rejected items — S 7543B (LOADinG Act)
+      and S 8831 — both out under D86 as government own-use.
+
+  - state: ga
+    bill_number: "SB 466"
+    why: >-
+      Orrick lists this as an enacted Georgia CSAM amendment effective 2024-07-01, but
+      LegiScan's record for SB 466 of the 2023-2024 session (bill_id 1840506, "Obscenity
+      and Related Offenses") ends at "Senate Read Second Time" — read, referred,
+      favorably reported, never passed. Same class as the Oregon SB 1546 finding: a
+      tracker listing a bill that died. Enacted-only discovery correctly excludes it.

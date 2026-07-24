@@ -15,13 +15,18 @@ scope-stamped entry in the reject ledger, so the next tracker cross-check starts
 ## Tasks
 - [x] Deterministic cross-check joining both source lists against `wiki/states` and
       `wiki/.rejects/state.json` on `(state, chamber-class, number)`, session year ignored
-- [ ] Commit the gap as a reviewable artifact under `docs/backfill/`
-- [ ] Build `fetch-tracker-candidates` — resolve (state, bill number) → LegiScan `bill_id`
-      via `getSessionList` + `getMasterList`, enrich via `getBill`, honour `--skip-existing`
-- [ ] Resolve the 94 citation-only rows to an originating bill (or mark as administrative
-      regulation / already-tracked-under-its-bill-number) and fold survivors into the targets
-- [ ] Run the standard state procedure per batch: classify → apply-verdicts → record-rejects
-      → render → extract → summarize → re-render → reindex
+- [x] Commit the gap as a reviewable artifact — `docs/backfill/tracker-gap-2026-07.json`
+- [x] Build `tracker-gap` + `fetch-tracker-candidates` (resolve bill number → LegiScan
+      `bill_id` via `getSessionList` + `getMasterList`, enrich via `getBill`)
+- [x] Session-year hints from tracker links + `reference/tracker-corrections.yaml`
+- [x] Resolve every gap bill: **182 / 182 staged, zero unresolved**
+      (`data/runs/tracker/<st>/` per state, merged into `data/runs/tracker-all/`)
+- [ ] **Classify the 182** — 12 done, 170 remaining (`data/runs/tracker-all/verdicts.json`
+      is the resumable record; per-bill inputs in `data/runs/tracker-all/bills/<id>.json`)
+- [ ] Resolve the 94 citation-only rows (42 already mapped to a bill number from the
+      tracker's own link; 32 statute-text, 16 unparsed, 4 administrative/local)
+- [ ] Run the rest of the procedure: apply-verdicts → record-rejects → render → extract
+      → summarize → re-render → reindex
 - [ ] Record every unit in `docs/backfill/enacted-campaign.md` with counts and reject reasons
 
 ## Acceptance Criteria
@@ -48,6 +53,30 @@ tracker cross-check.
 - 2026-07-24 — User decision: run **all** gap bills through the classifier rather than
   pre-filtering by tracker topic, so the reject ledger permanently absorbs the gap.
 - 2026-07-24 — User decision: resolve the citation-only rows **in this campaign**, not deferred.
+- 2026-07-24 — The join ignores the session year (Orrick rows carry only an effective date).
+  Year-agnostic matches whose wiki year disagrees are reported, not trusted.
+- 2026-07-24 — The number resolver never guesses: a number enacted in two sessions with no
+  year hint to separate them is reported `ambiguous` rather than resolved to the newest.
+- 2026-07-24 — Tracker data errors and session-year pins live in
+  `reference/tracker-corrections.yaml`, each with its reasoning; a stale entry is a hard
+  error so snapshot drift surfaces immediately.
+
+## OPEN QUESTION — classifier verdicts vs. established precedent
+First 12 classifications: 5 in-scope, and **4 of those 5 are categories the campaign log
+consistently OVERRIDES to out-of-scope** — AL HB 172, AZ SB 1359, CA AB 2839 (election
+deepfake disclosure, D91: NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517 all
+rejected) and AR HB 1877 (AI-CSAM criminal, per TN HB 2163 and LA SB 110 overrides; CA
+SB 926 deliberately not flipped).
+
+Roughly 63 of the 182 carry those tracker tags, so the choice is material and should be
+made once, up front, rather than 63 times by hand:
+1. Apply the documented D86/D91 overrides per-bill (matches current practice; the
+   classifier's verdict is recorded and reversed with a stated reason).
+2. Encode the rule in `topics.yaml` as a disqualifier — cleaner and self-consistent, but a
+   `scope_version` bump that makes every existing reject stale for review (D96).
+3. Take the categories in scope — a real scope expansion, since both trackers treat them
+   as AI law.
+Blocked on this before classifying the remaining 170.
 
 ## Note on PHASE-26
 PHASE-26 (enacted-laws backfill campaign) is still marked ACTIVE though

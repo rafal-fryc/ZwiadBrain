@@ -1,0 +1,177 @@
+# Hand-verified corrections applied to the external-tracker snapshot before the
+# coverage cross-check (`zwiadbrain tracker-gap`). PHASE-29.
+#
+# Two kinds, both keyed by (state, the tracker's VERBATIM bill_number):
+#   correct_number — the tracker recorded the bill number wrong (Orrick's "Law Link"
+#                    anchor text occasionally loses the chamber prefix, or names the
+#                    wrong chamber entirely).
+#   correct_state  — the tracker filed the law under the wrong jurisdiction.
+#   year           — pins the session year when the tracker's own link to the law is
+#                    an opaque document id, so the number matcher can pick between
+#                    sessions that reuse it. The year is verified against the state's
+#                    LegiScan session spans; each pin lands inside exactly one.
+#
+# A correction that matches no tracker row is a hard error, so a stale entry surfaces
+# the moment the snapshot is refreshed instead of quietly doing nothing.
+
+corrections:
+  # --- tracker-side number errors ---
+  - state: va
+    bill_number: "B 2678"
+    correct_number: "HB 2678"
+    year: 2019
+    why: >-
+      Orrick's Law Link anchor text lost the chamber prefix. The link resolves to
+      "191+ful+CHAP0490" — Chapter 490 of the 2019 Virginia session, i.e. HB 2678.
+
+  - state: ks
+    bill_number: "SB 2313"
+    correct_number: "HB 2313"
+    year: 2025
+    why: >-
+      Kansas Senate bills never reach 2313 (House bills are the 2xxx series). Orrick's
+      own link is "hb2313_enrolled.pdf" in the 2025-26 biennium.
+
+  - state: tx
+    bill_number: "SB 837"
+    correct_state: tn
+    year: 2025
+    why: >-
+      Orrick files "Law Relating to Personhood" under Texas, but Texas SB 837 (89R) is
+      "Relating to a family preservation services program" and Texas held no 2026
+      session. The law is TENNESSEE SB 837 (companion HB 849) — defines "human being",
+      "life" and "natural person" for statutory construction and excludes AI; passed
+      the Senate 26-6 on 2026-04-06 and the House 93-2 on 2026-04-08. Tennessee's
+      113th/114th General Assemblies are two-year sessions, so the 2025 pin covers it.
+
+  - state: me
+    bill_number: "HP 1397"
+    correct_number: "LD 2082"
+    year: 2025
+    why: >-
+      Maine bills carry both a paper number (HP/SP) and an LD number; LegiScan indexes
+      the LD. HP 1397 is LD 2082, "An Act to Regulate the Use of Artificial Intelligence
+      in Providing Certain Mental Health Services" — already tracked as me-2025-ld-2082.
+
+  - state: ny
+    bill_number: "A 9449"
+    correct_number: "S 8828"
+    year: 2025
+    why: >-
+      A 9449 (AI developer transparency; Chapter 96, signed 2026-03-27) is the Assembly
+      companion of S 8828, its own "same as". Deduped to the Senate version per the
+      PHASE-27 companion rule.
+
+  - state: ny
+    bill_number: "A 9487"
+    correct_number: "S 8831"
+    year: 2025
+    why: >-
+      A 9487 (public-entity AEDT use; Chapter 86, signed 2026-02-13) is the Assembly
+      companion of S 8831, its own "same as". S 8831 is already in the reject ledger —
+      text-grounding showed it binds counties/cities/school districts, not commercial
+      employers (D86).
+
+  # --- session-year pins (opaque or biennium-only tracker links) ---
+  - state: de
+    bill_number: "HB 353"
+    year: 2023
+    why: "legis.delaware.gov/BillDetail/141103 is an opaque id; effective 2024-08-07 = 152nd GA (session 2005, 2023-2024)."
+
+  - state: fl
+    bill_number: "HB 919"
+    year: 2024
+    why: "StateNet id 'FL2024000H919' names the 2024 session (2059); Florida sessions are annual."
+
+  - state: il
+    bill_number: "HB 4762"
+    year: 2023
+    why: "Public Act 103-0830 — the 103rd General Assembly is session 2020 (2023-2024)."
+
+  - state: ks
+    bill_number: "HB 2479"
+    year: 2025
+    why: "Orrick re-hosts this one on its own CDN (no session in the path); effective 2026-07-01 = the 2025-26 biennium (session 2178)."
+
+  - state: ky
+    bill_number: "HB 207"
+    year: 2024
+    why: "Link path '/bill/24RS/hb207/' names the 2024 Regular Session (session 2120)."
+
+  - state: mt
+    bill_number: "HB 178"
+    year: 2025
+    why: "docs.legmt.gov serves an opaque download ticket; effective 2025-10-01 = the 2025 session (2159)."
+
+  - state: mt
+    bill_number: "SB 25"
+    year: 2025
+    why: "Opaque legmt download ticket; effective 2025-10-01 = the 2025 session (2159)."
+
+  - state: mt
+    bill_number: "SB 212"
+    year: 2025
+    why: "Opaque legmt download ticket; Right to Compute Act, effective 2025-04-16 = the 2025 session (2159)."
+
+  - state: ne
+    bill_number: "LB 383"
+    year: 2025
+    why: "Link path '/FloorDocs/109/' is the 109th Legislature = session 2185 (2025-2026)."
+
+  - state: ok
+    bill_number: "SB 546"
+    year: 2026
+    why: >-
+      Orrick's link path '2025-26 ENR' is the BIENNIUM, but Oklahoma's LegiScan sessions
+      are annual and the Oklahoma Data Privacy Act is a 2026 law (session 2219,
+      effective 2027-01-01).
+
+  - state: ok
+    bill_number: "SB 1627"
+    year: 2026
+    why: "Link carries 'session=2600' — Oklahoma's 2026 Regular Session (LegiScan 2219)."
+
+  - state: ok
+    bill_number: "SB 1670"
+    year: 2026
+    why: "Link carries 'session=2600' — Oklahoma's 2026 Regular Session (LegiScan 2219)."
+
+  - state: sd
+    bill_number: "SB 79"
+    year: 2024
+    why: "sdlegislature.gov/Session/Bill/24991 is an opaque id; effective 2024-02-12 = the 2024 session (2107)."
+
+  - state: sd
+    bill_number: "SB 164"
+    year: 2025
+    why: "mylrc document id is opaque; effective 2025-07-01 = the 2025 session (2170)."
+
+  - state: tx
+    bill_number: "HB 2700"
+    year: 2023
+    why: "Link carries 'LegSess=88R' — the 88th Legislature Regular Session (LegiScan 2003)."
+
+  - state: va
+    bill_number: "SB 731"
+    year: 2024
+    why: "Link resolves to '241+ful+CHAP0262' — Chapter 262 of the 2024 Virginia session (2113)."
+
+# Tracker rows deliberately dropped from the cross-check. Recorded here rather than
+# left as a recurring "not-found" so the gap actually closes, with the reason on the
+# record. A stale exclusion is a hard error, same as a stale correction.
+exclusions:
+  - state: ny
+    bill_number: "A 10005"
+    why: >-
+      New York budget Article VII bill ("Enacts into law major components of legislation
+      necessary to implement the state fiscal plan"). MultiState marks it enacted;
+      LegiScan carries it at status 1 (Introduced), so it never enters the enacted-only
+      pipeline. Out of scope regardless under the standing budget-omnibus exclusion
+      applied to ny a-8805/a-8808 and a-3005/s-3008.
+
+  - state: ny
+    bill_number: "S 9000"
+    why: >-
+      New York State Operations Budget (Chapter 50, signed 2026-06-09; same-as A 10000-D).
+      Absent from LegiScan's NY masterlist entirely. A pure appropriations vehicle — the
+      first taxonomy disqualifier — so no classifier pass is warranted.

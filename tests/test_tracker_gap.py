@@ -12,9 +12,11 @@ from typing import Any
 
 import pytest
 
+from zwiadbrain.exceptions import ConfigError
 from zwiadbrain.pipeline.tracker_gap import (
     GapEntry,
     SessionBills,
+    apply_corrections,
     build_gap,
     entries_from_report,
     entry_payload,
@@ -22,6 +24,7 @@ from zwiadbrain.pipeline.tracker_gap import (
     parse_wiki_id,
     read_snapshot,
     resolve_targets,
+    year_hint_from_url,
 )
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.legiscan import Session
@@ -64,6 +67,73 @@ def test_number_key_returns_none_for_a_non_bill_number(raw: str) -> None:
 def test_number_key_matches_a_tracker_number_to_its_legiscan_form() -> None:
     """should give the tracker's 'SB 262' and LegiScan's 'S262' the same key"""
     assert number_key("SB 262") == number_key("S262")
+
+
+# --- year hints from tracker links ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://alison.legislature.state.al.us/files/pdf/x/2024RS/HB168-enr.pdf", 2024),
+        ("https://leginfo.legislature.ca.gov/faces/bill.xhtml?bill_id=202520260AB325", 2025),
+        ("https://www.cga.ct.gov/asp/cgabillstatus.asp?bill_num=SB01103&which_year=2023", 2023),
+        ("https://www.legislature.mi.gov/documents/2023-2024/publicact/htm/2023-PA-0263.htm", 2023),
+        ("https://le.utah.gov/~2024/bills/static/HB0148.html", 2024),
+        ("https://legislature.vermont.gov/bill/status/2022/H.0410", 2022),
+        ("https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00020F.pdf", 2025),
+    ],
+)
+def test_year_hint_from_url_reads_the_session_year_a_legislature_link_encodes(
+    url: str, expected: int
+) -> None:
+    """should read the session year out of the tracker's own link to the law"""
+    assert year_hint_from_url(url) == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://docs.legmt.gov/download-ticket?ticketId=a64e8bac-75d1-42b8-a672-82870e842ab0",
+        "https://sdlegislature.gov/Session/Bill/24991",
+        "https://nebraskalegislature.gov/FloorDocs/109/PDF/Slip/LB383.pdf",
+        "",
+    ],
+)
+def test_year_hint_from_url_returns_none_when_the_link_encodes_no_year(url: str) -> None:
+    """should return None rather than key on a digit run that is not a session year"""
+    assert year_hint_from_url(url) is None
+
+
+def test_year_hint_from_url_ignores_an_orrick_cdn_publication_date() -> None:
+    """should not read Orrick's own media-library path year as a session year"""
+    url = "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/lb525.pdf"
+    assert year_hint_from_url(url) is None
+
+
+def test_year_hint_from_url_still_reads_a_year_in_an_orrick_filename() -> None:
+    """should keep the session year when Orrick's re-hosted filename carries it"""
+    url = "https://infobytes.orrick.com/wp-content/uploads/Arizona-2025-SB1462-Engrossed.pdf"
+    assert year_hint_from_url(url) == 2025
+
+
+def test_year_hint_from_url_ignores_a_year_outside_the_plausible_range() -> None:
+    """should reject an out-of-range year so a stray digit run cannot become a hint"""
+    assert year_hint_from_url("https://example.test/docs/2099/HB1.pdf") is None
+
+
+def test_read_snapshot_falls_back_to_the_link_year_for_an_orrick_row() -> None:
+    """should hint an Orrick row from its law_link, since its bill_key has no year"""
+    snap = {
+        "laws": [
+            {"jurisdiction": "US-AL", "state": "Alabama", "orrick_topic": "AI CSAM",
+             "name": "Alabama Child Protection Act of 2024", "bill_number": "HB 168",
+             "bill_key": "al-hb-168",
+             "law_link": "https://alison.legislature.state.al.us/x/2024RS/HB168-enr.pdf"},
+        ]
+    }
+    laws, _ = read_snapshot(snap)
+    assert laws[0].year_hint == 2024
 
 
 # --- wiki id parsing --------------------------------------------------------
@@ -139,6 +209,91 @@ def test_read_snapshot_takes_the_year_hint_only_from_the_multistate_key() -> Non
     laws, _ = read_snapshot(_snapshot())
     assert laws[0].year_hint is None
     assert laws[1].year_hint == 2026
+
+
+# --- corrections ------------------------------------------------------------
+
+
+def _correctable() -> list[Any]:
+    snap = {
+        "laws": [
+            {"jurisdiction": "US-VA", "state": "Virginia", "orrick_topic": "AI Intimate Images",
+             "name": "Amendment to the Unlawful Dissemination of Images statute",
+             "bill_number": "B 2678", "bill_key": "va-b-2678", "law_link": None},
+            {"jurisdiction": "US-MT", "state": "Montana", "orrick_topic": "AI in Government",
+             "name": "Montana Government AI Use Law", "bill_number": "HB 178",
+             "bill_key": "mt-hb-178", "law_link": "https://docs.legmt.gov/x?ticketId=abc"},
+        ]
+    }
+    laws, _ = read_snapshot(snap)
+    return laws
+
+
+def test_apply_corrections_fixes_a_tracker_bill_number() -> None:
+    """should replace a bill number the tracker recorded wrong"""
+    corrections = {
+        "corrections": [
+            {"state": "va", "bill_number": "B 2678", "correct_number": "HB 2678",
+             "why": "anchor text lost the chamber prefix"}
+        ]
+    }
+    fixed = apply_corrections(_correctable(), corrections)
+    assert fixed[0].bill_number == "HB 2678"
+
+
+def test_apply_corrections_pins_a_session_year_the_link_does_not_encode() -> None:
+    """should set a year hint for a law whose tracker link is an opaque document id"""
+    corrections = {
+        "corrections": [
+            {"state": "mt", "bill_number": "HB 178", "year": 2025, "why": "opaque link"}
+        ]
+    }
+    fixed = apply_corrections(_correctable(), corrections)
+    assert fixed[1].year_hint == 2025
+
+
+def test_apply_corrections_refiles_a_law_the_tracker_put_under_the_wrong_state() -> None:
+    """should move a mis-filed law to its real jurisdiction, key and all"""
+    corrections = {
+        "corrections": [
+            {"state": "va", "bill_number": "B 2678", "correct_state": "tn",
+             "correct_number": "SB 837", "why": "tracker filed a TN law under VA"}
+        ]
+    }
+    fixed = apply_corrections(_correctable(), corrections)
+    assert fixed[0].state == "tn"
+    assert fixed[0].jurisdiction == "US-TN"
+    assert fixed[0].bill_number == "SB 837"
+
+
+def test_apply_corrections_leaves_uncorrected_laws_untouched() -> None:
+    """should pass through every law no correction names"""
+    assert apply_corrections(_correctable(), {"corrections": []}) == _correctable()
+
+
+def test_apply_corrections_drops_an_explicitly_excluded_row() -> None:
+    """should drop a tracker row we have decided the pipeline cannot or should not track"""
+    corrections = {
+        "exclusions": [{"state": "mt", "bill_number": "HB 178", "why": "not in LegiScan"}]
+    }
+    fixed = apply_corrections(_correctable(), corrections)
+    assert [law.bill_number for law in fixed] == ["B 2678"]
+
+
+def test_apply_corrections_rejects_an_exclusion_that_matches_nothing() -> None:
+    """should fail loudly on a stale exclusion, same as a stale correction"""
+    corrections = {"exclusions": [{"state": "mt", "bill_number": "HB 1", "why": "stale"}]}
+    with pytest.raises(ConfigError, match="matches no tracker law"):
+        apply_corrections(_correctable(), corrections)
+
+
+def test_apply_corrections_rejects_a_correction_that_matches_nothing() -> None:
+    """should fail loudly on a stale correction rather than silently doing nothing"""
+    corrections = {
+        "corrections": [{"state": "va", "bill_number": "HB 9999", "year": 2019, "why": "typo"}]
+    }
+    with pytest.raises(ConfigError, match="matches no tracker law"):
+        apply_corrections(_correctable(), corrections)
 
 
 # --- gap bucketing ----------------------------------------------------------

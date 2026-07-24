@@ -81,7 +81,8 @@ def test_tracker_gap_writes_the_gap_and_citation_rows(tmp_path: Path) -> None:
 
     result = runner.invoke(
         app,
-        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki), "--out", str(out)],
+        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki), "--out", str(out),
+         "--corrections", str(tmp_path / "none.yaml")],
     )
 
     assert result.exit_code == 0, result.output
@@ -100,7 +101,8 @@ def test_tracker_gap_counts_an_existing_page_as_tracked(tmp_path: Path) -> None:
 
     result = runner.invoke(
         app,
-        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki), "--out", str(out)],
+        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki), "--out", str(out),
+         "--corrections", str(tmp_path / "none.yaml")],
     )
 
     assert result.exit_code == 0, result.output
@@ -122,13 +124,65 @@ def test_tracker_gap_counts_a_ledger_entry_as_already_rejected(tmp_path: Path) -
 
     result = runner.invoke(
         app,
-        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki), "--out", str(out)],
+        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki), "--out", str(out),
+         "--corrections", str(tmp_path / "none.yaml")],
     )
 
     assert result.exit_code == 0, result.output
     report = json.loads(out.read_text(encoding="utf-8"))
     assert report["gap"] == []
     assert [e["bill_number"] for e in report["rejected"]] == ["AB 2905"]
+
+
+def test_tracker_gap_applies_a_correction_to_a_tracker_bill_number(tmp_path: Path) -> None:
+    """should cross-check under the corrected number, not the tracker's wrong one"""
+    snapshot = _snapshot(tmp_path / "snap.yaml")
+    wiki = _wiki(tmp_path / "wiki")
+    (wiki / "states" / "ca" / "bills" / "ca-2023-ab-9999.md").write_text("x", encoding="utf-8")
+    fixes = tmp_path / "fixes.yaml"
+    fixes.write_text(
+        yaml.safe_dump(
+            {"corrections": [
+                {"state": "ca", "bill_number": "AB 2905", "correct_number": "AB 9999",
+                 "why": "test"}
+            ]}
+        ),
+        encoding="utf-8",
+    )
+    out = tmp_path / "gap.json"
+
+    result = runner.invoke(
+        app,
+        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki), "--out", str(out),
+         "--corrections", str(fixes)],
+    )
+
+    assert result.exit_code == 0, result.output
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert report["gap"] == []
+    assert [e["bill_number"] for e in report["tracked"]] == ["AB 9999"]
+
+
+def test_tracker_gap_errors_on_a_correction_that_matches_nothing(tmp_path: Path) -> None:
+    """should fail loudly when the snapshot has moved out from under a correction"""
+    snapshot = _snapshot(tmp_path / "snap.yaml")
+    wiki = _wiki(tmp_path / "wiki")
+    fixes = tmp_path / "fixes.yaml"
+    fixes.write_text(
+        yaml.safe_dump(
+            {"corrections": [{"state": "ca", "bill_number": "AB 1", "year": 2020, "why": "stale"}]}
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["tracker-gap", "--snapshot", str(snapshot), "--wiki", str(wiki),
+         "--out", str(tmp_path / "gap.json"), "--corrections", str(fixes)],
+    )
+
+    assert result.exit_code == 1
+    assert "matches no tracker law" in result.output
 
 
 # --- fetch-tracker-candidates -----------------------------------------------

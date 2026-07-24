@@ -115,16 +115,17 @@ from zwiadbrain.pipeline.rejects import (
     write_reject_ledger,
 )
 from zwiadbrain.pipeline.render import sidecar_path, write_lawbrain_region, write_page
+from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
+from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.pipeline.tracker_gap import (
     SessionBills,
+    apply_corrections,
     build_gap,
     entries_from_report,
     entry_payload,
     read_snapshot,
     resolve_targets,
 )
-from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
-from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.pipeline.verdicts import Verdict, apply_summaries, split_by_verdict
 from zwiadbrain.reference.loader import load_reference
 from zwiadbrain.sources.base import Candidate
@@ -860,6 +861,9 @@ def tracker_gap(
         Path, typer.Option(help="External-tracker snapshot YAML (Orrick + MultiState).")
     ] = Path("reference/orrick-ai-tracker-2026-07.yaml"),
     wiki: Annotated[Path, typer.Option(help="Wiki root to cross-check against.")] = Path("wiki"),
+    corrections: Annotated[
+        Path, typer.Option(help="Hand-verified fixes to tracker rows (numbers, session years).")
+    ] = Path("reference/tracker-corrections.yaml"),
     out: Annotated[Path | None, typer.Option(help="Path for the gap report JSON.")] = None,
 ) -> None:
     """Cross-check the external AI-law trackers against tracked coverage (PHASE-29).
@@ -874,8 +878,19 @@ def tracker_gap(
     consumes the ``gap`` list.
     """
     try:
-        data = yaml.safe_load(snapshot.read_text(encoding="utf-8"))
+        data: dict[str, object] = yaml.safe_load(snapshot.read_text(encoding="utf-8"))
         laws, citations = read_snapshot(data)
+        if corrections.exists():
+            fixes: dict[str, object] = (
+                yaml.safe_load(corrections.read_text(encoding="utf-8")) or {}
+            )
+            before = set(laws)
+            laws = apply_corrections(laws, fixes)
+            changed = len(before - set(laws))
+            typer.echo(
+                f"applied {changed} correction(s)/exclusion(s) from {corrections}"
+                f" ({len(before)} -> {len(laws)} rows)"
+            )
         ledger = load_reject_ledger(wiki / ".rejects" / "state.json")
         report = build_gap(
             laws,

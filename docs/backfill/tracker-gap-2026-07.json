@@ -1,10 +1,10 @@
 {
   "snapshot": "reference\\orrick-ai-tracker-2026-07.yaml",
   "totals": {
-    "tracker_laws": 304,
+    "tracker_laws": 302,
     "tracked": 38,
     "rejected": 29,
-    "gap": 188,
+    "gap": 182,
     "citation_only": 96,
     "year_mismatch": 0,
     "unkeyable": 0
@@ -28,7 +28,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2024RS/HB168-enr.pdf"
       ],
@@ -53,7 +53,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2024RS/HB172-enr.pdf"
       ],
@@ -103,7 +103,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://arkleg.state.ar.us/Home/FTPDocument?path=%2FACTS%2F2025R%2FPublic%2FACT977.pdf"
       ],
@@ -178,7 +178,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260AB325"
       ],
@@ -203,7 +203,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2839"
       ],
@@ -228,7 +228,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2905"
       ],
@@ -278,7 +278,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB926"
       ],
@@ -303,7 +303,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB981"
       ],
@@ -328,7 +328,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB1120"
       ],
@@ -404,7 +404,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://leg.colorado.gov/sites/default/files/2025a_288_signed.pdf"
       ],
@@ -504,7 +504,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=SB01103&which_year=2023"
       ],
@@ -529,7 +529,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://www.cga.ct.gov/2025/ACT/PA/PDF/2025PA-00113-R00SB-01295-PA.PDF"
       ],
@@ -608,7 +608,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://legis.delaware.gov/BillDetail/141103"
       ],
@@ -658,7 +658,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://custom.statenet.com/public/resources.cgi?mode=show_text&id=ID:bill:FL2024000H919&verid=FL2024000H919_20240426_0_CH&"
       ],
@@ -683,7 +683,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://www.flsenate.gov/Session/Bill/2024/1680/ByVersion"
       ],
@@ -862,7 +862,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2021,
       "urls": [
         "https://data.capitol.hawaii.gov/sessions/session2021/Bills/SB309_SD1_.HTM"
       ],
@@ -912,7 +912,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://data.capitol.hawaii.gov/sessions/session2024/bills/SB2687_CD1_.pdf"
       ],
@@ -1128,7 +1128,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://ilga.gov/legislation/publicacts/fulltext.asp?Name=103-0830"
       ],
@@ -1257,7 +1257,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2026,
       "urls": [
         "https://iga.in.gov/pdf-documents/124/2026/senate/bills/SB0256/SB0256.06.ENRH.pdf"
       ],
@@ -1293,6 +1293,31 @@
       "key": [
         "ks",
         "H",
+        "2313"
+      ],
+      "state": "ks",
+      "jurisdiction": "US-KS",
+      "bill_number": "HB 2313",
+      "names": [
+        "AI Platforms of Concern"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://kslegislature.gov/li/b2025_26/measures/documents/hb2313_enrolled.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ks",
+        "H",
         "2479"
       ],
       "state": "ks",
@@ -1307,7 +1332,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/kshb2479.pdf"
       ],
@@ -1370,31 +1395,6 @@
     },
     {
       "key": [
-        "ks",
-        "S",
-        "2313"
-      ],
-      "state": "ks",
-      "jurisdiction": "US-KS",
-      "bill_number": "SB 2313",
-      "names": [
-        "AI Platforms of Concern"
-      ],
-      "topics": [
-        "AI in Government"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": null,
-      "urls": [
-        "https://kslegislature.gov/li/b2025_26/measures/documents/hb2313_enrolled.pdf"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
         "ky",
         "H",
         "207"
@@ -1413,7 +1413,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://apps.legislature.ky.gov/recorddocuments/bill/24RS/hb207/bill.pdf"
       ],
@@ -1588,7 +1588,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://malegislature.gov/Laws/SessionLaws/Acts/2024/Chapter118"
       ],
@@ -1814,32 +1814,6 @@
     {
       "key": [
         "me",
-        "H",
-        "1397"
-      ],
-      "state": "me",
-      "jurisdiction": "US-ME",
-      "bill_number": "HP 1397",
-      "names": [
-        "AI in Therapy and Psychotherapy"
-      ],
-      "topics": [
-        "AI Healthcare",
-        "User-Facing AI"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": null,
-      "urls": [
-        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/mehp1397.pdf"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "me",
         "LD",
         "524"
       ],
@@ -1905,7 +1879,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.legislature.mi.gov/documents/2023-2024/publicact/htm/2023-PA-0263.htm"
       ],
@@ -1930,7 +1904,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.legislature.mi.gov/documents/2023-2024/publicact/pdf/2023-PA-0265.pdf"
       ],
@@ -1955,7 +1929,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.revisor.mn.gov/bills/bill.php?b=house&f=hf1370&ssn=0&y=2023"
       ],
@@ -2005,7 +1979,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://www.revisor.mn.gov/bills/bill.php?view=chrono&b=House&f=HF2432&ssn=0&y=2025"
       ],
@@ -2055,7 +2029,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.revisor.mn.gov/bills/bill.php?view=chrono&b=Senate&f=SF4097&ssn=0&y=2023"
       ],
@@ -2258,7 +2232,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://billstatus.ls.state.ms.us/2024/pdf/history/SB/SB2577.xml"
       ],
@@ -2283,7 +2257,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://docs.legmt.gov/download-ticket?ticketId=907ba0c7-2666-4edc-938e-7f66bf3de5cb"
       ],
@@ -2308,7 +2282,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://docs.legmt.gov/download-ticket?ticketId=79409647-ee8e-4eda-aceb-c7e125083fda"
       ],
@@ -2333,7 +2307,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://docs.legmt.gov/download-ticket?ticketId=a64e8bac-75d1-42b8-a672-82870e842ab0"
       ],
@@ -2360,7 +2334,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.ncleg.gov/BillLookup/2023/H591"
       ],
@@ -2410,7 +2384,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://nebraskalegislature.gov/FloorDocs/109/PDF/Slip/LB383.pdf"
       ],
@@ -2521,81 +2495,6 @@
       "key": [
         "ny",
         "H",
-        "9449"
-      ],
-      "state": "ny",
-      "jurisdiction": "US-NY",
-      "bill_number": "A 9449",
-      "names": [
-        "Relates to transparency and safety requirements for developers of artificial intelligence models"
-      ],
-      "topics": [
-        "Artificial Intelligence"
-      ],
-      "sources": [
-        "multistate"
-      ],
-      "year_hint": 2025,
-      "urls": [
-        "https://assembly.state.ny.us/leg/?bn=A09449&term=2025&Summary=Y&Actions=Y"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ny",
-        "H",
-        "9487"
-      ],
-      "state": "ny",
-      "jurisdiction": "US-NY",
-      "bill_number": "A 9487",
-      "names": [
-        "Relates to the use of automated employment decision-making tools and artificial intelligence systems by certain state and local entities; repealer"
-      ],
-      "topics": [
-        "Artificial Intelligence"
-      ],
-      "sources": [
-        "multistate"
-      ],
-      "year_hint": 2025,
-      "urls": [
-        "https://assembly.state.ny.us/leg/?bn=A09487&term=2025&Summary=Y&Actions=Y"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ny",
-        "H",
-        "10005"
-      ],
-      "state": "ny",
-      "jurisdiction": "US-NY",
-      "bill_number": "A 10005",
-      "names": [
-        "Enacts into law major components of legislation necessary to implement the state public protection and general government budget for the 2026-2027 state fiscal year"
-      ],
-      "topics": [
-        "Artificial Intelligence"
-      ],
-      "sources": [
-        "multistate"
-      ],
-      "year_hint": 2025,
-      "urls": [
-        "https://assembly.state.ny.us/leg/?bn=A10005&term=2025&Summary=Y&Actions=Y"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ny",
-        "H",
         "10006"
       ],
       "state": "ny",
@@ -2664,7 +2563,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.nysenate.gov/legislation/bills/2023/S1042/amendment/A"
       ],
@@ -2689,7 +2588,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://www.nysenate.gov/legislation/bills/2025/S8420/amendment/A"
       ],
@@ -2741,32 +2640,8 @@
       ],
       "year_hint": 2025,
       "urls": [
+        "https://assembly.state.ny.us/leg/?bn=A09449&term=2025&Summary=Y&Actions=Y",
         "https://assembly.state.ny.us/leg/?bn=S08828&term=2025&Summary=Y&Actions=Y"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "ny",
-        "S",
-        "9000"
-      ],
-      "state": "ny",
-      "jurisdiction": "US-NY",
-      "bill_number": "S 9000",
-      "names": [
-        "STATE OPERATIONS BUDGET"
-      ],
-      "topics": [
-        "Artificial Intelligence"
-      ],
-      "sources": [
-        "multistate"
-      ],
-      "year_hint": 2025,
-      "urls": [
-        "https://assembly.state.ny.us/leg/?bn=S09000&term=2025&Summary=Y&Actions=Y"
       ],
       "wiki_ids": [],
       "reject_ids": []
@@ -2839,7 +2714,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://legislation.nysenate.gov/pdf/bills/2023/S9832"
       ],
@@ -2914,7 +2789,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2026,
       "urls": [
         "https://www.oklegislature.gov/cf_pdf/2025-26%20ENR/SB/SB546%20ENR.PDF"
       ],
@@ -2939,7 +2814,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB1627&session=2600"
       ],
@@ -2964,7 +2839,7 @@
       "sources": [
         "multistate"
       ],
-      "year_hint": 2025,
+      "year_hint": 2026,
       "urls": [
         "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB1670&session=2600"
       ],
@@ -3072,7 +2947,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://olis.oregonlegislature.gov/liz/2024R1/Measures/Overview/SB1571"
       ],
@@ -3099,7 +2974,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.legis.state.pa.us/CFDOCS/Legis/PN/Public/btCheck.cfm?txtType=PDF&sessYr=2023&sessInd=0&billBody=S&billTyp=B&billNbr=1213&pn=1946"
       ],
@@ -3224,7 +3099,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://sdlegislature.gov/Session/Bill/24991"
       ],
@@ -3249,7 +3124,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://mylrc.sdlegislature.gov/api/Documents/284327.pdf"
       ],
@@ -3341,16 +3216,20 @@
       "jurisdiction": "US-TN",
       "bill_number": "SB 837",
       "names": [
+        "Law Relating to Personhood",
         "Statutes and Codification - As enacted, clarifies that a \"person,\" as used in Tennessee Code Annotated, does not include artificial intelligence, a computer algorithm, a software program, computer hardware, or any type of machine. - Amends TCA Title 1. SB0837 has been assigned Public Chapter Number 781 by the Secretary of State."
       ],
       "topics": [
+        "AI Definition",
         "Artificial Intelligence"
       ],
       "sources": [
+        "orrick",
         "multistate"
       ],
       "year_hint": 2025,
       "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/sb0837.pdf",
         "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB0837&ga=114"
       ],
       "wiki_ids": [],
@@ -3529,7 +3408,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00441F.pdf"
       ],
@@ -3554,7 +3433,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/HB00581F.pdf"
       ],
@@ -3579,7 +3458,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://capitol.texas.gov/BillLookup/Text.aspx?LegSess=88R&Bill=HB2700"
       ],
@@ -3604,34 +3483,9 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00020F.pdf"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "tx",
-        "S",
-        "837"
-      ],
-      "state": "tx",
-      "jurisdiction": "US-TX",
-      "bill_number": "SB 837",
-      "names": [
-        "Law Relating to Personhood"
-      ],
-      "topics": [
-        "AI Definition"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": null,
-      "urls": [
-        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/sb0837.pdf"
       ],
       "wiki_ids": [],
       "reject_ids": []
@@ -3654,7 +3508,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB01188F.pdf"
       ],
@@ -3679,7 +3533,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://legiscan.com/TX/bill/SB1361/2023"
       ],
@@ -3704,7 +3558,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB01621F.pdf"
       ],
@@ -3729,7 +3583,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB02373F.pdf"
       ],
@@ -3780,7 +3634,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://le.utah.gov/~2024/bills/static/HB0148.html"
       ],
@@ -3830,7 +3684,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://le.utah.gov/~2024/bills/static/HB0238.html"
       ],
@@ -4017,7 +3871,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://le.utah.gov/~2024/bills/static/SB0131.html"
       ],
@@ -4095,7 +3949,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2026,
       "urls": [
         "https://le.utah.gov/Session/2026/bills/enrolled/SB0298.pdf"
       ],
@@ -4126,31 +3980,6 @@
       "urls": [
         "https://le.utah.gov/Session/2026/bills/enrolled/SB0319.pdf",
         "https://le.utah.gov/~2026/bills/static/SB0319.html"
-      ],
-      "wiki_ids": [],
-      "reject_ids": []
-    },
-    {
-      "key": [
-        "va",
-        "B",
-        "2678"
-      ],
-      "state": "va",
-      "jurisdiction": "US-VA",
-      "bill_number": "B 2678",
-      "names": [
-        "Amendment to the Unlawful Dissemination of Images of Another Statute"
-      ],
-      "topics": [
-        "AI Intimate Images"
-      ],
-      "sources": [
-        "orrick"
-      ],
-      "year_hint": null,
-      "urls": [
-        "https://legacylis.virginia.gov/cgi-bin/legp604.exe?191+ful+CHAP0490+pdf"
       ],
       "wiki_ids": [],
       "reject_ids": []
@@ -4383,6 +4212,31 @@
     {
       "key": [
         "va",
+        "H",
+        "2678"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 2678",
+      "names": [
+        "Amendment to the Unlawful Dissemination of Images of Another Statute"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": 2019,
+      "urls": [
+        "https://legacylis.virginia.gov/cgi-bin/legp604.exe?191+ful+CHAP0490+pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
         "S",
         "245"
       ],
@@ -4527,7 +4381,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://legacylis.virginia.gov/cgi-bin/legp604.exe?241+ful+CHAP0262+pdf"
       ],
@@ -4577,7 +4431,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2022,
       "urls": [
         "https://legislature.vermont.gov/bill/status/2022/H.0410"
       ],
@@ -4602,7 +4456,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://legislature.vermont.gov/Documents/2024/Docs/ACTS/ACT161/ACT161 As Enacted.pdf"
       ],
@@ -4654,7 +4508,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://lawfilesext.leg.wa.gov/biennium/2023-24/Pdf/Bills/Session Laws/House/1999-S.SL.pdf?q=20241030184202"
       ],
@@ -4785,7 +4639,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "http://www.wvlegislature.gov/Bill_Text_HTML/2025_SESSIONS/RS/bills/sb198 sub1 enr.pdf"
       ],
@@ -4837,7 +4691,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2026,
       "urls": [
         "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2026RS/HB351-enr.pdf"
       ],
@@ -4918,7 +4772,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB1836"
       ],
@@ -4945,7 +4799,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB2013"
       ],
@@ -4972,7 +4826,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2602"
       ],
@@ -4999,7 +4853,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2655"
       ],
@@ -5026,7 +4880,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB53"
       ],
@@ -5254,7 +5108,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://laws.flrules.org/2023/201"
       ],
@@ -5440,16 +5294,21 @@
       "jurisdiction": "US-ME",
       "bill_number": "LD 2082",
       "names": [
+        "AI in Therapy and Psychotherapy",
         "An Act to Regulate the Use of Artificial Intelligence in Providing Certain Mental Health Services"
       ],
       "topics": [
+        "AI Healthcare",
+        "User-Facing AI",
         "Artificial Intelligence"
       ],
       "sources": [
+        "orrick",
         "multistate"
       ],
       "year_hint": 2025,
       "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/mehp1397.pdf",
         "https://legislature.maine.gov/LawMakerWeb/summary.asp?ID=280101134"
       ],
       "wiki_ids": [
@@ -5533,7 +5392,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://www.nysenate.gov/legislation/bills/2025/S8391"
       ],
@@ -5560,7 +5419,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://olis.oregonlegislature.gov/liz/2023R1/Downloads/MeasureDocument/SB619/Enrolled"
       ],
@@ -5668,7 +5527,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/HB00149F.pdf"
       ],
@@ -5695,7 +5554,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2025,
       "urls": [
         "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00815F.pdf"
       ],
@@ -5722,7 +5581,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://le.utah.gov/~2024/bills/static/SB0149.html"
       ],
@@ -5895,7 +5754,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2355"
       ],
@@ -5923,7 +5782,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB2885"
       ],
@@ -5950,7 +5809,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://leginfo.legislature.ca.gov/faces/billVersionsCompareClient.xhtml?bill_id=202320240SB896"
       ],
@@ -6058,7 +5917,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://iga.in.gov/legislative/2024/bills/house/1047/details"
       ],
@@ -6282,7 +6141,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://legiscan.com/MD/text/SB818/id/2998150/Maryland-2024-SB818-Chaptered.pdf"
       ],
@@ -6417,7 +6276,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2024,
       "urls": [
         "https://pub.njleg.state.nj.us/Bills/2024/A4000/3540_R3.PDF"
       ],
@@ -6444,7 +6303,7 @@
       "sources": [
         "orrick"
       ],
-      "year_hint": null,
+      "year_hint": 2023,
       "urls": [
         "https://www.nysenate.gov/legislation/bills/2023/S7543/amendment/B"
       ],
@@ -6477,6 +6336,7 @@
       "year_hint": 2025,
       "urls": [
         "https://media.orrick.com/Media%20Library/public/files/insights/2026/ny-s8831.pdf",
+        "https://assembly.state.ny.us/leg/?bn=A09487&term=2025&Summary=Y&Actions=Y",
         "https://assembly.state.ny.us/leg/?bn=S08831&term=2025&Summary=Y&Actions=Y"
       ],
       "wiki_ids": [],

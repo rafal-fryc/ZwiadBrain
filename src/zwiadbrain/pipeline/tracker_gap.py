@@ -28,9 +28,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
+from zwiadbrain.exceptions import ConfigError
 from zwiadbrain.sources.base import Candidate
 from zwiadbrain.sources.legiscan import Session
 
@@ -122,6 +123,48 @@ class CitationRow:
     url: str | None
 
 
+# A session year in a legislature URL — '/2024RS/', 'bill_id=202520260AB325',
+# 'which_year=2023', '/~2024/bills/'. Digit-boundary anchored so a UUID or an opaque
+# document id cannot masquerade as a year.
+_URL_YEAR_RE = re.compile(r"(?<!\d)(20[0-2]\d)(?!\d)")
+_URL_YEAR_RANGE = range(2015, 2028)
+# Texas encodes the legislature, not the year: '/tlodocs/89R/billtext/...'.
+_TX_LEG_RE = re.compile(r"/tlodocs/(\d\d)[RSrs]\d?/")
+_TX_LEG_YEAR = {"86": 2019, "87": 2021, "88": 2023, "89": 2025, "90": 2027}
+# California packs both session years into one unbroken run: 'bill_id=202520260AB325'.
+_CA_BILL_ID_RE = re.compile(r"bill_id=(20[0-2]\d)\d{5}", re.IGNORECASE)
+_ORRICK_HOST_RE = re.compile(r"https?://[^/]*\borrick\.com/", re.IGNORECASE)
+
+
+def year_hint_from_url(url: str) -> int | None:
+    """Read the session year a tracker's link to the law encodes, or None.
+
+    Orrick's ``bill_key`` carries no session year, but its ``law_link`` almost always
+    points at a legislature URL that does. The hint is only ever used to *narrow* an
+    otherwise-ambiguous number match, and a hint matching no session leaves the entry
+    ambiguous — so a wrong hint cannot silently resolve to the wrong bill.
+    """
+    if not url:
+        return None
+    tx = _TX_LEG_RE.search(url)
+    if tx is not None:
+        return _TX_LEG_YEAR.get(tx.group(1))
+    ca = _CA_BILL_ID_RE.search(url)
+    if ca is not None:
+        year = int(ca.group(1))
+        return year if year in _URL_YEAR_RANGE else None
+    # Orrick re-hosts some laws on its own CDN, whose directory path is a PUBLICATION
+    # date, not a session year ('.../ailawcenter/2026/04/lb525.pdf' is a 2025 law). Only
+    # the filename is trusted there — its re-host names do carry the session year
+    # ('Arizona-2025-SB1462-Engrossed.pdf').
+    haystack = url.rsplit("/", 1)[-1] if _ORRICK_HOST_RE.search(url) else url
+    for match in _URL_YEAR_RE.finditer(haystack):
+        year = int(match.group(1))
+        if year in _URL_YEAR_RANGE:
+            return year
+    return None
+
+
 def _opt(value: object) -> str | None:
     """Coerce a snapshot field to ``str | None`` (YAML nulls arrive as ``None``)."""
     return None if value is None else str(value)
@@ -149,6 +192,7 @@ def read_snapshot(data: dict[str, Any]) -> tuple[list[TrackerLaw], list[Citation
                 )
             )
             continue
+        law_link = _opt(row.get("law_link"))
         laws.append(
             TrackerLaw(
                 source="orrick",
@@ -158,9 +202,9 @@ def read_snapshot(data: dict[str, Any]) -> tuple[list[TrackerLaw], list[Citation
                 name=str(row.get("name") or ""),
                 topic=_opt(row.get("orrick_topic")),
                 # Orrick's bill_key has no session year and its effective date can lag
-                # enactment by years, so it contributes no reliable hint.
-                year_hint=None,
-                url=_opt(row.get("law_link")),
+                # enactment by years, so the hint comes from its link to the law instead.
+                year_hint=year_hint_from_url(law_link or ""),
+                url=law_link,
             )
         )
     for row in multistate_rows:
@@ -179,6 +223,60 @@ def read_snapshot(data: dict[str, Any]) -> tuple[list[TrackerLaw], list[Citation
             )
         )
     return laws, citations
+
+
+def apply_corrections(
+    laws: list[TrackerLaw], data: dict[str, Any]
+) -> list[TrackerLaw]:
+    """Apply hand-verified corrections to the tracker rows before the cross-check.
+
+    Three kinds, all keyed by ``(state, the tracker's verbatim bill_number)``:
+    ``correct_number`` fixes a tracker-side data error (Orrick's Law Link anchor text
+    occasionally drops a chamber prefix), ``correct_state`` re-files a law the tracker
+    put under the wrong jurisdiction, and ``year`` pins a session year the tracker's
+    own link does not encode (an opaque document-id URL). Each correction carries a
+    ``why``.
+
+    A correction that matches no tracker law raises :class:`ConfigError` — a stale
+    correction means the snapshot moved under it, and silently ignoring it would hide
+    the drift.
+    """
+    entries = cast(list[dict[str, Any]], data.get("corrections") or [])
+    dropped = cast(list[dict[str, Any]], data.get("exclusions") or [])
+    index: dict[tuple[str, str], dict[str, Any]] = {
+        (str(e["state"]).lower(), str(e["bill_number"])): e for e in entries
+    }
+    excluded: dict[tuple[str, str], dict[str, Any]] = {
+        (str(e["state"]).lower(), str(e["bill_number"])): e for e in dropped
+    }
+    used: set[tuple[str, str]] = set()
+    out: list[TrackerLaw] = []
+    for law in laws:
+        key = (law.state, law.bill_number)
+        if key in excluded:
+            used.add(key)
+            continue
+        fix = index.get(key)
+        if fix is None:
+            out.append(law)
+            continue
+        used.add(key)
+        year = fix.get("year")
+        state = str(fix.get("correct_state") or law.state).lower()
+        out.append(
+            replace(
+                law,
+                state=state,
+                jurisdiction=f"US-{state.upper()}",
+                bill_number=str(fix.get("correct_number") or law.bill_number),
+                year_hint=int(year) if year is not None else law.year_hint,
+            )
+        )
+    unused = sorted((set(index) | set(excluded)) - used)
+    if unused:
+        listed = ", ".join(f"{s} {n}" for s, n in unused)
+        raise ConfigError(f"tracker correction matches no tracker law: {listed}")
+    return out
 
 
 @dataclass

@@ -61,7 +61,15 @@ tracker cross-check.
   `reference/tracker-corrections.yaml`, each with its reasoning; a stale entry is a hard
   error so snapshot drift surfaces immediately.
 
-## OPEN QUESTION — classifier verdicts vs. established precedent
+- 2026-07-24 — **User decision: override per-bill under D86/D91**, not a `topics.yaml`
+  change. No `scope_version` bump, so the 252 existing rejects stay current. Every
+  override records the classifier's verdict and the reason it was reversed.
+  Note this is a per-bill judgment, NOT a blanket rule by tracker topic: CT HB 5312 is
+  tagged "AI Intimate Images" but imposes a covered-platform takedown-request duty, which
+  is company-facing and genuinely in scope. The tracker's tag narrows attention; the
+  operative text decides.
+
+## RESOLVED — classifier verdicts vs. established precedent
 First 12 classifications: 5 in-scope, and **4 of those 5 are categories the campaign log
 consistently OVERRIDES to out-of-scope** — AL HB 172, AZ SB 1359, CA AB 2839 (election
 deepfake disclosure, D91: NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517 all
@@ -76,7 +84,8 @@ made once, up front, rather than 63 times by hand:
    `scope_version` bump that makes every existing reject stale for review (D96).
 3. Take the categories in scope — a real scope expansion, since both trackers treat them
    as AI law.
-Blocked on this before classifying the remaining 170.
+
+**Chosen: (1).** See the decision entry above.
 
 ## Note on PHASE-26
 PHASE-26 (enacted-laws backfill campaign) is still marked ACTIVE though

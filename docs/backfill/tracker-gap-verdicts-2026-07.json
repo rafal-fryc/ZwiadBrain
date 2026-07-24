@@ -1,0 +1,1129 @@
+[
+  {
+    "id": "al-2024-hb-168",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Child-exploitation criminal law reform (obscene materials depicting children); no AI/privacy/cyber operative provision. Disqualifier: incidental technology mention."
+  },
+  {
+    "id": "al-2024-hb-172",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Criminal/civil penalties for distributing materially deceptive AI-generated election media; prohibited-use rule for synthetic media. confidence 0.72. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "al-2026-hb-329",
+    "in_scope": false,
+    "topics": [],
+    "reason": "K-12 computer-science graduation requirement; AI mentioned only in a definition. Disqualifier: education bill, incidental technology."
+  },
+  {
+    "id": "ar-2025-hb-1877",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Expands CSAM offences to computer-generated images indistinguishable from a real child \u2014 a prohibited-use rule for synthetic media. confidence 0.70. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "az-2024-hb-2394",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Civil injunctive relief against unauthorized digital impersonation (digital replica/deepfake of a person's likeness). confidence 0.55. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "az-2024-sb-1359",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Prohibits deceptive deepfake/synthetic media in election communications. confidence 0.80. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "ca-2025-ab-325",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Cartwright Act (antitrust) amendment; no AI/personal-data/cyber operative text. Disqualifier: general-commerce bill."
+  },
+  {
+    "id": "ca-2023-ab-2839",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Elections Code s.20012 \u2014 bars distributing materially deceptive digitally altered/synthetic media in election advertising. confidence 0.72. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "ca-2023-ab-2905",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Public Utilities Code robocall/artificial-voice disclosure rule; telecommunications regulation with no data-protection or cyber provision."
+  },
+  {
+    "id": "ca-2025-sb-719",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Vehicle Code connected-vehicle repair/service data access (right-to-repair); no operative AI/privacy/cyber obligation. confidence 0.62."
+  },
+  {
+    "id": "ca-2023-sb-926",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Penal Code s.647 intimate-image distribution (criminal); no company-facing AI/data/cyber obligation."
+  },
+  {
+    "id": "ca-2023-sb-981",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Social-media platform duty on sexually explicit digital images; classifier found no operative AI/privacy/cyber criterion satisfied. confidence 0.62 \u2014 REVIEW: platform reporting duty may satisfy criterion 1."
+  },
+  {
+    "id": "ca-2023-sb-1120",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Health-insurance utilization review timelines; classifier found data/tech mention incidental. REVIEW: Orrick tags this 'AI Healthcare' (AI utilization-review limits) \u2014 likely a false OUT, re-check against enacted text."
+  },
+  {
+    "id": "co-2026-hb-1303",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Technical changes to energy and carbon management statutes; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "co-2026-hb-1426",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Implements CO Dept of Law legislative-report recommendations; omnibus with no AI/privacy/cyber operative text of its own."
+  },
+  {
+    "id": "co-2025-sb-288",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Civil and criminal causes of action for nonconsensual disclosure of intimate DIGITAL depictions (deepfake-style synthetic imagery). confidence 0.72. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ct-2026-hb-5312",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Covered-platform takedown-request process plus AG enforcement for synthetically created intimate images \u2014 a company-facing duty, not a person-facing criminal law. confidence 0.75."
+  },
+  {
+    "id": "ct-2026-hb-5563",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Criminal-justice omnibus (retail theft, vertiports, surveillance pricing, education cost sharing); no discrete AI/privacy/cyber obligation on companies."
+  },
+  {
+    "id": "ct-2026-sb-483",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Creates a 'digital forgery/digital defrauding' criminal offence; general fraud statute with no company-facing AI/data/cyber duty."
+  },
+  {
+    "id": "ct-2023-sb-1103",
+    "in_scope": true,
+    "topics": [
+      "ai",
+      "privacy"
+    ],
+    "reason": "Establishes an Office of Artificial Intelligence and AI task force, and imposes opt-in consent on controllers before processing/selling minors' personal data. confidence 0.95."
+  },
+  {
+    "id": "ct-2025-sb-1295",
+    "in_scope": true,
+    "topics": [
+      "privacy"
+    ],
+    "reason": "CTDPA amendment: minors' data processing, default privacy settings, addictive design, AG risk-mitigation disclosures. confidence 0.90."
+  },
+  {
+    "id": "de-2025-hb-191",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Bars nonhuman entities (incl. AI agents) from licensure/protected titles in medical professions \u2014 a prohibited-use rule for AI in healthcare. confidence 0.60."
+  },
+  {
+    "id": "de-2023-hb-353",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Civil and criminal remedies for deepfake nudity/sexual content plus elevated penalties for AI-generated CSAM. confidence 0.85. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "de-2025-hb-450",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Land-use bill; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "fl-2024-h-919",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Disclaimer requirement on political ads using AI-generated content, with civil and criminal penalties. confidence 0.85. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "fl-2024-s-1680",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): State IT-modernization council PLUS a discrete provision criminalizing creation/possession of AI-generated child pornography. confidence 0.72. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ga-2025-sb-179",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Education records transfer and school youth-violence prevention; no AI/privacy/cyber operative content."
+  },
+  {
+    "id": "ga-2025-sb-218",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Gutted bill \u2014 NO FAKES Act text deleted 2025-04-02; enacted law reassigns/funds the Prosecuting Attorneys Qualifications Commission. D110 gutted-bill trap (cf. GA SB 111)."
+  },
+  {
+    "id": "ga-2025-sb-540",
+    "in_scope": true,
+    "topics": [
+      "ai",
+      "privacy"
+    ],
+    "reason": "Regulates conversational-AI service operators: disclosures, minor protections, user privacy tools, self-harm protocol, AG enforcement. confidence 0.90."
+  },
+  {
+    "id": "hi-2026-hb-2137",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Prohibits harmful uses of AI-generated realistic digital imitations (deepfakes) and creates civil liability for unauthorized use. confidence 0.90. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "hi-2026-hb-2319",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Certificate-of-need process for health facilities; no AI/privacy/cyber operative content."
+  },
+  {
+    "id": "hi-2021-sb-309",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminalizes intentional creation/disclosure/threatened disclosure of deep fake images and videos. confidence 0.85. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "hi-2026-sb-2135",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Nonconsensual intimate-image criminal statute plus sentencing enhancement; privacy appears only in the title, no company-facing duty. confidence 0.88."
+  },
+  {
+    "id": "hi-2024-sb-2687",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Bars reckless distribution of materially deceptive synthetic election media; criminal penalties and civil remedies. confidence 0.82. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "hi-2026-sb-3001",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "AI companion operator duties: user disclosure, self-harm protocol, minor protections, annual reporting; violations are unfair/deceptive practices. confidence 0.90."
+  },
+  {
+    "id": "ia-2025-hf-2635",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Standards of conduct for health carriers and utilization-review organizations explicitly covering AI in audits and prior authorization. confidence 0.65."
+  },
+  {
+    "id": "ia-2025-sf-2417",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Requirements, guidelines and civil penalties for company-provided conversational AI services. confidence 0.90."
+  },
+  {
+    "id": "id-2026-h-727",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Revises the criminal penalty for disclosing explicit synthetic media (deepfake pornography). confidence 0.82. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "id-2026-s-1227",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Generative AI in public education \u2014 governs public schools' own use, D86 government-operations disqualifier. confidence 0.55."
+  },
+  {
+    "id": "id-2026-s-1297",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Conversational AI Safety Act \u2014 obligations specific to conversational/chatbot AI systems. confidence 0.55 (title-only summary; verify from enacted text)."
+  },
+  {
+    "id": "il-2025-hb-2949",
+    "in_scope": false,
+    "topics": [],
+    "reason": "State budget implementation act; funds/authorizes agencies with no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "il-2023-hb-4762",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Digital Voice and Likeness Protection Act \u2014 a digital-replica contract clause is unenforceable unless it specifies intended uses. confidence 0.85."
+  },
+  {
+    "id": "il-2025-sb-318",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Ticket-scalping bot restriction under consumer-fraud law; no AI-system, personal-data or cyber nexus. confidence 0.90."
+  },
+  {
+    "id": "il-2025-sb-3114",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Bars health payors from automated downcoding without a natural person making or reviewing the determination. confidence 0.72."
+  },
+  {
+    "id": "in-2026-hb-1271",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Hospital/insurer billing practices; the lone 'automated process' mention is incidental to claims payment. confidence 0.90. REVIEW: Orrick tags this 'AI Healthcare'."
+  },
+  {
+    "id": "in-2026-sb-180",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Omnibus health-care licensure bill (dental hygienists, respiratory practitioners, home health aides); no AI/privacy/cyber content."
+  },
+  {
+    "id": "in-2026-sb-256",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Foreign agent registration, foreign land ownership, foreign-adversary contract screening; national-security screening, not an AI/privacy/cyber duty. confidence 0.90."
+  },
+  {
+    "id": "ks-2025-hb-2183",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminalizes AI-generated/morphed CSAM and dissemination of synthetic depictions of identifiable persons; amends the breach-of-privacy statute. confidence 0.80. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ks-2025-hb-2313",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Restricts which AI platforms and genetic-sequencing software may run on STATE devices and networks \u2014 government own-use, D86. confidence 0.90."
+  },
+  {
+    "id": "ks-2025-hb-2479",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Criminal-law bill (domestic violence, electronic monitoring, 'breach of privacy' offence, blackmail over intimate images); no company-facing duty. confidence 0.90."
+  },
+  {
+    "id": "ks-2025-hb-2518",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Consumer legal-funding (litigation finance) transparency; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "ks-2025-hb-2537",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Increases penalties for sexual extortion of minors/dependent adults; no AI/privacy/cyber duty."
+  },
+  {
+    "id": "ky-2024-hb-207",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Criminalizes computer-generated CSAM and child sex dolls; criminal-code term, no company obligation."
+  },
+  {
+    "id": "ky-2026-hb-366",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Amends the CSAM possession statute to cover computer-generated depictions of minors. confidence 0.55 \u2014 person-facing criminal, D91 override candidate. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ky-2026-hb-692",
+    "in_scope": true,
+    "topics": [
+      "privacy"
+    ],
+    "reason": "Amends the Kentucky CDPA: defines 'automatic content recognition' and 'smart monitor', classifies ACR data as sensitive data. confidence 0.90."
+  },
+  {
+    "id": "la-2026-hb-134",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Material harmful to minors \u2014 obscenity/content restriction with no AI/privacy/cyber provision. confidence 0.85."
+  },
+  {
+    "id": "la-2026-hb-475",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Patient consent before a provider records a medical visit; healthcare-consent bill, no data-processing duty. confidence 0.93."
+  },
+  {
+    "id": "la-2026-hb-784",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Sex-offender registration and notification; no AI/privacy/cyber content."
+  },
+  {
+    "id": "la-2026-sb-133",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Oversight of commercial vehicle parking; no AI/privacy/cyber provision."
+  },
+  {
+    "id": "ma-2023-h-4744",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Title and summary are both the bare phrase 'To prevent abuse and exploitation'; no operative text to judge. REVIEW: Orrick tags it as the MA intimate-images amendment \u2014 needs enacted text."
+  },
+  {
+    "id": "md-2026-hb-895",
+    "in_scope": true,
+    "topics": [
+      "privacy"
+    ],
+    "reason": "Bars food retailers and delivery platforms from using consumer personal data (incl. protected-class data) to set dynamic prices; UDAAP penalties. confidence 0.82."
+  },
+  {
+    "id": "md-2026-hb-1563",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Emergency-room claims oversight and bed-capacity studies; no AI/privacy/cyber content. REVIEW: Orrick tags 'AI Healthcare'."
+  },
+  {
+    "id": "md-2026-sb-8",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): New criminal offence for using AI or deepfake representations to commit identity fraud causing injury or economic damage. confidence 0.83. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "md-2026-sb-114",
+    "in_scope": false,
+    "topics": [],
+    "reason": "State oversight board using AI to route 3-1-1 inquiries in Maryland's own information network \u2014 government own-use, D86. confidence 0.85."
+  },
+  {
+    "id": "md-2026-sb-141",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Bars any person from creating/using/disseminating a deepfake to produce materially false election information. confidence 0.85. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "md-2026-sb-221",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Criminalizes possession/viewing of child pornography; no AI/privacy/cyber nexus."
+  },
+  {
+    "id": "md-2026-sb-597",
+    "in_scope": false,
+    "topics": [],
+    "reason": "University AI partnership/fellowship/incubation lab to help STATE agencies adopt AI \u2014 government own-use, D86. confidence 0.82."
+  },
+  {
+    "id": "md-2026-sb-720",
+    "in_scope": false,
+    "topics": [],
+    "reason": "MSDE guidance and best practices for public schools selecting AI tools \u2014 government own-use, D86. confidence 0.78."
+  },
+  {
+    "id": "me-2025-ld-524",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Summary identical to title ('Protect Children from Technology-facilitated...'); no operative text. confidence 0.55 \u2014 REVIEW."
+  },
+  {
+    "id": "me-2025-ld-2052",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Study resolve on classroom technology and safeguards in education; no operative AI/privacy/cyber duty. confidence 0.80."
+  },
+  {
+    "id": "mi-2023-hb-5141",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Campaign-finance amendment requiring disclosure when AI is used in political advertisements. confidence 0.85. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "mi-2023-hb-5144",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): New election-code offence and injunction procedure for distributing materially deceptive synthetic media. confidence 0.82. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "mn-2023-hf-1370",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminal and civil liability for creating/disseminating deepfake sexual images and using deepfakes to influence elections. confidence 0.86. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "mn-2025-hf-1606",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Prohibits access to 'nudification technology' \u2014 a prohibited-use restriction on a generative-AI capability. confidence 0.75."
+  },
+  {
+    "id": "mn-2025-hf-2432",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Judiciary/public-safety/corrections omnibus; no operative text in the title. REVIEW-RIDER: Orrick says it carries the MN CSAM amendment \u2014 title-only OUT is unsafe (D87/PL 118-50 pattern)."
+  },
+  {
+    "id": "mn-2025-hf-4188",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Commerce policy bill' placeholder title; no operative text. REVIEW-RIDER."
+  },
+  {
+    "id": "mn-2023-sf-4097",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Omnibus Commerce policy bill'; no operative text. REVIEW-RIDER: Orrick says it carries the Prohibiting Social Media Manipulation Act."
+  },
+  {
+    "id": "mn-2025-sf-4760",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Omnibus public-safety vehicle; no operative text. REVIEW-RIDER."
+  },
+  {
+    "id": "mo-2026-hb-2372",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Modifies provisions relating to health care'; no operative text. REVIEW-RIDER."
+  },
+  {
+    "id": "mo-2026-sb-999",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Modifies provisions relating to vulnerable persons'; no operative text. REVIEW-RIDER."
+  },
+  {
+    "id": "mo-2026-sb-1019",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Generic health-care bill; no AI/privacy/cyber nexus in the title. REVIEW-RIDER."
+  },
+  {
+    "id": "ms-2026-hb-1723",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Defines 'artificial intelligence' with no operative rule attached. confidence 0.62 \u2014 REVIEW: a definitions-only AI act may still matter downstream."
+  },
+  {
+    "id": "ms-2026-sb-2269",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Extends a repealer on autonomous-vehicle law-enforcement interaction plans; no new AI duty. confidence 0.78."
+  },
+  {
+    "id": "ms-2026-sb-2294",
+    "in_scope": false,
+    "topics": [],
+    "reason": "K-12 education omnibus; AI appears as a computer-science curriculum topic. confidence 0.95."
+  },
+  {
+    "id": "ms-2024-sb-2577",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminalizes wrongful dissemination of 'digitizations' \u2014 digitally created/altered synthetic depictions of a person. confidence 0.68. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "mt-2025-hb-178",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Limits GOVERNMENT agencies' own use of AI systems; no private-sector duty \u2014 D86. confidence 0.75."
+  },
+  {
+    "id": "mt-2025-sb-25",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Disclosure/transparency duties for AI and synthetic media in election communications. confidence 0.85. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "mt-2025-sb-212",
+    "in_scope": true,
+    "topics": [
+      "ai",
+      "cyber"
+    ],
+    "reason": "Right to Compute Act \u2014 includes a shutdown requirement for AI-controlled critical infrastructure. confidence 0.62 (title-length summary; verify from enacted text)."
+  },
+  {
+    "id": "nc-2023-h-591",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Modernize Sex Crimes'; no AI/privacy/cyber operative text visible. REVIEW: Orrick tags it as the NC CSAM/intimate-images amendment."
+  },
+  {
+    "id": "nc-2025-s-257",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'2026 Appropriations Act'; pure budget vehicle in the title. REVIEW-RIDER: MultiState tagged it AI."
+  },
+  {
+    "id": "ne-2025-lb-383",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Prohibits computer-generated (synthetic) child pornography. confidence 0.72 \u2014 person-facing criminal, D91 override candidate. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "nh-2026-sb-622",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Amends the criminal offence of identity fraud; no company-facing data/AI/cyber duty. confidence 0.85."
+  },
+  {
+    "id": "nj-2026-a-3497",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Bars landlords from using algorithmic/automated pricing tools to inflate rents. confidence 0.55 (summary repeats the title; verify from enacted text)."
+  },
+  {
+    "id": "nj-2026-a-4085",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Fair Price Protection Act' \u2014 title only, no operative AI/privacy/cyber text. confidence 0.90. REVIEW: algorithmic-pricing tag."
+  },
+  {
+    "id": "ny-2025-a-10006",
+    "in_scope": false,
+    "topics": [],
+    "reason": "NY budget omnibus (education, labor, housing appropriations); no AI/privacy/cyber operative provision."
+  },
+  {
+    "id": "ny-2025-a-10008",
+    "in_scope": true,
+    "topics": [
+      "privacy"
+    ],
+    "reason": "Budget omnibus carrying Part Y, the Safe by Design Act \u2014 AG rules for age-assurance methods covered platforms must use. In scope for that provision under the omnibus-rider exception (PL 118-50 pattern). confidence 0.72."
+  },
+  {
+    "id": "ny-2023-s-1042",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Extends unlawful dissemination of an intimate image to AI-generated 'deep fake' images. confidence 0.85. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ny-2025-s-8420",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Advertisements must disclose use of a synthetic (AI-generated) performer; civil penalties. confidence 0.85."
+  },
+  {
+    "id": "ny-2025-s-8828",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Transparency and reporting duties on AI model developers plus an oversight office. confidence 0.90."
+  },
+  {
+    "id": "ny-2025-s-9005",
+    "in_scope": false,
+    "topics": [],
+    "reason": "NY public-protection/general-government budget omnibus; the drone provisions govern state procurement only (D86). confidence 0.90."
+  },
+  {
+    "id": "ny-2023-s-9832",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Model management company registration and complaint procedures (occupational licensing). REVIEW: Orrick tags it the Fashion Workers Act / AI Likeness \u2014 digital-replica consent clauses may ride inside."
+  },
+  {
+    "id": "ok-2026-hb-3244",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Modifies elements/punishment for aggravated identity theft; no company-facing duty. confidence 0.85."
+  },
+  {
+    "id": "ok-2024-hb-3642",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Expands the obscenity/child-pornography criminal statute; no AI/privacy/cyber operative content."
+  },
+  {
+    "id": "ok-2026-sb-546",
+    "in_scope": true,
+    "topics": [
+      "privacy"
+    ],
+    "reason": "Oklahoma Data Privacy Act \u2014 consumer rights, appeals, privacy notices, data protection assessments, penalties. confidence 0.92."
+  },
+  {
+    "id": "ok-2026-sb-1627",
+    "in_scope": false,
+    "topics": [],
+    "reason": "General criminal-code consolidation; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "ok-2026-sb-1670",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Higher-education regents model policy on tiered ownership; no AI/privacy/cyber content. REVIEW: Orrick tags it the Responsible Technology in Schools Act."
+  },
+  {
+    "id": "ok-2026-sb-1734",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Guidance for public schools' use of AI \u2014 government own-use, D86. confidence 0.75."
+  },
+  {
+    "id": "ok-2026-sb-2184",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Statutory consolidation / technical corrections; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "or-2026-sb-1546",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Oregon AI Companions Act \u2014 operator duties: software disclosure, self-harm protocol, minor disclosures, public reporting, private right of action. confidence 0.90. NOTE: the 2025 SB 1546 died; this is the 2026 enactment."
+  },
+  {
+    "id": "or-2024-sb-1571",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Mandatory synthetic-media disclosure in campaign communications; civil penalties to $10,000. confidence 0.88. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "pa-2023-sb-1213",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Criminal statutes on unlawful dissemination of intimate images and CSAM; no company-facing duty. confidence 0.94."
+  },
+  {
+    "id": "ri-2026-h-8060",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminal offence of 'digital forgery' \u2014 AI/deepfake impersonation of individuals or businesses to facilitate fraud. confidence 0.60. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ri-2026-s-3338",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Generic impersonation/identity-fraud/digital-forgery offence with no AI-specific operative obligation. confidence 0.75. NOTE: disagrees with the H 8060 verdict \u2014 likely companions; reconcile."
+  },
+  {
+    "id": "sc-2025-h-4591",
+    "in_scope": true,
+    "topics": [
+      "privacy"
+    ],
+    "reason": "Covered social media platforms must estimate/verify minor account holders' ages, set protective defaults, obtain parental consent. confidence 0.83."
+  },
+  {
+    "id": "sd-2026-sb-41",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminalizes creating/distributing digitally fabricated (deepfake) material depicting an identifiable individual. confidence 0.86. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "sd-2024-sb-79",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Revises criminal provisions on child pornography; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "sd-2025-sb-164",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Prohibits using a deepfake to influence an election; penalty attached. confidence 0.85. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "tn-2025-hb-1513",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (election-actor): Mandatory disclaimer on political advertisements containing deepfake depictions of candidates; misdemeanour penalty plus civil remedies. confidence 0.90. || Binds candidates/campaigns/distributors, not platforms. Consistent with NH HB 1596, VT S 23, CA AB 2355, LA HB 459/639, ME LD 517."
+  },
+  {
+    "id": "tn-2025-hb-2408",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Telemarketers using automated dialing systems must keep monthly call-volume records; TCPA-style compliance, no AI/data duty. confidence 0.90."
+  },
+  {
+    "id": "tn-2025-sb-677",
+    "in_scope": false,
+    "topics": [],
+    "reason": "State education department AI professional-development course for teachers; no duty on AI developers or deployers. confidence 0.90."
+  },
+  {
+    "id": "tn-2025-sb-837",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Excludes AI, algorithms, software, hardware and machines from the legal definition of 'person' (Public Chapter 781). Definitional only \u2014 no obligation on any actor. confidence 0.82. (Orrick filed this under Texas; re-filed to TN.)"
+  },
+  {
+    "id": "tn-2025-sb-1493",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Directs TACIR, a state commission, to study AI and report by 2027 \u2014 government study body, D86. confidence 0.85."
+  },
+  {
+    "id": "tn-2025-sb-1580",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Bars AI developers/deployers from representing that the system can act as a qualified mental health professional. confidence 0.85."
+  },
+  {
+    "id": "tn-2025-sb-1700",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Directs TACIR to study potential future AI regulation \u2014 government study body, D86. confidence 0.80."
+  },
+  {
+    "id": "tn-2025-sb-1815",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Coercive Suicide Prevention Law of 2026 (Title 39 criminal); no AI/privacy/cyber provision."
+  },
+  {
+    "id": "tn-2025-sb-2253",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Traffic-citation mailing process for autonomous-vehicle violations; no AI obligation. confidence 0.90."
+  },
+  {
+    "id": "tn-2025-sb-2690",
+    "in_scope": false,
+    "topics": [],
+    "reason": "General state appropriations act; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "tx-2025-hb-581",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminalizes creating AI-generated sexual material depicting minors. confidence 0.75 \u2014 person-facing criminal, D91 override candidate. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "tx-2023-hb-2700",
+    "in_scope": false,
+    "topics": [],
+    "reason": "CSAM prosecution procedure; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "tx-2025-sb-20",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Criminal offence for obscene visual material depicting a child; no company-facing duty."
+  },
+  {
+    "id": "tx-2025-sb-441",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminal and civil liability for producing/distributing 'artificial intimate visual material' (AI deepfake sexual imagery). confidence 0.80. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "tx-2025-sb-1188",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Electronic health record requirements plus a civil penalty; no data-protection or AI operative language visible. confidence 0.62 \u2014 REVIEW: Orrick tags it 'AI in Electronic Health Record'."
+  },
+  {
+    "id": "tx-2023-sb-1361",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminalizes producing/distributing sexually explicit deepfake videos. confidence 0.85. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "tx-2025-sb-1621",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): New offences and penalties for sexually explicit material depicting computer-generated children. confidence 0.62. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "tx-2025-sb-2373",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Civil and criminal penalties for financial exploitation using artificially generated media (deepfakes) or phishing. confidence 0.80. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ut-2026-hb-2",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Fiscal-year supplemental appropriations; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "ut-2024-hb-148",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Artificial Pornographic Images Amendments \u2014 addresses AI-generated pornographic imagery. confidence 0.72. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "ut-2026-hb-218",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Digital Skills Amendments' \u2014 title only, no operative AI/privacy/cyber text. confidence 0.85."
+  },
+  {
+    "id": "ut-2024-hb-238",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Sexual exploitation of a minor amendments; no AI/privacy/cyber detail. confidence 0.60 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "ut-2026-hb-273",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Classroom Technology Amendments' \u2014 summary repeats the title. confidence 0.75 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "ut-2026-hb-276",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Artificial Intelligence Modifications' \u2014 summary repeats the title, no operative text. confidence 0.55 \u2014 THIN-SUMMARY, almost certainly in scope (Orrick: Digital Content Provenance Standards Act)."
+  },
+  {
+    "id": "ut-2026-hb-289",
+    "in_scope": false,
+    "topics": [],
+    "reason": "CSAM criminal amendment; no AI tie visible. confidence 0.55 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "ut-2026-hb-320",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Amends the Utah Office of Artificial Intelligence Policy \u2014 an AI-specific oversight body. confidence 0.62 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "ut-2026-hb-450",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Data Privacy Amendments' \u2014 summary repeats the title. confidence 0.55 \u2014 THIN-SUMMARY, almost certainly in scope."
+  },
+  {
+    "id": "ut-2026-sb-38",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Consumer Protection Modifications' \u2014 boilerplate title only. confidence 0.55 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "ut-2024-sb-131",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Information Technology Act Amendments' \u2014 title only; plausibly state IT operations (D86). confidence 0.35 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "ut-2026-sb-256",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Identity Protection Modifications' \u2014 summary repeats the title. confidence 0.60 \u2014 THIN-SUMMARY (Orrick: AI Liability)."
+  },
+  {
+    "id": "ut-2026-sb-292",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Autonomous Systems Amendments' \u2014 title only. confidence 0.35 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "ut-2026-sb-298",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Programmable money (digital currency/payments); no AI/data/cyber duty. confidence 0.90."
+  },
+  {
+    "id": "ut-2026-sb-319",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Health-insurance preauthorization procedures. confidence 0.90 \u2014 REVIEW: Orrick tags 'AI in Insurance'."
+  },
+  {
+    "id": "va-2026-hb-30",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Virginia biennial budget bill; no AI/privacy/cyber operative text of its own."
+  },
+  {
+    "id": "va-2026-hb-171",
+    "in_scope": false,
+    "topics": [],
+    "reason": "School internet-safety curriculum must cover AI-generated content and scams; education curriculum, incidental. confidence 0.92."
+  },
+  {
+    "id": "va-2026-hb-564",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Camera-based bus-lane obstruction enforcement; traffic technology, no data/AI duty. confidence 0.95."
+  },
+  {
+    "id": "va-2026-hb-580",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Division of Consumer Counsel gains complaint-intake and investigation duties for AI-related fraud and abuse against consumers. confidence 0.80."
+  },
+  {
+    "id": "va-2026-hb-581",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Expands the right-of-publicity tort to cover unauthorized use of a person's VOICE, with punitive damages \u2014 the mechanism against AI voice cloning and digital replicas. confidence 0.55."
+  },
+  {
+    "id": "va-2026-hb-797",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Directs a study of a framework for third-party organizations verifying AI models' adherence to safety standards. confidence 0.75."
+  },
+  {
+    "id": "va-2026-hb-1124",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Work-group study of autonomous-vehicle workforce/labour impacts; no AI system obligation. confidence 0.85."
+  },
+  {
+    "id": "va-2026-hb-1186",
+    "in_scope": false,
+    "topics": [],
+    "reason": "VDOE guidance and pilot for AI in public school instruction \u2014 government own-use, D86. confidence 0.78."
+  },
+  {
+    "id": "va-2026-hb-1441",
+    "in_scope": false,
+    "topics": [],
+    "reason": "State/local law-enforcement cooperation with federal immigration authorities; D86 government operations."
+  },
+  {
+    "id": "va-2019-hb-2678",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Extends unlawful dissemination of images to material created/adapted/modified to depict a recognizable person \u2014 an early deepfake provision. confidence 0.75. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "va-2026-sb-245",
+    "in_scope": false,
+    "topics": [],
+    "reason": "School boards' use of social media to communicate with students; no company-facing duty. confidence 0.93."
+  },
+  {
+    "id": "va-2026-sb-384",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Directs JCOTS to study a framework for independent organizations verifying AI safety-standard adherence. confidence 0.62 (Senate companion of HB 797)."
+  },
+  {
+    "id": "va-2026-sb-394",
+    "in_scope": false,
+    "topics": [],
+    "reason": "VDOE AI-use guidance and school pilot programme \u2014 government own-use, D86. confidence 0.82."
+  },
+  {
+    "id": "va-2026-sb-429",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Nursing-home oversight and health-quality bill; no AI/privacy/cyber provision."
+  },
+  {
+    "id": "va-2026-sb-583",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Camera-based bus-lane obstruction enforcement; no data/AI duty. confidence 0.95."
+  },
+  {
+    "id": "va-2024-sb-731",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Child-pornography criminal statute incl. depictions where the minor need not exist; synthetic element incidental to the criminal purpose. confidence 0.97."
+  },
+  {
+    "id": "va-2026-sb-753",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Expands the right-of-publicity tort to unauthorized commercial use of voice or likeness, with punitive damages. confidence 0.70 (Senate companion of HB 581)."
+  },
+  {
+    "id": "vt-2021-h-410",
+    "in_scope": false,
+    "topics": [],
+    "reason": "State government's own use and oversight of AI in its internal operations \u2014 D86. confidence 0.85."
+  },
+  {
+    "id": "vt-2023-h-878",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Miscellaneous judiciary procedures' \u2014 no AI/privacy/cyber content visible. REVIEW-RIDER: Orrick tags it the VT non-consensual sexual image amendment."
+  },
+  {
+    "id": "vt-2025-h-942",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Miscellaneous agricultural subjects; no AI/privacy/cyber operative text."
+  },
+  {
+    "id": "wa-2023-hb-1999",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Fabricated (deepfake) intimate or sexually explicit images \u2014 prohibited-use rule for synthetic media. confidence 0.75. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "wa-2025-sb-5105",
+    "in_scope": false,
+    "topics": [],
+    "reason": "'Sexually explicit depictions of minors' with no operative text confirming an AI/synthetic tie. confidence 0.62 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "wa-2025-sb-5395",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Health-insurance prior-authorization determinations; no AI/data/cyber operative provision. confidence 0.95 \u2014 REVIEW: Orrick tags 'AI Healthcare'."
+  },
+  {
+    "id": "wa-2025-sb-5886",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "Personality rights \u2014 right-of-publicity framework covering unauthorized AI-generated digital replicas of name, voice or image. confidence 0.55 \u2014 THIN-SUMMARY."
+  },
+  {
+    "id": "wi-2023-sb-314",
+    "in_scope": false,
+    "topics": [],
+    "reason": "Amends Wisconsin criminal statutes on possession of child pornography; no AI/privacy/cyber operative provision. confidence 0.97."
+  },
+  {
+    "id": "wv-2025-sb-198",
+    "in_scope": false,
+    "topics": [],
+    "reason": "OVERRIDE D91 (person-facing criminal): Criminalizes creation/production/distribution/possession of AI-generated CSAM where no actual minor is depicted. confidence 0.86. || Criminalizes individual conduct; imposes no duty on a company. Consistent with TN HB 2163, LA SB 110/SB 6, NJ A 3540, CA SB 926."
+  },
+  {
+    "id": "wy-2026-hb-102",
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "New offences for AI/synthetic media producing exploitative content involving children, plus a developer-immunity carve-out that binds private AI developers. confidence 0.90."
+  }
+]

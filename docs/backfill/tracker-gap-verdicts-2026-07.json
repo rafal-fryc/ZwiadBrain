@@ -890,9 +890,11 @@
   },
   {
     "id": "ut-2026-hb-276",
-    "in_scope": false,
-    "topics": [],
-    "reason": "'Artificial Intelligence Modifications' \u2014 summary repeats the title, no operative text. confidence 0.55 \u2014 THIN-SUMMARY, almost certainly in scope (Orrick: Digital Content Provenance Standards Act)."
+    "in_scope": true,
+    "topics": [
+      "ai"
+    ],
+    "reason": "FLIPPED IN on text grounding (2026-07-24). The initial OUT rested on a title-only LegiScan description. The enrolled text enacts the Digital Voyeurism Prevention Act (13-72b) and a digital content provenance chapter (13-72c): consent-verification and notice-and-takedown duties on generation services and covered platforms, provenance detect/disclose/preserve duties on large online platforms, latent-disclosure duties on capture device manufacturers and covered generative-AI providers, enforced by the Division of Consumer Protection ($2,500 administrative fines, $5,000 civil penalties)."
   },
   {
     "id": "ut-2026-hb-289",
@@ -912,7 +914,7 @@
     "id": "ut-2026-hb-450",
     "in_scope": false,
     "topics": [],
-    "reason": "'Data Privacy Amendments' \u2014 summary repeats the title. confidence 0.55 \u2014 THIN-SUMMARY, almost certainly in scope."
+    "reason": "CONFIRMED OUT on text grounding (2026-07-24). The initial OUT rested on a title-only LegiScan description and was flagged as a likely false negative; the enrolled text disproves that. HB 450 amends the GOVERNMENT Data Privacy Act and GRAMA \u2014 restructuring the Utah Privacy Commission, moving its support to the Office of Data Privacy, creating a data privacy ombudsman and complaint process, and studying governmental passive data collection. It binds state agencies, cities, counties and public education, not private companies. D86."
   },
   {
     "id": "ut-2026-sb-38",

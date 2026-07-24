@@ -82,6 +82,7 @@ def test_number_key_matches_a_tracker_number_to_its_legiscan_form() -> None:
         ("https://le.utah.gov/~2024/bills/static/HB0148.html", 2024),
         ("https://legislature.vermont.gov/bill/status/2022/H.0410", 2022),
         ("https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00020F.pdf", 2025),
+        ("https://www.legis.ga.gov/api/legislation/document/20232024/223269", 2023),
     ],
 )
 def test_year_hint_from_url_reads_the_session_year_a_legislature_link_encodes(
@@ -483,6 +484,34 @@ def test_resolve_targets_reports_ambiguity_when_no_hint_disambiguates() -> None:
     assert res.status == "ambiguous"
     assert res.candidate is None
     assert "991" in res.detail and "550" in res.detail
+
+
+def test_resolve_targets_refuses_a_lone_hit_that_contradicts_the_year_hint() -> None:
+    """should NOT accept an old-session bill when the hint names a session it is not in
+
+    The dangerous case: the tracker's law was enacted in 2025 but LegiScan has no 2025
+    bill of that number, while an unrelated bill of the same number was enacted in 2019.
+    A unique match is not the same as the right match.
+    """
+    entries = [_entry("ny", "S 8793", year_hint=2025)]
+    sessions = [
+        SessionBills(_session(2188, 2025, 2026), []),
+        SessionBills(_session(1644, 2019, 2020), [_cand("111", "S8793", state="ny")]),
+    ]
+    [res] = resolve_targets(entries, sessions)
+    assert res.status == "year-mismatch"
+    assert res.candidate is None
+    assert "2025" in res.detail
+
+
+def test_resolve_targets_accepts_a_lone_hit_that_satisfies_the_year_hint() -> None:
+    """should still resolve when the sole match is in the hinted session"""
+    entries = [_entry("ny", "S 8793", year_hint=2025)]
+    sessions = [SessionBills(_session(2188, 2025, 2026), [_cand("222", "S8793", state="ny")])]
+    [res] = resolve_targets(entries, sessions)
+    assert res.status == "resolved"
+    assert res.candidate is not None
+    assert res.candidate.native_id == "222"
 
 
 def test_resolve_targets_scans_the_newest_session_first() -> None:

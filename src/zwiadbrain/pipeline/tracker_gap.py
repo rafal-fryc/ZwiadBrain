@@ -134,6 +134,8 @@ _TX_LEG_YEAR = {"86": 2019, "87": 2021, "88": 2023, "89": 2025, "90": 2027}
 # California packs both session years into one unbroken run: 'bill_id=202520260AB325'.
 _CA_BILL_ID_RE = re.compile(r"bill_id=(20[0-2]\d)\d{5}", re.IGNORECASE)
 _ORRICK_HOST_RE = re.compile(r"https?://[^/]*\borrick\.com/", re.IGNORECASE)
+# Georgia concatenates the biennium into one run: '/document/20232024/223269'.
+_YEAR_PAIR_RE = re.compile(r"(?<!\d)(20[0-2]\d)(20[0-2]\d)(?!\d)")
 
 
 def year_hint_from_url(url: str) -> int | None:
@@ -158,6 +160,11 @@ def year_hint_from_url(url: str) -> int | None:
     # the filename is trusted there — its re-host names do carry the session year
     # ('Arizona-2025-SB1462-Engrossed.pdf').
     haystack = url.rsplit("/", 1)[-1] if _ORRICK_HOST_RE.search(url) else url
+    pair = _YEAR_PAIR_RE.search(haystack)
+    if pair is not None:
+        year = int(pair.group(1))
+        if year in _URL_YEAR_RANGE:
+            return year
     for match in _URL_YEAR_RE.finditer(haystack):
         year = int(match.group(1))
         if year in _URL_YEAR_RANGE:
@@ -511,10 +518,29 @@ def resolve_targets(
                 )
             )
             continue
-        if len(hits) > 1 and entry.year_hint is not None:
+        if entry.year_hint is not None:
             hinted = [h for h in hits if _covers(h[0].session, entry.year_hint)]
-            if len(hinted) == 1:
-                hits = hinted
+            if not hinted:
+                # A unique match is not the right match. The tracker's law was enacted in
+                # the hinted session, so a same-numbered bill from another session is a
+                # DIFFERENT law — accepting it would silently track the wrong bill.
+                found = ", ".join(
+                    f"{c.native_id}@session {b.session.session_id}"
+                    f" ({b.session.year_start}-{b.session.year_end})"
+                    for b, c in hits
+                )
+                resolutions.append(
+                    Resolution(
+                        entry=entry,
+                        candidate=None,
+                        session_id=None,
+                        status="year-mismatch",
+                        detail=f"{entry.bill_number} enacted in {entry.year_hint} per the"
+                        f" tracker, but only found in: {found}",
+                    )
+                )
+                continue
+            hits = hinted
         if len(hits) > 1:
             listed = ", ".join(
                 f"{c.native_id}@session {b.session.session_id}" for b, c in hits

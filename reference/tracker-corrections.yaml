@@ -73,6 +73,53 @@ corrections:
       employers (D86).
 
   # --- session-year pins (opaque or biennium-only tracker links) ---
+  # Every gap row without a link-derived year is pinned here. Without a pin, a bill
+  # number that matches in exactly ONE scanned session resolves to it — and a state
+  # renumbers bills every session, so the sole match can be an unrelated old law.
+  # (NY A 433 resolved to a 2019 "key persons" bill before these pins existed.)
+  - state: az
+    bill_number: "HB 2394"
+    year: 2024
+    why: "Link path '/legtext/56leg/2R/' is the 56th Legislature 2nd Regular Session = 2024."
+
+  - state: az
+    bill_number: "SB 1359"
+    year: 2024
+    why: "Link path '/legtext/56leg/2R/' is the 56th Legislature 2nd Regular Session = 2024."
+
+  - state: de
+    bill_number: "HB 233"
+    year: 2023
+    why: >-
+      legis.delaware.gov/BillDetail/140866 is an opaque id; the Delaware AI Commission Act
+      was effective 2024-07-17, i.e. the 152nd General Assembly (2023-2024). Without this
+      pin it resolved to a 2021 psychologist-licensure bill of the same number.
+
+  - state: md
+    bill_number: "HB 1563"
+    year: 2026
+    why: "Orrick CDN link carries no session; effective 2026-06-01 = the 2026 Maryland session."
+
+  - state: ny
+    bill_number: "A 433"
+    year: 2023
+    why: >-
+      Orrick links the codified statute (STT ch. 57-A), not the bill. Effective 2025-07-01
+      = the 2023-2024 General Assembly. Without this pin it resolved to an unrelated
+      2019-2020 A 433 on the regulation of "key persons".
+
+  - state: ok
+    bill_number: "HB 3642"
+    year: 2024
+    why: "Link carries 'Session=2400' — Oklahoma's 2024 Regular Session (LegiScan 2055)."
+
+  - state: wi
+    bill_number: "SB 314"
+    year: 2023
+    why: >-
+      The LegiScan text link carries a document id, not a session; effective 2024-10-04 =
+      the 2023-2024 Wisconsin session.
+
   - state: de
     bill_number: "HB 353"
     year: 2023

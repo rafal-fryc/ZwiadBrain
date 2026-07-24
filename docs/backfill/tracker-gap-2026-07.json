@@ -1,0 +1,7549 @@
+{
+  "snapshot": "reference\\orrick-ai-tracker-2026-07.yaml",
+  "totals": {
+    "tracker_laws": 304,
+    "tracked": 38,
+    "rejected": 29,
+    "gap": 188,
+    "citation_only": 96,
+    "year_mismatch": 0,
+    "unkeyable": 0
+  },
+  "gap": [
+    {
+      "key": [
+        "al",
+        "H",
+        "168"
+      ],
+      "state": "al",
+      "jurisdiction": "US-AL",
+      "bill_number": "HB 168",
+      "names": [
+        "Alabama Child Protection Act of 2024"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2024RS/HB168-enr.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "al",
+        "H",
+        "172"
+      ],
+      "state": "al",
+      "jurisdiction": "US-AL",
+      "bill_number": "HB 172",
+      "names": [
+        "Alabama Materially Deceptive Election Media Law"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2024RS/HB172-enr.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "al",
+        "H",
+        "329"
+      ],
+      "state": "al",
+      "jurisdiction": "US-AL",
+      "bill_number": "HB 329",
+      "names": [
+        "Education; public K-12 schools, completion of approved computer science course required"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2026RS/HB329-enr.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ar",
+        "H",
+        "1877"
+      ],
+      "state": "ar",
+      "jurisdiction": "US-AR",
+      "bill_number": "HB 1877",
+      "names": [
+        "Amendment of Arkansas CSAM Laws"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://arkleg.state.ar.us/Home/FTPDocument?path=%2FACTS%2F2025R%2FPublic%2FACT977.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "az",
+        "H",
+        "2394"
+      ],
+      "state": "az",
+      "jurisdiction": "US-AZ",
+      "bill_number": "HB 2394",
+      "names": [
+        "Arizona General Deepfake Law"
+      ],
+      "topics": [
+        "AI Deepfakes"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.azleg.gov/legtext/56leg/2R/laws/0193.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "az",
+        "S",
+        "1359"
+      ],
+      "state": "az",
+      "jurisdiction": "US-AZ",
+      "bill_number": "SB 1359",
+      "names": [
+        "Arizona Political Deepfake Law"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.azleg.gov/legtext/56leg/2R/laws/0199.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "325"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 325",
+      "names": [
+        "Cartwright Act CommonPricing Algorithm Amendment"
+      ],
+      "topics": [
+        "Algorithmic Pricing"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260AB325"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "2839"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 2839",
+      "names": [
+        "Deceptive Media in Election Advertisements Narrowly Enjoined by Kohls v. Bonta (E.D. Cal.)"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2839"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "2905"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 2905",
+      "names": [
+        "AI Call Disclosures Law"
+      ],
+      "topics": [
+        "AI Calling"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2905"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "S",
+        "719"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "SB 719",
+      "names": [
+        "Access to connected vehicle service."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202520260SB719"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "S",
+        "926"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "SB 926",
+      "names": [
+        "Amendment of California Law Governing Distribution of Intimate Images"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB926"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "S",
+        "981"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "SB 981",
+      "names": [
+        "Digital Identity Theft Act"
+      ],
+      "topics": [
+        "AI in Social Media & Online Platforms"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB981"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "S",
+        "1120"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "SB 1120",
+      "names": [
+        "AI Healthcare Utilization Law"
+      ],
+      "topics": [
+        "AI Healthcare"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB1120"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "co",
+        "H",
+        "1303"
+      ],
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "bill_number": "HB 1303",
+      "names": [
+        "Technical Changes to Energy & Carbon Management Statutes"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://leg.colorado.gov/bills/HB26-1303"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "co",
+        "H",
+        "1426"
+      ],
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "bill_number": "HB 1426",
+      "names": [
+        "Department of Law Legislative Report"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://leg.colorado.gov/bills/HB26-1426"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "co",
+        "S",
+        "288"
+      ],
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "bill_number": "SB 288",
+      "names": [
+        "Preventing Unauthorized Disclosure of Intimate Digital Depictions Act"
+      ],
+      "topics": [
+        "AI CSAM",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leg.colorado.gov/sites/default/files/2025a_288_signed.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "H",
+        "5312"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "HB 5312",
+      "names": [
+        "AN ACT ESTABLISHING A CIVIL ACTION FOR THE OFFICE OF THE ATTORNEY GENERAL AND A PRIVATE RIGHT OF ACTION FOR VICTIMS OF UNLAWFUL DISSEMINATION OF A SYNTHETICALLY CREATED INTIMATE IMAGE."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=HB05312&which_year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "H",
+        "5563"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "HB 5563",
+      "names": [
+        "AN ACT CONCERNING VARIOUS CRIMINAL LAW AND CRIMINAL JUSTICE PROPOSALS, CERTIFICATES OF APPROVAL FOR AIRPORTS, HELIPORTS, VERTIPORTS, RESTRICTED LANDING AREAS AND OTHER AIR NAVIGATION FACILITIES, POLICE COLLABORATION WITH SOCIAL WORKERS, SURVEILLANCE PRICING, EDUCATION COST SHARING AND WITHHOLDING OF TAXES FROM LUMP SUM PAYMENTS."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=HB05563&which_year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "S",
+        "483"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "SB 483",
+      "names": [
+        "AN ACT ESTABLISHING THE CRIME OF DIGITAL DEFRAUDING."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=SB00483&which_year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "S",
+        "1103"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "SB 1103",
+      "names": [
+        "Connecticut Act Concerning AI, Automated Decision-Making and Personal Data Privacy"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=SB01103&which_year=2023"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "S",
+        "1295"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "SB 1295",
+      "names": [
+        "Connecticut Data Privacy Act"
+      ],
+      "topics": [
+        "AI Transparency"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.cga.ct.gov/2025/ACT/PA/PDF/2025PA-00113-R00SB-01295-PA.PDF"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "de",
+        "H",
+        "191"
+      ],
+      "state": "de",
+      "jurisdiction": "US-DE",
+      "bill_number": "HB 191",
+      "names": [
+        "An ACT to amend the Delaware code relating to medical professionals, titles, and nonhuman entities",
+        "AN ACT TO AMEND TITLE 24 OF THE DELAWARE CODE RELATING TO MEDICAL PROFESSIONALS, TITLES, AND NONHUMAN ENTITIES."
+      ],
+      "topics": [
+        "AI Healthcare",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/chp250.pdf",
+        "https://legis.delaware.gov/BillDetail?LegislationId=142752"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "de",
+        "H",
+        "233"
+      ],
+      "state": "de",
+      "jurisdiction": "US-DE",
+      "bill_number": "HB 233",
+      "names": [
+        "Delaware Artificial Intelligence Commission Act"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legis.delaware.gov/BillDetail/140866"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "de",
+        "H",
+        "353"
+      ],
+      "state": "de",
+      "jurisdiction": "US-DE",
+      "bill_number": "HB 353",
+      "names": [
+        "Amendment to the Delaware Code Relating to Deepfakes"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legis.delaware.gov/BillDetail/141103"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "de",
+        "H",
+        "450"
+      ],
+      "state": "de",
+      "jurisdiction": "US-DE",
+      "bill_number": "HB 450",
+      "names": [
+        "AN ACT TO AMEND TITLE 9, TITLE 17, TITLE 22, AND TITLE 29 OF THE DELAWARE CODE RELATING TO LAND USE."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legis.delaware.gov/BillDetail?LegislationId=143374"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "fl",
+        "H",
+        "919"
+      ],
+      "state": "fl",
+      "jurisdiction": "US-FL",
+      "bill_number": "HB 919",
+      "names": [
+        "Florida Act Relating to AI Use in Political Advertising"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://custom.statenet.com/public/resources.cgi?mode=show_text&id=ID:bill:FL2024000H919&verid=FL2024000H919_20240426_0_CH&"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "fl",
+        "S",
+        "1680"
+      ],
+      "state": "fl",
+      "jurisdiction": "US-FL",
+      "bill_number": "SB 1680",
+      "names": [
+        "Amendment of Florida CSAM Laws"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.flsenate.gov/Session/Bill/2024/1680/ByVersion"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ga",
+        "S",
+        "179"
+      ],
+      "state": "ga",
+      "jurisdiction": "US-GA",
+      "bill_number": "SB 179",
+      "names": [
+        "Education; the academic and disciplinary records of each transferring student shall be provided within five days; require"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.legis.ga.gov/legislation/70372"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ga",
+        "S",
+        "218"
+      ],
+      "state": "ga",
+      "jurisdiction": "US-GA",
+      "bill_number": "SB 218",
+      "names": [
+        "Prosecuting Attorneys Qualifications Commission; shall be assigned for administrative purposes only to the Administrative Office of the Courts; provide"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.legis.ga.gov/legislation/70540"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ga",
+        "S",
+        "466"
+      ],
+      "state": "ga",
+      "jurisdiction": "US-GA",
+      "bill_number": "SB 466",
+      "names": [
+        "Amendment of Georgia CSAM Law"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.legis.ga.gov/api/legislation/document/20232024/223269"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ga",
+        "S",
+        "540"
+      ],
+      "state": "ga",
+      "jurisdiction": "US-GA",
+      "bill_number": "SB 540",
+      "names": [
+        "An ACT concerning Online Internet Safety; certain disclosures related to conversational AI services",
+        "Online Internet Safety; certain disclosures related to conversational AI services; require"
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/gasb540.pdf",
+        "https://www.legis.ga.gov/legislation/73452"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "hi",
+        "H",
+        "2137"
+      ],
+      "state": "hi",
+      "jurisdiction": "US-HI",
+      "bill_number": "HB 2137",
+      "names": [
+        "RELATING TO ARTIFICIAL INTELLIGENCE."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=HB&billnumber=2137&year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "hi",
+        "H",
+        "2319"
+      ],
+      "state": "hi",
+      "jurisdiction": "US-HI",
+      "bill_number": "HB 2319",
+      "names": [
+        "RELATING TO THE STATE HEALTH PLANNING AND DEVELOPMENT AGENCY."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=HB&billnumber=2319&year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "hi",
+        "S",
+        "309"
+      ],
+      "state": "hi",
+      "jurisdiction": "US-HI",
+      "bill_number": "SB 309",
+      "names": [
+        "Amendment to Intimate Image Law"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://data.capitol.hawaii.gov/sessions/session2021/Bills/SB309_SD1_.HTM"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "hi",
+        "S",
+        "2135"
+      ],
+      "state": "hi",
+      "jurisdiction": "US-HI",
+      "bill_number": "SB 2135",
+      "names": [
+        "RELATING TO PRIVACY."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=SB&billnumber=2135&year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "hi",
+        "S",
+        "2687"
+      ],
+      "state": "hi",
+      "jurisdiction": "US-HI",
+      "bill_number": "SB 2687",
+      "names": [
+        "Deceptive Media in Election Advertisements"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://data.capitol.hawaii.gov/sessions/session2024/bills/SB2687_CD1_.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "hi",
+        "S",
+        "3001"
+      ],
+      "state": "hi",
+      "jurisdiction": "US-HI",
+      "bill_number": "SB 3001",
+      "names": [
+        "RELATING TO ARTIFICIAL INTELLIGENCE."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.capitol.hawaii.gov/session/measure_indiv.aspx?billtype=SB&billnumber=3001&year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ia",
+        "H",
+        "2635"
+      ],
+      "state": "ia",
+      "jurisdiction": "US-IA",
+      "bill_number": "HF 2635",
+      "names": [
+        "Health Insurance Trade Practices",
+        "A bill for an act relating to health carriers standards of conduct; utilization review organizations, artificial intelligence, audits, and prior authorizations; certificate of need processes; and including applicability provisions. (Formerly HF 2438.) Effective date: 07/01/2026."
+      ],
+      "topics": [
+        "AI in Insurance",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/hf2635-(1).pdf",
+        "https://www.legis.iowa.gov/legislation/BillBook?ga=91&ba=HF%202635"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ia",
+        "S",
+        "2417"
+      ],
+      "state": "ia",
+      "jurisdiction": "US-IA",
+      "bill_number": "SF 2417",
+      "names": [
+        "An Act Establishing Requirements and Guidelines for Conversational AI Services",
+        "A bill for an act establishing requirements and guidelines for conversational AI services, and providing civil penalties, and including applicability provisions. (Formerly SSB 3011.) Effective date: 07/01/2026. Applicability date: 07/01/2027."
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/images/sf2417-(1).pdf",
+        "https://www.legis.iowa.gov/legislation/BillBook?ga=91&ba=SF%202417"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "id",
+        "H",
+        "727"
+      ],
+      "state": "id",
+      "jurisdiction": "US-ID",
+      "bill_number": "HB 727",
+      "names": [
+        "SEX CRIMES \u2013 Amends existing law to revise a provision regarding video voyeurism and to revise a penalty for disclosing explicit synthetic media."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legislature.idaho.gov/sessioninfo/2026/legislation/H0727"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "id",
+        "S",
+        "1227"
+      ],
+      "state": "id",
+      "jurisdiction": "US-ID",
+      "bill_number": "S 1227",
+      "names": [
+        "Generative Artificial Intelligence in Education",
+        "EDUCATION \u2013 Adds to existing law to establish provisions regarding generative artificial intelligence in public education."
+      ],
+      "topics": [
+        "AI in Education",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legislature.idaho.gov/wp-content/uploads/sessioninfo/2026/legislation/S1227.pdf",
+        "https://legislature.idaho.gov/sessioninfo/2026/legislation/S1227"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "id",
+        "S",
+        "1297"
+      ],
+      "state": "id",
+      "jurisdiction": "US-ID",
+      "bill_number": "S 1297",
+      "names": [
+        "Conversational AI Safety Act",
+        "ARTIFICIAL INTELLIGENCE \u2013 Adds to existing law to establish the Conversational AI Safety Act."
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/s1297.pdf",
+        "https://legislature.idaho.gov/sessioninfo/2026/legislation/S1297"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "H",
+        "2949"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "HB 2949",
+      "names": [
+        "FY27 BUDGET IMPLEMENTATION"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://ilga.gov/Legislation/BillStatus?DocNum=2949&GAID=18&DocTypeID=HB&LegId=161156&SessionID=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "H",
+        "4762"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "HB 4762",
+      "names": [
+        "Digital Voice and Likeness Protection Act"
+      ],
+      "topics": [
+        "AI Likeness"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://ilga.gov/legislation/publicacts/fulltext.asp?Name=103-0830"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "S",
+        "318"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "SB 318",
+      "names": [
+        "BUSINESS-TECH"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://ilga.gov/Legislation/BillStatus?DocNum=318&GAID=18&DocTypeID=SB&LegId=157800&SessionID=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "S",
+        "3114"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "SB 3114",
+      "names": [
+        "TRANSPARENCY IN DOWNCODING ACT"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://ilga.gov/Legislation/BillStatus?DocNum=3114&GAID=18&DocTypeID=SB&LegId=165735&SessionID=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "in",
+        "H",
+        "1271"
+      ],
+      "state": "in",
+      "jurisdiction": "US-IN",
+      "bill_number": "HB 1271",
+      "names": [
+        "Payment of Health Claims",
+        "A BILL FOR AN ACT to amend the Indiana Code concerning insurance."
+      ],
+      "topics": [
+        "AI Healthcare",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://iga.in.gov/pdf-documents/124/2026/house/bills/HB1271/HB1271.07.ENRS.pdf",
+        "http://iga.in.gov/legislative/2026/bills/house/1271"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "in",
+        "S",
+        "180"
+      ],
+      "state": "in",
+      "jurisdiction": "US-IN",
+      "bill_number": "SB 180",
+      "names": [
+        "A BILL FOR AN ACT to amend the Indiana Code concerning health."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://iga.in.gov/legislative/2026/bills/senate/180"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "in",
+        "S",
+        "256"
+      ],
+      "state": "in",
+      "jurisdiction": "US-IN",
+      "bill_number": "SB 256",
+      "names": [
+        "An Act to Amend the Indiana Code Concerning State Offices and Administration"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://iga.in.gov/pdf-documents/124/2026/senate/bills/SB0256/SB0256.06.ENRH.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ks",
+        "H",
+        "2183"
+      ],
+      "state": "ks",
+      "jurisdiction": "US-KS",
+      "bill_number": "HB 2183",
+      "names": [
+        "Modifying elements in the crimes of sexual exploitation of a child, unlawful transmission of a visual depiction of a child and breach of privacy to prohibit certain acts related to visual depictions in which the person depicted is indistinguishable from a real child, morphed from a real child's image or generated without any actual child involvement, provide an exception for cable services in the crime of breach of privacy and prohibit dissemination of certain items that appear to depict or purport to depict an identifiable person."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.kslegislature.gov/bills/HB2183/"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ks",
+        "H",
+        "2479"
+      ],
+      "state": "ks",
+      "jurisdiction": "US-KS",
+      "bill_number": "HB 2479",
+      "names": [
+        "K.S.A. 21-5428"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/kshb2479.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ks",
+        "H",
+        "2518"
+      ],
+      "state": "ks",
+      "jurisdiction": "US-KS",
+      "bill_number": "HB 2518",
+      "names": [
+        "Enacting the Kansas transparency in consumer legal funding act."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.kslegislature.gov/bills/HB2518/"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ks",
+        "H",
+        "2537"
+      ],
+      "state": "ks",
+      "jurisdiction": "US-KS",
+      "bill_number": "HB 2537",
+      "names": [
+        "K.S.A. 21-5515 Caleb's Law",
+        "Increasing the penalties for the crime of sexual extortion when an offender is 18 years of age or older and the victim is less than 18 years of age or a dependent adult, creating the crimes of aggravated sexual extortion causing great bodily harm and aggravated sexual extortion causing death and requiring the attorney general to prepare and provide educational materials and information concerning such crimes."
+      ],
+      "topics": [
+        "AI Intimate Images",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/kshb2537.pdf",
+        "https://www.kslegislature.gov/bills/HB2537/"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ks",
+        "S",
+        "2313"
+      ],
+      "state": "ks",
+      "jurisdiction": "US-KS",
+      "bill_number": "SB 2313",
+      "names": [
+        "AI Platforms of Concern"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://kslegislature.gov/li/b2025_26/measures/documents/hb2313_enrolled.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ky",
+        "H",
+        "207"
+      ],
+      "state": "ky",
+      "jurisdiction": "US-KY",
+      "bill_number": "HB 207",
+      "names": [
+        "Amendment to CSAM Law",
+        "Amendment to Intimate Images law"
+      ],
+      "topics": [
+        "AI CSAM",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://apps.legislature.ky.gov/recorddocuments/bill/24RS/hb207/bill.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ky",
+        "H",
+        "366"
+      ],
+      "state": "ky",
+      "jurisdiction": "US-KY",
+      "bill_number": "HB 366",
+      "names": [
+        "AN ACT relating to possession or viewing of matter portraying a sexual performance by a minor."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://apps.legislature.ky.gov/RECORD/26rs/hb366.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ky",
+        "H",
+        "692"
+      ],
+      "state": "ky",
+      "jurisdiction": "US-KY",
+      "bill_number": "HB 692",
+      "names": [
+        "AN ACT relating to data privacy."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://apps.legislature.ky.gov/RECORD/26rs/hb692.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "la",
+        "H",
+        "134"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "HB 134",
+      "names": [
+        "CONTRACTS: Provides relative to material harmful to minors (EN SEE FISC NOTE SG EX)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=249777"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "la",
+        "H",
+        "475"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "HB 475",
+      "names": [
+        "HEALTH CARE/PROVIDERS: Requires a healthcare provider to obtain a patient's consent prior to recording a medical visit"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=250300"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "la",
+        "H",
+        "784"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "HB 784",
+      "names": [
+        "SEX OFFENSE/REGISTRY: Provides relative to sex offender registration and notification requirements"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=250671"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "la",
+        "S",
+        "133"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "SB 133",
+      "names": [
+        "MOTOR VEHICLES: Provides relative to oversight of commercial vehicle parking. (8/1/26)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=250054"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ma",
+        "H",
+        "4744"
+      ],
+      "state": "ma",
+      "jurisdiction": "US-MA",
+      "bill_number": "HB 4744",
+      "names": [
+        "Amendment to the Massachusetts Intimate Images Law"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://malegislature.gov/Laws/SessionLaws/Acts/2024/Chapter118"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "H",
+        "895"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "HB 895",
+      "names": [
+        "Maryland Protection from Predatory Pricing Act",
+        "Food Retailers and Third-Party Delivery Service Providers - Dynamic Pricing and Personal Data (Protection From Predatory Pricing Act)"
+      ],
+      "topics": [
+        "Algorithmic Pricing",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://mgaleg.maryland.gov/2026RS/bills/hb/hb0895e.pdf",
+        "https://mgaleg.maryland.gov/mgawebsite/Legislation/Details/hb0895?ys=2026RS"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "H",
+        "1563"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "HB 1563",
+      "names": [
+        "AN ACT concerning Emergency Room Services and Post\u2013Acute Care \u2013 Coverage and Facility Studies"
+      ],
+      "topics": [
+        "AI Healthcare"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/hb1563t.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "S",
+        "8"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "SB 8",
+      "names": [
+        "An Act Concerning Artificial Intelligence and Deepfake Representations",
+        "Criminal Law - Identity Fraud - Artificial Intelligence and Deepfake Representations"
+      ],
+      "topics": [
+        "AI Deepfakes",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/mdsb8.pdf",
+        "https://mgaleg.maryland.gov/mgawebsite/Legislation/Details/sb0008?ys=2026RS"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "S",
+        "114"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "SB 114",
+      "names": [
+        "3-1-1 Systems - Expansion Program and Oversight Board - Establishment"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://mgaleg.maryland.gov/mgawebsite/Legislation/Details/sb0114?ys=2026RS"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "S",
+        "141"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "SB 141",
+      "names": [
+        "An Act Concerning Election Misinformation, Election Disinformation, and Deepfakes",
+        "Election Law - Election Misinformation, Election Disinformation, and Deepfakes"
+      ],
+      "topics": [
+        "AI in Political Advertising",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/mdsb141-(1).pdf",
+        "https://mgaleg.maryland.gov/mgawebsite/Legislation/Details/sb0141?ys=2026RS"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "S",
+        "221"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "SB 221",
+      "names": [
+        "Criminal Law - Child Pornography - Prohibitions and Penalties"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://mgaleg.maryland.gov/mgawebsite/Legislation/Details/sb0221?ys=2026RS"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "S",
+        "597"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "SB 597",
+      "names": [
+        "Higher Education - Maryland Artificial Intelligence Partnership"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://mgaleg.maryland.gov/mgawebsite/Legislation/Details/sb0597?ys=2026RS"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "md",
+        "S",
+        "720"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "SB 720",
+      "names": [
+        "Artificial Intelligence Ready Schools Act",
+        "Education - Artificial Intelligence - Guidelines, Professional Development, and Collaborative (Artificial Intelligence Ready Schools Act)"
+      ],
+      "topics": [
+        "AI in Education",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://mgaleg.maryland.gov/2026RS/Chapters_noln/CH_634_sb0720e.pdf",
+        "https://mgaleg.maryland.gov/mgawebsite/Legislation/Details/sb0720?ys=2026RS"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "me",
+        "H",
+        "1397"
+      ],
+      "state": "me",
+      "jurisdiction": "US-ME",
+      "bill_number": "HP 1397",
+      "names": [
+        "AI in Therapy and Psychotherapy"
+      ],
+      "topics": [
+        "AI Healthcare",
+        "User-Facing AI"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/mehp1397.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "me",
+        "LD",
+        "524"
+      ],
+      "state": "me",
+      "jurisdiction": "US-ME",
+      "bill_number": "LD 524",
+      "names": [
+        "An Act to Reduce Trafficking in the State"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.maine.gov/LawMakerWeb/summary.asp?ID=280096447"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "me",
+        "LD",
+        "2052"
+      ],
+      "state": "me",
+      "jurisdiction": "US-ME",
+      "bill_number": "LD 2052",
+      "names": [
+        "Resolve, to Study the Use of Technology in Classrooms and Study Safeguards Related to Its Use"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.maine.gov/LawMakerWeb/summary.asp?ID=280100941"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mi",
+        "H",
+        "5141"
+      ],
+      "state": "mi",
+      "jurisdiction": "US-MI",
+      "bill_number": "HB 5141",
+      "names": [
+        "AI Political Disclaimer Law"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.legislature.mi.gov/documents/2023-2024/publicact/htm/2023-PA-0263.htm"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mi",
+        "H",
+        "5144"
+      ],
+      "state": "mi",
+      "jurisdiction": "US-MI",
+      "bill_number": "HB 5144",
+      "names": [
+        "AI Political Deepfake Law"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.legislature.mi.gov/documents/2023-2024/publicact/pdf/2023-PA-0265.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mn",
+        "H",
+        "1370"
+      ],
+      "state": "mn",
+      "jurisdiction": "US-MN",
+      "bill_number": "HF 1370",
+      "names": [
+        "Non-Consensual Dissemination of a Deepfake"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.revisor.mn.gov/bills/bill.php?b=house&f=hf1370&ssn=0&y=2023"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mn",
+        "H",
+        "1606"
+      ],
+      "state": "mn",
+      "jurisdiction": "US-MN",
+      "bill_number": "HF 1606",
+      "names": [
+        "Nudification technology access prohibited."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.revisor.mn.gov/bills/94/2025/0/HF/1606/"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mn",
+        "H",
+        "2432"
+      ],
+      "state": "mn",
+      "jurisdiction": "US-MN",
+      "bill_number": "HF 2432",
+      "names": [
+        "Amendment to the Minnesota CSAM Statute"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.revisor.mn.gov/bills/bill.php?view=chrono&b=House&f=HF2432&ssn=0&y=2025"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mn",
+        "H",
+        "4188"
+      ],
+      "state": "mn",
+      "jurisdiction": "US-MN",
+      "bill_number": "HF 4188",
+      "names": [
+        "Commerce policy bill."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.revisor.mn.gov/bills/94/2026/0/HF/4188/"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mn",
+        "S",
+        "4097"
+      ],
+      "state": "mn",
+      "jurisdiction": "US-MN",
+      "bill_number": "SF 4097",
+      "names": [
+        "Prohibiting Social Media Manipulation Act"
+      ],
+      "topics": [
+        "AI in Social Media & Online Platforms"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.revisor.mn.gov/bills/bill.php?view=chrono&b=Senate&f=SF4097&ssn=0&y=2023"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mn",
+        "S",
+        "4760"
+      ],
+      "state": "mn",
+      "jurisdiction": "US-MN",
+      "bill_number": "SF 4760",
+      "names": [
+        "Omnibus Public Safety policy bill"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.revisor.mn.gov/bills/94/2026/0/SF/4760/"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mo",
+        "H",
+        "2372"
+      ],
+      "state": "mo",
+      "jurisdiction": "US-MO",
+      "bill_number": "HB 2372",
+      "names": [
+        "HEALTH CARE"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://house.mo.gov/bill.aspx?bill=HB2372&year=2026&code=R"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mo",
+        "S",
+        "999"
+      ],
+      "state": "mo",
+      "jurisdiction": "US-MO",
+      "bill_number": "SB 999",
+      "names": [
+        "Modifies provisions relating to vulnerable persons"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.senate.mo.gov/BillTracking/Bills/BillInformation?year=2026&billid=290"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mo",
+        "S",
+        "1019"
+      ],
+      "state": "mo",
+      "jurisdiction": "US-MO",
+      "bill_number": "SB 1019",
+      "names": [
+        "Modifies several provisions relating to health care"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.senate.mo.gov/BillTracking/Bills/BillInformation?year=2026&billid=422"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ms",
+        "H",
+        "1723"
+      ],
+      "state": "ms",
+      "jurisdiction": "US-MS",
+      "bill_number": "HB 1723",
+      "names": [
+        "Definition of Artificial Intelligence",
+        "Artificial intelligence; define."
+      ],
+      "topics": [
+        "AI Definition",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://billstatus.ls.state.ms.us/2026/pdf/history/HB/HB1723.xml"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ms",
+        "S",
+        "2269"
+      ],
+      "state": "ms",
+      "jurisdiction": "US-MS",
+      "bill_number": "SB 2269",
+      "names": [
+        "MS Fully Autonomous Vehicle Enabling Act; extend repealer on law enforcement interaction plan submission to DPS."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://billstatus.ls.state.ms.us/2026/pdf/history/SB/SB2269.xml"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ms",
+        "S",
+        "2294"
+      ],
+      "state": "ms",
+      "jurisdiction": "US-MS",
+      "bill_number": "SB 2294",
+      "names": [
+        "Education; institute initiatives to promote literacy in math, reading, finance, computer science, and civics."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://billstatus.ls.state.ms.us/2026/pdf/history/SB/SB2294.xml"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ms",
+        "S",
+        "2577"
+      ],
+      "state": "ms",
+      "jurisdiction": "US-MS",
+      "bill_number": "SB 2577",
+      "names": [
+        "AI Political Deepfake Law"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://billstatus.ls.state.ms.us/2024/pdf/history/SB/SB2577.xml"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mt",
+        "H",
+        "178"
+      ],
+      "state": "mt",
+      "jurisdiction": "US-MT",
+      "bill_number": "HB 178",
+      "names": [
+        "Montana Government AI Use Law"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://docs.legmt.gov/download-ticket?ticketId=907ba0c7-2666-4edc-938e-7f66bf3de5cb"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mt",
+        "S",
+        "25"
+      ],
+      "state": "mt",
+      "jurisdiction": "US-MT",
+      "bill_number": "SB 25",
+      "names": [
+        "AI Deepfakes in Elections"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://docs.legmt.gov/download-ticket?ticketId=79409647-ee8e-4eda-aceb-c7e125083fda"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "mt",
+        "S",
+        "212"
+      ],
+      "state": "mt",
+      "jurisdiction": "US-MT",
+      "bill_number": "SB 212",
+      "names": [
+        "Right to Compute Act"
+      ],
+      "topics": [
+        "AI in Critical Infrastructure"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://docs.legmt.gov/download-ticket?ticketId=a64e8bac-75d1-42b8-a672-82870e842ab0"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "nc",
+        "H",
+        "591"
+      ],
+      "state": "nc",
+      "jurisdiction": "US-NC",
+      "bill_number": "HB 591",
+      "names": [
+        "Amendment of North Carolina CSAM Laws",
+        "North Carolina Intimate Images Laws"
+      ],
+      "topics": [
+        "AI CSAM",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.ncleg.gov/BillLookup/2023/H591"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "nc",
+        "S",
+        "257"
+      ],
+      "state": "nc",
+      "jurisdiction": "US-NC",
+      "bill_number": "SB 257",
+      "names": [
+        "2026 Appropriations Act."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://ncleg.gov/BillLookUp/2025/S257"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ne",
+        "LB",
+        "383"
+      ],
+      "state": "ne",
+      "jurisdiction": "US-NE",
+      "bill_number": "LB 383",
+      "names": [
+        "Amendment of Nebraska CSAM Laws"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://nebraskalegislature.gov/FloorDocs/109/PDF/Slip/LB383.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "nh",
+        "S",
+        "622"
+      ],
+      "state": "nh",
+      "jurisdiction": "US-NH",
+      "bill_number": "SB 622",
+      "names": [
+        "relative to the offense of identity fraud."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://gc.nh.gov/bill_status/billinfo.aspx?id=1393&sy=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "nj",
+        "H",
+        "3497"
+      ],
+      "state": "nj",
+      "jurisdiction": "US-NJ",
+      "bill_number": "A 3497",
+      "names": [
+        "Establishes \"Forbidding the Algorithmic Inflation of Rent (FAIR) Act.\" *"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.njleg.state.nj.us/bill-search/2026/A3497"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "nj",
+        "H",
+        "4085"
+      ],
+      "state": "nj",
+      "jurisdiction": "US-NJ",
+      "bill_number": "A 4085",
+      "names": [
+        "Establishes \"Fair Price Protection Act.\"*"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.njleg.state.nj.us/bill-search/2026/A4085"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "H",
+        "433"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "A 433",
+      "names": [
+        "Automated Employment Decision-Making in State Government As amended by S8831"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.nysenate.gov/legislation/laws/STT/-CH57-A"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "H",
+        "9449"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "A 9449",
+      "names": [
+        "Relates to transparency and safety requirements for developers of artificial intelligence models"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=A09449&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "H",
+        "9487"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "A 9487",
+      "names": [
+        "Relates to the use of automated employment decision-making tools and artificial intelligence systems by certain state and local entities; repealer"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=A09487&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "H",
+        "10005"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "A 10005",
+      "names": [
+        "Enacts into law major components of legislation necessary to implement the state public protection and general government budget for the 2026-2027 state fiscal year"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=A10005&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "H",
+        "10006"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "A 10006",
+      "names": [
+        "Enacts into law major components of legislation necessary to implement the state education, labor, housing and family assistance budget for the 2026-2027 state fiscal year"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=A10006&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "H",
+        "10008"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "A 10008C",
+      "names": [
+        "Safe By Design Act",
+        "Enacts into law major components of legislation necessary to implement the state transportation, economic development and environmental conservation budget for the 2026-2027 state fiscal year"
+      ],
+      "topics": [
+        "AI in Social Media & Online Platforms",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/ny-a10008.pdf",
+        "https://assembly.state.ny.us/leg/?bn=A10008&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "1042"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "SB 1042A",
+      "names": [
+        "Amendment to the New York Statute Prohibiting Unlawful Dissemination or Publication of Intimate Images"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.nysenate.gov/legislation/bills/2023/S1042/amendment/A"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "8420"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 8420A",
+      "names": [
+        "Synthetic Performer Disclosures"
+      ],
+      "topics": [
+        "AI Transparency"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.nysenate.gov/legislation/bills/2025/S8420/amendment/A"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "8793"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 8793",
+      "names": [
+        "Relates to prohibiting the procurement of certain technology and products which pose a state or national security risk"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=S08793&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "8828"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 8828",
+      "names": [
+        "Relates to transparency and safety requirements for developers of artificial intelligence models"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=S08828&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "9000"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 9000",
+      "names": [
+        "STATE OPERATIONS BUDGET"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=S09000&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "9005"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 9005",
+      "names": [
+        "Enacts into law major components of legislation necessary to implement the state public protection and general government budget for the 2026-2027 state fiscal year"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=S09005&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "9006"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 9006",
+      "names": [
+        "Enacts into law major components of legislation necessary to implement the state education, labor, housing and family assistance budget for the 2026-2027 state fiscal year"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=S09006&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "9832"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 9832",
+      "names": [
+        "New York State Fashion Workers Act"
+      ],
+      "topics": [
+        "AI Likeness"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legislation.nysenate.gov/pdf/bills/2023/S9832"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ok",
+        "H",
+        "3244"
+      ],
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "bill_number": "HB 3244",
+      "names": [
+        "Crimes and punishments; modifying elements of certain unlawful acts; aggravated identity theft; effective date."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "http://www.oklegislature.gov/BillInfo.aspx?Bill=HB3244&session=2600"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ok",
+        "H",
+        "3642"
+      ],
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "bill_number": "HB 3642",
+      "names": [
+        "Oklahoma AI CSAM Laws"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.oklegislature.gov/BillInfo.aspx?Bill=hb3642&Session=2400"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ok",
+        "S",
+        "546"
+      ],
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "bill_number": "SB 546",
+      "names": [
+        "Oklahoma Data Privacy Act"
+      ],
+      "topics": [
+        "Automated Decision-Making"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.oklegislature.gov/cf_pdf/2025-26%20ENR/SB/SB546%20ENR.PDF"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ok",
+        "S",
+        "1627"
+      ],
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "bill_number": "SB 1627",
+      "names": [
+        "Crimes and punishments; amending, merging, consolidating, and repealing multiple versions of statutes. Emergency."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB1627&session=2600"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ok",
+        "S",
+        "1670"
+      ],
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "bill_number": "SB 1670",
+      "names": [
+        "Higher education; directing certain model policy established by the Oklahoma State Regents for Higher Education to include certain tiered system of ownership. Effective date. Emergency."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB1670&session=2600"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ok",
+        "S",
+        "1734"
+      ],
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "bill_number": "SB 1734",
+      "names": [
+        "Oklahoma Responsible Technology in Schools Act",
+        "Schools; creating the Oklahoma Responsible Technology in Schools Act; requiring development of guidance for use of artificial intelligence and emerging technologies. Effective date. Emergency."
+      ],
+      "topics": [
+        "AI in Education",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/ok-sb-1734.pdf",
+        "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB1734&session=2600"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ok",
+        "S",
+        "2184"
+      ],
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "bill_number": "SB 2184",
+      "names": [
+        "Multiple versions of statutes; amending, merging, consolidating and repealing multiple versions of statutes. Emergency."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "http://www.oklegislature.gov/BillInfo.aspx?Bill=SB2184&session=2600"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "or",
+        "S",
+        "1546"
+      ],
+      "state": "or",
+      "jurisdiction": "US-OR",
+      "bill_number": "SB 1546",
+      "names": [
+        "Artificial Intelligence Companions Act",
+        "Relating to artificial intelligence companions."
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/sb1546.pdf",
+        "https://olis.oregonlegislature.gov/liz/2026R1/Measures/Overview/SB1546"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "or",
+        "S",
+        "1571"
+      ],
+      "state": "or",
+      "jurisdiction": "US-OR",
+      "bill_number": "SB 1571",
+      "names": [
+        "Use of AI in Campaign Communications Law"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://olis.oregonlegislature.gov/liz/2024R1/Measures/Overview/SB1571"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "pa",
+        "S",
+        "1213"
+      ],
+      "state": "pa",
+      "jurisdiction": "US-PA",
+      "bill_number": "SB 1213",
+      "names": [
+        "Amendment of Pennsylvania CSAM Laws",
+        "Amendment of Pennsylvania Intimate Images Laws"
+      ],
+      "topics": [
+        "AI CSAM",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.legis.state.pa.us/CFDOCS/Legis/PN/Public/btCheck.cfm?txtType=PDF&sessYr=2023&sessInd=0&billBody=S&billTyp=B&billNbr=1213&pn=1946"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ri",
+        "H",
+        "8060"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "HB 8060",
+      "names": [
+        "AN ACT RELATING TO CRIMINAL OFFENSES -- IMPERSONATION AND IDENTITY FRAUD (Protects individuals and businesses from those who knowingly impersonate an entity with the intent of facilitating fraud. This act would also protect individuals and businesses from digital forgery.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/HouseText26/H8060A.htm"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ri",
+        "S",
+        "3338"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "SB 3338",
+      "names": [
+        "AN ACT RELATING TO CRIMINAL OFFENSES -- IMPERSONATION AND IDENTITY FRAUD (Protects individuals and businesses from those who knowingly impersonate an entity with the intent of facilitating fraud. This act would also protect individuals and businesses from digital forgery.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/SenateText26/S3338.htm"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "sc",
+        "H",
+        "4591"
+      ],
+      "state": "sc",
+      "jurisdiction": "US-SC",
+      "bill_number": "HB 4591",
+      "names": [
+        "Stop Harm from Addictive Social Media"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://www.scstatehouse.gov/sess126_2025-2026/bills/4591.htm"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "sd",
+        "S",
+        "41"
+      ],
+      "state": "sd",
+      "jurisdiction": "US-SD",
+      "bill_number": "SB 41",
+      "names": [
+        "revise a provision related to criminal invasions of privacy, prohibit the creation and distribution of digitally fabricated material of an identifiable individual, and provide penalties therefor."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://sdlegislature.gov/#/Session/Bill/26753"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "sd",
+        "S",
+        "79"
+      ],
+      "state": "sd",
+      "jurisdiction": "US-SD",
+      "bill_number": "SB 79",
+      "names": [
+        "Amendment of South Dakota CSAM Laws"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://sdlegislature.gov/Session/Bill/24991"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "sd",
+        "S",
+        "164"
+      ],
+      "state": "sd",
+      "jurisdiction": "US-SD",
+      "bill_number": "SB 164",
+      "names": [
+        "An Act to Prohibit the Use of a Deepfake to Influence an Election"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://mylrc.sdlegislature.gov/api/Documents/284327.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "H",
+        "1513"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "HB 1513",
+      "names": [
+        "Election Laws - As enacted, requires political advertisements to include a disclaimer if the advertisements include deepfake elements impersonating or depicting a candidate engaging in activity or speech in which the impersonated or depicted candidate did not in fact engage; makes a violation of such disclaimer requirement a Class C misdemeanor; entitles candidate to damages and equitable relief for violations. - Amends TCA Title 2, Chapter 19. HB1513 has been assigned Public Chapter Number 625 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=HB1513&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "H",
+        "2408"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "HB 2408",
+      "names": [
+        "Telecommunications - As enacted, requires a person or entity that makes telephone solicitations using an automated telephone dialing system to delivery artificial or prerecorded voice messages to residential subscribers in this state to maintain a record of the number of such telephone solicitations made each month; makes other related changes. - Amends TCA Title 47, Chapter 18; Title 65 and Title 67. HB2408 has been assigned Public Chapter Number 1029 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=HB2408&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "677"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 677",
+      "names": [
+        "Education, Dept. of - As enacted, requires the department to provide at least one professional development course that provides asynchronous instruction on the use of artificial intelligence in the classroom and that is made available, at no cost, to teachers in grades 6-12; requires such teachers to complete at least one department-approved professional development course on the use of artificial intelligence in the classroom by the later of August 1, 2028, or within two years of becoming licensed as a teacher in this state. - Amends TCA Title 49. SB0677 has been assigned Public Chapter Number 1056 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB0677&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "837"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 837",
+      "names": [
+        "Statutes and Codification - As enacted, clarifies that a \"person,\" as used in Tennessee Code Annotated, does not include artificial intelligence, a computer algorithm, a software program, computer hardware, or any type of machine. - Amends TCA Title 1. SB0837 has been assigned Public Chapter Number 781 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB0837&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "1493"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 1493",
+      "names": [
+        "Computers and Electronic Processing - As enacted, requires TACIR to study artificial intelligence and submit a report to the governor and both speakers by January 31, 2027. - Amends TCA Title 29; Title 33; Title 39 and Title 47. SB1493 has been assigned Public Chapter Number 1066 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB1493&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "1580"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 1580",
+      "names": [
+        "Mental Health AI",
+        "Health Care - As enacted, prohibits a person from developing or deploying an artificial intelligence system that advertises or represents to the public that such system is or is able to act as a qualified mental health professional. - Amends TCA Title 33; Title 47 and Title 63. SB1580 has been assigned Public Chapter Number 647 by the Secretary of State."
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/sb1580.pdf",
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB1580&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "1700"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 1700",
+      "names": [
+        "Consumer Protection - As enacted, requires the Tennessee advisory commission on intergovernmental relations (TACIR) to conduct a study of the potential regulation of artificial intelligence systems and generative artificial intelligence chatbots in this state. - Amends TCA Title 29; Title 37 and Title 47. SB1700 has been assigned Public Chapter Number 1082 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB1700&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "1815"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 1815",
+      "names": [
+        "Criminal Offenses - As enacted, enacts the \"Grace Anne Sparks Coercive Suicide Prevention Law of 2026.\" - Amends TCA Title 39. SB1815 has been assigned Public Chapter Number 1098 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB1815&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "2253"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 2253",
+      "names": [
+        "Traffic Safety - As enacted, establishes process regarding traffic violations committed by autonomous vehicles, including mailing the notice of violation or citation to the registered owner of the vehicle. - Amends TCA Title 55, Chapter 30 and Title 55, Chapter 8. SB2253 has been assigned Public Chapter Number 726 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB2253&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tn",
+        "S",
+        "2690"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "SB 2690",
+      "names": [
+        "Appropriations - As enacted, makes appropriations for the fiscal years beginning July 1, 2025, and July 1, 2026. - SB2690 has been assigned Public Chapter Number 1142 by the Secretary of State."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://wapp.capitol.tn.gov/apps/Billinfo/default.aspx?BillNumber=SB2690&ga=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "H",
+        "441"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "HB 441",
+      "names": [
+        "Unlawful Production or Distribution of Certain Sexually Explicit Material"
+      ],
+      "topics": [
+        "AI in Social Media & Online Platforms",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00441F.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "H",
+        "581"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "HB 581",
+      "names": [
+        "AI Sexual Material Harmful to Minors"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/HB00581F.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "H",
+        "2700"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "HB 2700",
+      "names": [
+        "Amendment of Texas CSAM Laws"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/BillLookup/Text.aspx?LegSess=88R&Bill=HB2700"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "20"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 20",
+      "names": [
+        "Visual Material Appearing to Depict a Child"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00020F.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "837"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 837",
+      "names": [
+        "Law Relating to Personhood"
+      ],
+      "topics": [
+        "AI Definition"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/sb0837.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "1188"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 1188",
+      "names": [
+        "Artificial Intelligence in Electronic Health Record"
+      ],
+      "topics": [
+        "AI Healthcare"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB01188F.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "1361"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 1361",
+      "names": [
+        "Unlawful Distribution of Sexually Explicit Videos"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legiscan.com/TX/bill/SB1361/2023"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "1621"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 1621",
+      "names": [
+        "Amendment to the CSAM Statutes"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB01621F.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "2373"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 2373",
+      "names": [
+        "Financial Abuse Using Artificially Generated Media or Phishing"
+      ],
+      "topics": [
+        "AI Deepfakes"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB02373F.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "2"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 2",
+      "names": [
+        "New Fiscal Year Supplemental Appropriations"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/~2026/bills/static/HB0002.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "148"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 148",
+      "names": [
+        "Artificial Pornographic Images Amendments"
+      ],
+      "topics": [
+        "AI CSAM",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://le.utah.gov/~2024/bills/static/HB0148.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "218"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 218",
+      "names": [
+        "Digital Skills Amendments"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/~2026/bills/static/HB0218.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "238"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 238",
+      "names": [
+        "Sexually Explicit Minor Amendments"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://le.utah.gov/~2024/bills/static/HB0238.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "273"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 273",
+      "names": [
+        "Classroom Technology Amendments"
+      ],
+      "topics": [
+        "AI in Education",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/Session/2026/bills/enrolled/HB0273.pdf",
+        "https://le.utah.gov/~2026/bills/static/HB0273.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "276"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 276",
+      "names": [
+        "Digital Content Provenance Standards Act",
+        "Digital Voyeurism Prevention Act",
+        "Government Website Provenance Records",
+        "Artificial Intelligence Modifications"
+      ],
+      "topics": [
+        "AI Transparency",
+        "AI Intimate Images",
+        "AI in Social Media & Online Platforms",
+        "AI in Government",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/Session/2026/bills/enrolled/HB0276.pdf",
+        "https://le.utah.gov/~2026/bills/static/HB0276.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "289"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 289",
+      "names": [
+        "Child Sexual Abuse Material Amendments"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/~2026/bills/static/HB0289.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "320"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 320",
+      "names": [
+        "Office of Artificial Intelligence Policy Amendments"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/~2026/bills/static/HB0320.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "H",
+        "450"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "HB 450",
+      "names": [
+        "Data Privacy Amendments"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/~2026/bills/static/HB0450.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "S",
+        "38"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "SB 38",
+      "names": [
+        "Consumer Protection Modifications"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/~2026/bills/static/SB0038.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "S",
+        "131"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "SB 131",
+      "names": [
+        "Utah Information Technology Act"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://le.utah.gov/~2024/bills/static/SB0131.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "S",
+        "256"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "SB 256",
+      "names": [
+        "Identity Protection Modifications"
+      ],
+      "topics": [
+        "AI Liability",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/Session/2026/bills/enrolled/SB0256.pdf",
+        "https://le.utah.gov/~2026/bills/static/SB0256.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "S",
+        "292"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "SB 292",
+      "names": [
+        "Autonomous Systems Amendments"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/~2026/bills/static/SB0292.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "S",
+        "298"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "SB 298",
+      "names": [
+        "Programmable Money Amendments"
+      ],
+      "topics": [
+        "Automated Decision-Making"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://le.utah.gov/Session/2026/bills/enrolled/SB0298.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "S",
+        "319"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "SB 319",
+      "names": [
+        "Health Insurance Preauthorization Amendments"
+      ],
+      "topics": [
+        "AI in Insurance",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://le.utah.gov/Session/2026/bills/enrolled/SB0319.pdf",
+        "https://le.utah.gov/~2026/bills/static/SB0319.html"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "B",
+        "2678"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "B 2678",
+      "names": [
+        "Amendment to the Unlawful Dissemination of Images of Another Statute"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legacylis.virginia.gov/cgi-bin/legp604.exe?191+ful+CHAP0490+pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "30"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 30 A",
+      "names": [
+        "Budget Bill."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20262/HB30"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "171"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 171",
+      "names": [
+        "Student instruction; internet safety, policy to include key modern digital safety topics."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB171"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "564"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 564",
+      "names": [
+        "Bus obstruction monitoring systems; parking, stopping, and standing enforcement."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB564"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "580"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 580",
+      "names": [
+        "Consumer Counsel, Division of; establishing mechanisms for receiving and investigating complaints."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB580"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "581"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 581",
+      "names": [
+        "Unauthorized use of voice or likeness; punitive damages, statute of limitations."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB581"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "797"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 797",
+      "names": [
+        "Artificial intelligence; framework for person/entity acting as an independent verification org."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB797"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "1124"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 1124",
+      "names": [
+        "Autonomous vehicles; work group to conduct and assessment of workforce impacts, etc."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB1124"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "1186"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 1186",
+      "names": [
+        "Artificial intelligence; use of systems for student instruction."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB1186"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "H",
+        "1441"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "HB 1441",
+      "names": [
+        "Law-enforcement agencies; agreements with federal authority for immigration enforcement."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/HB1441"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "S",
+        "245"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "SB 245",
+      "names": [
+        "School boards; use of social media by schools, etc."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/SB245"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "S",
+        "384"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "SB 384",
+      "names": [
+        "Artificial intelligence; framework for person/entity acting as an independent verification org."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/SB384"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "S",
+        "394"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "SB 394",
+      "names": [
+        "Artificial intelligence use and safety in instructional settings",
+        "Artificial intelligence; use of systems for student instruction."
+      ],
+      "topics": [
+        "AI in Education",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/vasb394.pdf",
+        "https://lis.virginia.gov/bill-details/20261/SB394"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "S",
+        "429"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "SB 429",
+      "names": [
+        "Health, Department of, and State Health Commissioner; nursing home oversight and accountability."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/SB429"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "S",
+        "583"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "SB 583",
+      "names": [
+        "Bus obstruction monitoring systems; parking, stopping, and standing enforcement."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/SB583"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "S",
+        "731"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "SB 731",
+      "names": [
+        "Amendment to CSAM statute"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legacylis.virginia.gov/cgi-bin/legp604.exe?241+ful+CHAP0262+pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "va",
+        "S",
+        "753"
+      ],
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "bill_number": "SB 753",
+      "names": [
+        "Unauthorized use of voice or likeness; punitive damages, statute of limitations."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://lis.virginia.gov/bill-details/20261/SB753"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "vt",
+        "H",
+        "410"
+      ],
+      "state": "vt",
+      "jurisdiction": "US-VT",
+      "bill_number": "H 410",
+      "names": [
+        "An Act Relating to the Use and Oversight of AI in State Government"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legislature.vermont.gov/bill/status/2022/H.0410"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "vt",
+        "H",
+        "878"
+      ],
+      "state": "vt",
+      "jurisdiction": "US-VT",
+      "bill_number": "H 878",
+      "names": [
+        "Amendment of non-consensual sexual image dissemination statute"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legislature.vermont.gov/Documents/2024/Docs/ACTS/ACT161/ACT161 As Enacted.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "vt",
+        "H",
+        "942"
+      ],
+      "state": "vt",
+      "jurisdiction": "US-VT",
+      "bill_number": "HB 942",
+      "names": [
+        "An act relating to miscellaneous agricultural subjects"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.vermont.gov/bill/status/2026/H.942"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wa",
+        "H",
+        "1999"
+      ],
+      "state": "wa",
+      "jurisdiction": "US-WA",
+      "bill_number": "HB 1999",
+      "names": [
+        "Amendment of Washington Intimate Image Laws",
+        "Amendment of Washington CSAM Laws"
+      ],
+      "topics": [
+        "AI Intimate Images",
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://lawfilesext.leg.wa.gov/biennium/2023-24/Pdf/Bills/Session Laws/House/1999-S.SL.pdf?q=20241030184202"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wa",
+        "S",
+        "5105"
+      ],
+      "state": "wa",
+      "jurisdiction": "US-WA",
+      "bill_number": "SB 5105",
+      "names": [
+        "Concerning offenses involving fabricated depictions of minors."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://apps.leg.wa.gov/billsummary/?BillNumber=5105&year=2025&Initiative=false"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wa",
+        "S",
+        "5395"
+      ],
+      "state": "wa",
+      "jurisdiction": "US-WA",
+      "bill_number": "SB 5395",
+      "names": [
+        "An Act Relating to Making Improvements to Transparency and Accountability in the Prior Authorization Determination Process",
+        "Making improvements to transparency and accountability in the prior authorization determination process."
+      ],
+      "topics": [
+        "AI Healthcare",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://lawfilesext.leg.wa.gov/biennium/2025-26/Pdf/Bills/Session%20Laws/Senate/5395-S2.SL.pdf#page=1",
+        "https://apps.leg.wa.gov/billsummary/?BillNumber=5395&year=2025&Initiative=false"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wa",
+        "S",
+        "5886"
+      ],
+      "state": "wa",
+      "jurisdiction": "US-WA",
+      "bill_number": "SB 5886",
+      "names": [
+        "Concerning forged digital likenesses."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://apps.leg.wa.gov/billsummary/?BillNumber=5886&year=2025&Initiative=false"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wi",
+        "S",
+        "314"
+      ],
+      "state": "wi",
+      "jurisdiction": "US-WI",
+      "bill_number": "SB 314",
+      "names": [
+        "Amendment to the CSAM Statute"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legiscan.com/WI/text/SB314/id/2817005"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wv",
+        "S",
+        "198"
+      ],
+      "state": "wv",
+      "jurisdiction": "US-WV",
+      "bill_number": "SB 198",
+      "names": [
+        "Crimes Against Chastity, Morality and Decency - CSAM",
+        "Crimes Against Chastity, Morality and Decency - Intimate Images"
+      ],
+      "topics": [
+        "AI CSAM",
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "http://www.wvlegislature.gov/Bill_Text_HTML/2025_SESSIONS/RS/bills/sb198 sub1 enr.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wy",
+        "H",
+        "102"
+      ],
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "bill_number": "HB 102",
+      "names": [
+        "Protecting kids from deepfakes and exploitative images."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.wyoleg.gov/Legislation/2026/HB0102"
+      ],
+      "wiki_ids": [],
+      "reject_ids": []
+    }
+  ],
+  "tracked": [
+    {
+      "key": [
+        "al",
+        "H",
+        "351"
+      ],
+      "state": "al",
+      "jurisdiction": "US-AL",
+      "bill_number": "HB 351",
+      "names": [
+        "Alabama Personal Data Protection Act"
+      ],
+      "topics": [
+        "Automated Decision-Making"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2026RS/HB351-enr.pdf"
+      ],
+      "wiki_ids": [
+        "al-2026-hb-351"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "al",
+        "S",
+        "63"
+      ],
+      "state": "al",
+      "jurisdiction": "US-AL",
+      "bill_number": "SB 63",
+      "names": [
+        "Health care plans; to regulate the use of artificial intelligence in determinations of coverage"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://alison.legislature.state.al.us/files/pdf/SearchableInstruments/2026RS/SB63-enr.pdf"
+      ],
+      "wiki_ids": [
+        "al-2026-sb-63"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "1008"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 1008",
+      "names": [
+        "California Consumer Privacy Act"
+      ],
+      "topics": [
+        "AI Privacy"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://url.us.m.mimecastprotect.com/s/xp7nCERxwAs3VRg7vFVtXC7i2_i?domain=fpf.informz.net"
+      ],
+      "wiki_ids": [
+        "ca-2023-ab-1008"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "1836"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 1836",
+      "names": [
+        "Amendment to Deceased Personality Protections"
+      ],
+      "topics": [
+        "AI Likeness"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB1836"
+      ],
+      "wiki_ids": [
+        "ca-2023-ab-1836"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "2013"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 2013",
+      "names": [
+        "Artificial Intelligence Training Data Transparency Act"
+      ],
+      "topics": [
+        "AI Transparency"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB2013"
+      ],
+      "wiki_ids": [
+        "ca-2023-ab-2013"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "2602"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 2602",
+      "names": [
+        "Replica of Voice or Likeness Law"
+      ],
+      "topics": [
+        "AI Likeness"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2602"
+      ],
+      "wiki_ids": [
+        "ca-2023-ab-2602"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "2655"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 2655",
+      "names": [
+        "Defending Democracy from Deepfake Deception Act of 2024 Broadly Enjoined by Kohls v. Bonta (E.D. Cal.) (2:24cv2527)"
+      ],
+      "topics": [
+        "AI in Social Media & Online Platforms"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2655"
+      ],
+      "wiki_ids": [
+        "ca-2023-ab-2655"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ca",
+        "S",
+        "53"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "SB 53",
+      "names": [
+        "Transparency in Frontier Artificial Intelligence Act"
+      ],
+      "topics": [
+        "Frontier or General-Purpose AI"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB53"
+      ],
+      "wiki_ids": [
+        "ca-2025-sb-53"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "co",
+        "H",
+        "1139"
+      ],
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "bill_number": "HB 1139",
+      "names": [
+        "Concerning the Use of Artificial Intelligence in Health Care",
+        "Use of Artificial Intelligence in Health Care"
+      ],
+      "topics": [
+        "AI Healthcare",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/co-hb-1139.pdf",
+        "https://leg.colorado.gov/bills/HB26-1139"
+      ],
+      "wiki_ids": [
+        "co-2026-hb-1139"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "co",
+        "H",
+        "1195"
+      ],
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "bill_number": "HB 1195",
+      "names": [
+        "Concerning Restrictions on the Use of Artificial Intelligence Relating to Psychotherapy Services",
+        "Psychotherapy Artificial Intelligence Restrictions"
+      ],
+      "topics": [
+        "AI Healthcare",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/co-hb-1195.pdf",
+        "https://leg.colorado.gov/bills/HB26-1195"
+      ],
+      "wiki_ids": [
+        "co-2026-hb-1195"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "co",
+        "H",
+        "1263"
+      ],
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "bill_number": "HB 1263",
+      "names": [
+        "Concerning Requirements for an Operator of a Conversational Artificial Intelligence Service",
+        "Conversational Artificial Intelligence Service Operator Requirements"
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/co-hb-1263.pdf",
+        "https://leg.colorado.gov/bills/HB26-1263"
+      ],
+      "wiki_ids": [
+        "co-2026-hb-1263"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "co",
+        "S",
+        "189"
+      ],
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "bill_number": "SB 189",
+      "names": [
+        "Automated Decision-Making Technology"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://leg.colorado.gov/bills/SB26-189"
+      ],
+      "wiki_ids": [
+        "co-2026-sb-189"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "H",
+        "5222"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "HB 5222",
+      "names": [
+        "AN ACT CONCERNING CONSUMER PROTECTION, CANNABIS, DATA PRIVACY, FIRE INSPECTIONS, CRIMINAL MISCHIEF AND ARTIFICIAL INTELLIGENCE."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=HB05222&which_year=2026"
+      ],
+      "wiki_ids": [
+        "ct-2026-hb-5222"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "S",
+        "4"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "SB 4",
+      "names": [
+        "AN ACT CONCERNING CONSUMER PRIVACY AND PROTECTION."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=SB00004&which_year=2026"
+      ],
+      "wiki_ids": [
+        "ct-2026-sb-4"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ct",
+        "S",
+        "5"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "SB 5",
+      "names": [
+        "AN ACT CONCERNING ONLINE SAFETY."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=SB00005&which_year=2026"
+      ],
+      "wiki_ids": [
+        "ct-2026-sb-5"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "fl",
+        "S",
+        "262"
+      ],
+      "state": "fl",
+      "jurisdiction": "US-FL",
+      "bill_number": "SB 262",
+      "names": [
+        "Florida Digital Bill of Rights"
+      ],
+      "topics": [
+        "Automated Decision-Making"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://laws.flrules.org/2023/201"
+      ],
+      "wiki_ids": [
+        "fl-2023-s-262"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ga",
+        "S",
+        "444"
+      ],
+      "state": "ga",
+      "jurisdiction": "US-GA",
+      "bill_number": "SB 444",
+      "names": [
+        "Private Review Agents",
+        "Private Review Agents; certain decisions with regard to the provision of insurance coverage for healthcare services shall not be based solely on artificial intelligence systems; provide"
+      ],
+      "topics": [
+        "AI in Insurance",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/images/gasb444.pdf",
+        "https://www.legis.ga.gov/legislation/72666"
+      ],
+      "wiki_ids": [
+        "ga-2025-sb-444"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "H",
+        "1806"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "HB 1806",
+      "names": [
+        "The Wellness and Oversight for Psychological Resources Act"
+      ],
+      "topics": [
+        "AI Healthcare",
+        "User-Facing AI"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.ilga.gov/Documents/Legislation/PublicActs/104/PDF/104-0054.pdf"
+      ],
+      "wiki_ids": [
+        "il-2025-hb-1806"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "H",
+        "3773"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "HB 3773",
+      "names": [
+        "Amendment to the Illinois Human Rights Act"
+      ],
+      "topics": [
+        "AI in Employment"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://ilga.gov/Legislation/BillStatus/FullText?LegDocId=185601&DocName=10300HB3773enr&DocNum=3773&DocTypeID=HB&LegID=149031&GAID=17&SessionID=112&SpecSess=&Session="
+      ],
+      "wiki_ids": [
+        "il-2023-hb-3773"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "H",
+        "4875"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "HB 4875",
+      "names": [
+        "Amendment to Right of Publicity Act"
+      ],
+      "topics": [
+        "AI Likeness"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.ilga.gov/legislation/BillStatus.asp?DocNum=4875&GAID=17&DocTypeID=HB&LegId=152734&SessionID=112&GA=103"
+      ],
+      "wiki_ids": [
+        "il-2023-hb-4875"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "il",
+        "S",
+        "315"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "SB 315",
+      "names": [
+        "BUSINESS-TECH"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://ilga.gov/Legislation/BillStatus?DocNum=315&GAID=18&DocTypeID=SB&LegId=157797&SessionID=114"
+      ],
+      "wiki_ids": [
+        "il-2025-sb-315"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "la",
+        "S",
+        "386"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "SB 386",
+      "names": [
+        "Louisiana Data Privacy Act"
+      ],
+      "topics": [
+        "Automated Decision-Making"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/la-sb-386.pdf"
+      ],
+      "wiki_ids": [
+        "la-2026-sb-386"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "me",
+        "LD",
+        "2082"
+      ],
+      "state": "me",
+      "jurisdiction": "US-ME",
+      "bill_number": "LD 2082",
+      "names": [
+        "An Act to Regulate the Use of Artificial Intelligence in Providing Certain Mental Health Services"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.maine.gov/LawMakerWeb/summary.asp?ID=280101134"
+      ],
+      "wiki_ids": [
+        "me-2025-ld-2082"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ne",
+        "LB",
+        "525"
+      ],
+      "state": "ne",
+      "jurisdiction": "US-NE",
+      "bill_number": "LB 525",
+      "names": [
+        "Conversational Artificial Intelligence Safety Act",
+        "Adopt the Agricultural Data Privacy Act and the Conversational Artificial Intelligence Safety Act"
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/04/lb525.pdf",
+        "https://nebraskalegislature.gov/bills/view_bill.php?DocumentID=59601"
+      ],
+      "wiki_ids": [
+        "ne-2025-lb-525"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ne",
+        "LB",
+        "1074"
+      ],
+      "state": "ne",
+      "jurisdiction": "US-NE",
+      "bill_number": "LB 1074",
+      "names": [
+        "Nebraska Data Privacy Act"
+      ],
+      "topics": [
+        "Automated Decision-Making"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://nebraskalegislature.gov/FloorDocs/108/PDF/Slip/LB1074.pdf"
+      ],
+      "wiki_ids": [
+        "ne-2023-lb-1074"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "8391"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 8391",
+      "names": [
+        "Amendment to Deceased Personality Protections"
+      ],
+      "topics": [
+        "AI Likeness"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.nysenate.gov/legislation/bills/2025/S8391"
+      ],
+      "wiki_ids": [
+        "ny-2025-s-8391"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "or",
+        "S",
+        "619"
+      ],
+      "state": "or",
+      "jurisdiction": "US-OR",
+      "bill_number": "SB 619",
+      "names": [
+        "Oregon Consumer Privacy Act"
+      ],
+      "topics": [
+        "Automated Decision-Making"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://olis.oregonlegislature.gov/liz/2023R1/Downloads/MeasureDocument/SB619/Enrolled"
+      ],
+      "wiki_ids": [
+        "or-2023-sb-619"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ri",
+        "H",
+        "7349"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "HB 7349",
+      "names": [
+        "AN ACT RELATING TO BEHAVIORAL HEALTHCARE, DEVELOPMENTAL DISABILITIES AND HOSPITALS -- OVERSIGHT OF ARTIFICIAL INTELLIGENCE TECHNOLOGY IN MENTAL HEALTH CARE ACT (Establishes regulations regarding the use of artificial intelligence in mental health care treatments.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/HouseText26/H7349A.htm"
+      ],
+      "wiki_ids": [
+        "ri-2026-h-7349"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ri",
+        "H",
+        "7350"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "HB 7350",
+      "names": [
+        "AN ACT RELATING TO COMMERCIAL LAW--GENERAL REGULATORY PROVISIONS -- ARTIFICIAL INTELLIGENCE COMPANION MODELS (Creates additional safety features for AI companion technology that include addressing suicidal ideation, potential physical harm or financial harm to others expressed by a user. It also requires notification the AI companion does not have human emotions.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/HouseText26/H7350Aaa.htm"
+      ],
+      "wiki_ids": [
+        "ri-2026-h-7350"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ri",
+        "H",
+        "7538"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "HB 7538",
+      "names": [
+        "AN ACT RELATING TO HEALTH AND SAFETY -- USE OF ARTIFICIAL INTELLIGENCE BY HEALTHCARE PROVIDERS NOTIFICATION ACT (Requires healthcare providers and healthcare facilities to inform patients of the use of artificial intelligence to memorialize patient visits.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/HouseText26/H7538A.htm"
+      ],
+      "wiki_ids": [
+        "ri-2026-h-7538"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "H",
+        "149"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "HB 149",
+      "names": [
+        "Texas Responsible Artificial Intelligence Governance Act (TRAIGA)"
+      ],
+      "topics": [
+        "Comprehensive AI"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/HB00149F.pdf"
+      ],
+      "wiki_ids": [
+        "tx-2025-hb-149"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "tx",
+        "S",
+        "815"
+      ],
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "bill_number": "SB 815",
+      "names": [
+        "Use of Automated Decision System for Adverse Determinations"
+      ],
+      "topics": [
+        "AI Healthcare"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB00815F.pdf"
+      ],
+      "wiki_ids": [
+        "tx-2025-sb-815"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "ut",
+        "S",
+        "149"
+      ],
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "bill_number": "SB 149",
+      "names": [
+        "Utah Artificial Intelligence Policy Act"
+      ],
+      "topics": [
+        "AI Privacy"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://le.utah.gov/~2024/bills/static/SB0149.html"
+      ],
+      "wiki_ids": [
+        "ut-2024-sb-149"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "vt",
+        "H",
+        "814"
+      ],
+      "state": "vt",
+      "jurisdiction": "US-VT",
+      "bill_number": "HB 814",
+      "names": [
+        "An act relating to neurological rights and the use of artificial intelligence technology in health and human services"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.vermont.gov/bill/status/2026/H.814"
+      ],
+      "wiki_ids": [
+        "vt-2025-h-814"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "vt",
+        "H",
+        "816"
+      ],
+      "state": "vt",
+      "jurisdiction": "US-VT",
+      "bill_number": "HB 816",
+      "names": [
+        "An act relating to regulating the use of artificial intelligence in the provision of mental health services"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.vermont.gov/bill/status/2026/H.816"
+      ],
+      "wiki_ids": [
+        "vt-2025-h-816"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "vt",
+        "S",
+        "71"
+      ],
+      "state": "vt",
+      "jurisdiction": "US-VT",
+      "bill_number": "SB 71",
+      "names": [
+        "An act relating to consumer data privacy and online surveillance"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.vermont.gov/bill/status/2026/S.71"
+      ],
+      "wiki_ids": [
+        "vt-2025-s-71"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wa",
+        "H",
+        "1170"
+      ],
+      "state": "wa",
+      "jurisdiction": "US-WA",
+      "bill_number": "HB 1170",
+      "names": [
+        "An Act Relating to Informing Users When Content is Developed or Modified by Artificial Intelligence",
+        "Informing users when content is developed or modified by artificial intelligence."
+      ],
+      "topics": [
+        "AI Transparency",
+        "AI in Government",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://lawfilesext.leg.wa.gov/biennium/2025-26/Pdf/Bills/Session%20Laws/House/1170-S2.SL.pdf?q=20260331144509",
+        "https://apps.leg.wa.gov/billsummary/?BillNumber=1170&year=2025&Initiative=false"
+      ],
+      "wiki_ids": [
+        "wa-2025-hb-1170"
+      ],
+      "reject_ids": []
+    },
+    {
+      "key": [
+        "wa",
+        "H",
+        "2225"
+      ],
+      "state": "wa",
+      "jurisdiction": "US-WA",
+      "bill_number": "HB 2225",
+      "names": [
+        "An Act Relating to Regulation of Artificial Intelligence Companion Chatbots",
+        "Concerning regulation of artificial intelligence companion chatbots."
+      ],
+      "topics": [
+        "User-Facing AI",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://lawfilesext.leg.wa.gov/biennium/2025-26/Pdf/Bills/Session%20Laws/House/2225-S.SL.pdf?q=20260331142832",
+        "https://apps.leg.wa.gov/billsummary/?BillNumber=2225&year=2025&Initiative=false"
+      ],
+      "wiki_ids": [
+        "wa-2025-hb-2225"
+      ],
+      "reject_ids": []
+    }
+  ],
+  "rejected": [
+    {
+      "key": [
+        "ca",
+        "H",
+        "2355"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 2355",
+      "names": [
+        "Amendment to the Political Reform Act"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240AB2355"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ca-2021-ab-2355",
+        "ca-2023-ab-2355"
+      ]
+    },
+    {
+      "key": [
+        "ca",
+        "H",
+        "2885"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "AB 2885",
+      "names": [
+        "AI Definition Bill"
+      ],
+      "topics": [
+        "AI Definition"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB2885"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ca-2023-ab-2885"
+      ]
+    },
+    {
+      "key": [
+        "ca",
+        "S",
+        "896"
+      ],
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "bill_number": "SB 896",
+      "names": [
+        "Generative Artificial Intelligence Accountability Act"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://leginfo.legislature.ca.gov/faces/billVersionsCompareClient.xhtml?bill_id=202320240SB896"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ca-2023-sb-896"
+      ]
+    },
+    {
+      "key": [
+        "ct",
+        "H",
+        "5229"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "HB 5229",
+      "names": [
+        "AN ACT CONCERNING GAMING."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=HB05229&which_year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ct-2026-hb-5229"
+      ]
+    },
+    {
+      "key": [
+        "ct",
+        "S",
+        "417"
+      ],
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "bill_number": "SB 417",
+      "names": [
+        "AN ACT REQUIRING THE DEPARTMENT OF ECONOMIC AND COMMUNITY DEVELOPMENT TO DEVELOP A PLAN TO ESTABLISH AN ARTIFICIAL INTELLIGENCE SMALL BUSINESS PROGRAM."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://www.cga.ct.gov/asp/cgabillstatus/cgabillstatus.asp?selBillType=Bill&bill_num=SB00417&which_year=2026"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ct-2026-sb-417"
+      ]
+    },
+    {
+      "key": [
+        "il",
+        "S",
+        "2909"
+      ],
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "bill_number": "SB 2909",
+      "names": [
+        "SCH CD-TEACHER EVALUATION-AI"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://ilga.gov/Legislation/BillStatus?DocNum=2909&GAID=18&DocTypeID=SB&LegId=165259&SessionID=114"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "il-2025-sb-2909"
+      ]
+    },
+    {
+      "key": [
+        "in",
+        "H",
+        "1047"
+      ],
+      "state": "in",
+      "jurisdiction": "US-IN",
+      "bill_number": "HB 1047",
+      "names": [
+        "Amendment of Indiana Law Governing Distribution of Intimate Images"
+      ],
+      "topics": [
+        "AI Intimate Images"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://iga.in.gov/legislative/2024/bills/house/1047/details"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "in-2024-hb-1047"
+      ]
+    },
+    {
+      "key": [
+        "la",
+        "H",
+        "119"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "HB 119",
+      "names": [
+        "CRIME: Provides relative to unlawful conduct involving images of another person created by artificial intelligence (EN SEE FISC NOTE GF EX)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=249762"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "la-2026-hb-119"
+      ]
+    },
+    {
+      "key": [
+        "la",
+        "H",
+        "459"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "HB 459",
+      "names": [
+        "ELECTIONS/CANDIDATES: Provides relative to the use of artificial intelligence in political campaigns"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=250271"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "la-2026-hb-459"
+      ]
+    },
+    {
+      "key": [
+        "la",
+        "H",
+        "639"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "HB 639",
+      "names": [
+        "ELECTIONS/CAMPAIGNS: Requires disclosure of the use of artificial intelligence in telephone campaign communications"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=250501"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "la-2026-hb-639"
+      ]
+    },
+    {
+      "key": [
+        "la",
+        "S",
+        "42"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "SB 42",
+      "names": [
+        "CRIME/PUNISHMENT: Prohibits using artificial intelligence to create child sexual abuse materials. (8/1/26)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=249745"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "la-2026-sb-42"
+      ]
+    },
+    {
+      "key": [
+        "la",
+        "S",
+        "110"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "SB 110",
+      "names": [
+        "CSAM Amendments",
+        "CRIME/PUNISHMENT: Prohibits using a child's image to train artificial intelligence to produce child sexual abuse materials. (8/1/26)"
+      ],
+      "topics": [
+        "AI CSAM",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/la-sb-110.pdf",
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=249993"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "la-2026-sb-110"
+      ]
+    },
+    {
+      "key": [
+        "la",
+        "S",
+        "346"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "SB 346",
+      "names": [
+        "SCHOOLS: Prohibits the use of deepfake material against students enrolled in K-12. (8/1/26)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=250874"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "la-2026-sb-346"
+      ]
+    },
+    {
+      "key": [
+        "la",
+        "S",
+        "347"
+      ],
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "bill_number": "SB 347",
+      "names": [
+        "Campus Accountability and Safety Act",
+        "COLLEGES/UNIVERSITIES: Provides for the crime of \"unlawful deepfake\" to be added to the definition of power-based violence under the Campus Accountability and Safety Act. (gov sig)"
+      ],
+      "topics": [
+        "AI in Education",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/ailawcenter/2026/06/la-sb-347.pdf",
+        "https://legis.la.gov/Legis/BillInfo.aspx?i=250875"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "la-2026-sb-347"
+      ]
+    },
+    {
+      "key": [
+        "md",
+        "S",
+        "818"
+      ],
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "bill_number": "SB 818",
+      "names": [
+        "Maryland AI Governance Act of 2024"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legiscan.com/MD/text/SB818/id/2998150/Maryland-2024-SB818-Chaptered.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "md-2024-sb-818"
+      ]
+    },
+    {
+      "key": [
+        "me",
+        "LD",
+        "517"
+      ],
+      "state": "me",
+      "jurisdiction": "US-ME",
+      "bill_number": "LD 517",
+      "names": [
+        "An Act to Protect the First Amendment Rights of Individuals in the State"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.maine.gov/LawMakerWeb/summary.asp?ID=280096436"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "me-2025-ld-517"
+      ]
+    },
+    {
+      "key": [
+        "nh",
+        "H",
+        "1432"
+      ],
+      "state": "nh",
+      "jurisdiction": "US-NH",
+      "bill_number": "HB 1432",
+      "names": [
+        "New Hampshire Deepfake Act"
+      ],
+      "topics": [
+        "AI Deepfakes"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legiscan.com/NH/text/HB1432/id/2864369"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "nh-2024-hb-1432"
+      ]
+    },
+    {
+      "key": [
+        "nh",
+        "H",
+        "1596"
+      ],
+      "state": "nh",
+      "jurisdiction": "US-NH",
+      "bill_number": "HB 1596",
+      "names": [
+        "New Hampshire AI Political Advertising Law"
+      ],
+      "topics": [
+        "AI in Political Advertising"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legiscan.com/NH/text/HB1596/id/2864639"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "nh-2024-hb-1596"
+      ]
+    },
+    {
+      "key": [
+        "nh",
+        "H",
+        "1688"
+      ],
+      "state": "nh",
+      "jurisdiction": "US-NH",
+      "bill_number": "HB 1688",
+      "names": [
+        "New Hampshire State Agency AI Bill"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://legiscan.com/NH/text/HB1688/id/2864315"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "nh-2024-hb-1688"
+      ]
+    },
+    {
+      "key": [
+        "nj",
+        "H",
+        "3540"
+      ],
+      "state": "nj",
+      "jurisdiction": "US-NJ",
+      "bill_number": "A 3540",
+      "names": [
+        "Establishes criminal penalties for production or dissemination of \u201cdeepfakes.\u201d"
+      ],
+      "topics": [
+        "AI Deepfakes"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://pub.njleg.state.nj.us/Bills/2024/A4000/3540_R3.PDF"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "nj-2024-a-3540"
+      ]
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "7543"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 7543B",
+      "names": [
+        "The LOADinG Act: Legislative Oversight Of Automated Decision-Making in Government Act As amended by S7599C"
+      ],
+      "topics": [
+        "AI in Government"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.nysenate.gov/legislation/bills/2023/S7543/amendment/B"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ny-2023-s-7543"
+      ]
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "8831"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 8831",
+      "names": [
+        "Government-Related AI Employment Protections",
+        "Relates to the use of automated employment decision-making tools and artificial intelligence systems by certain state and local entities; repealer"
+      ],
+      "topics": [
+        "AI in Government",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://media.orrick.com/Media%20Library/public/files/insights/2026/ny-s8831.pdf",
+        "https://assembly.state.ny.us/leg/?bn=S08831&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ny-2025-s-8831"
+      ]
+    },
+    {
+      "key": [
+        "ny",
+        "S",
+        "9008"
+      ],
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "bill_number": "S 9008",
+      "names": [
+        "Enacts into law major components of legislation necessary to implement the state transportation, economic development and environmental conservation budget for the 2026-2027 state fiscal year"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://assembly.state.ny.us/leg/?bn=S09008&term=2025&Summary=Y&Actions=Y"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ny-2025-s-9008"
+      ]
+    },
+    {
+      "key": [
+        "ri",
+        "S",
+        "2195"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "SB 2195",
+      "names": [
+        "AN ACT RELATING TO COMMERCIAL LAW--GENERAL REGULATORY PROVISIONS -- ARTIFICIAL INTELLIGENCE COMPANION MODELS (Creates additional safety features for AI companion technology that include addressing suicidal ideation, potential physical harm or financial harm to others expressed by a user. It also requires notification the AI companion does not have human emotions.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/SenateText26/S2195Aaa.htm"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ri-2026-s-2195"
+      ]
+    },
+    {
+      "key": [
+        "ri",
+        "S",
+        "2197"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "SB 2197",
+      "names": [
+        "AN ACT RELATING TO BEHAVIORAL HEALTHCARE, DEVELOPMENTAL DISABILITIES AND HOSPITALS -- OVERSIGHT OF ARTIFICIAL INTELLIGENCE TECHNOLOGY IN MENTAL HEALTH CARE ACT (Establishes regulations regarding the use of artificial intelligence in mental health care treatments.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/SenateText26/S2197Aaa.htm"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ri-2026-s-2197"
+      ]
+    },
+    {
+      "key": [
+        "ri",
+        "S",
+        "2570"
+      ],
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "bill_number": "SB 2570",
+      "names": [
+        "AN ACT RELATING TO HEALTH AND SAFETY -- USE OF ARTIFICIAL INTELLIGENCE BY HEALTHCARE PROVIDERS NOTIFICATION ACT (Requires healthcare providers and healthcare facilities to inform patients of the use of artificial intelligence to memorialize patient visits.)"
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2026,
+      "urls": [
+        "http://webserver.rilegislature.gov/BillText/BillText26/SenateText26/S2570A.htm"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "ri-2026-s-2570"
+      ]
+    },
+    {
+      "key": [
+        "tn",
+        "H",
+        "2163"
+      ],
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "bill_number": "HB 2163",
+      "names": [
+        "Amendment of Tennessee CSAM Laws"
+      ],
+      "topics": [
+        "AI CSAM"
+      ],
+      "sources": [
+        "orrick"
+      ],
+      "year_hint": null,
+      "urls": [
+        "https://www.capitol.tn.gov/Bills/113/Bill/HB2163.pdf"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "tn-2023-hb-2163"
+      ]
+    },
+    {
+      "key": [
+        "vt",
+        "S",
+        "23"
+      ],
+      "state": "vt",
+      "jurisdiction": "US-VT",
+      "bill_number": "S 23",
+      "names": [
+        "An Act Relating to the Use of Synthetic Media in Elections",
+        "An act relating to the use of synthetic media in elections"
+      ],
+      "topics": [
+        "AI in Political Advertising",
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "orrick",
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://legislature.vermont.gov/Documents/2026/Docs/ACTS/ACT075/ACT075%20As%20Enacted.pdf",
+        "https://legislature.vermont.gov/bill/status/2026/S.23"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "vt-2025-s-23"
+      ]
+    },
+    {
+      "key": [
+        "wa",
+        "H",
+        "2606"
+      ],
+      "state": "wa",
+      "jurisdiction": "US-WA",
+      "bill_number": "HB 2606",
+      "names": [
+        "Concerning performance measures, duties, and reporting requirements for the office of privacy and data protection."
+      ],
+      "topics": [
+        "Artificial Intelligence"
+      ],
+      "sources": [
+        "multistate"
+      ],
+      "year_hint": 2025,
+      "urls": [
+        "https://apps.leg.wa.gov/billsummary/?BillNumber=2606&year=2025&Initiative=false"
+      ],
+      "wiki_ids": [],
+      "reject_ids": [
+        "wa-2025-hb-2606"
+      ]
+    }
+  ],
+  "year_mismatch": [],
+  "unkeyable": [],
+  "citation_only": [
+    {
+      "source": "orrick",
+      "state": "az",
+      "jurisdiction": "US-AZ",
+      "citation": "Arizona Revised Statutes Section 13-1425",
+      "name": "Amendment of Arizona Intimate Images Law",
+      "topic": "AI Intimate Images",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/Arizona-2025-SB1462-Engrossed.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ar",
+      "jurisdiction": "US-AR",
+      "citation": "Arkansas Code Title 18-4-101",
+      "name": "Ownership of Model Training and Generated Content",
+      "topic": "AI Ownership",
+      "url": "https://arkleg.state.ar.us/Home/FTPDocument?path=%2FACTS%2F2025R%2FPublic%2FACT927.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Penal Code Part 1; Title 9; Chapter 7.5 (311-312.7)",
+      "name": "Amendment of California CSAM Laws",
+      "topic": "AI CSAM",
+      "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?chapter=7.5.&part=1.&lawCode=PEN&title=9"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Gov. Code \u00a7 Section 1339.75 AB 3030",
+      "name": "Artificial Intelligence in Health Care Services",
+      "topic": "AI Healthcare",
+      "url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB3030"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Bus. & Prof. Code \u00a7 22757 et seq.",
+      "name": "California AI Transparency Act As Amended by AB 853 (2025)",
+      "topic": "AI Transparency",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/California-AI-Transparency-Act-and-Amendment2.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Bus. & Prof. Code \u00a7 22757 et seq.",
+      "name": "California AI Transparency Act As Amended by AB 853 (2025)",
+      "topic": "AI in Social Media & Online Platforms",
+      "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=BPC&division=8.&title=&part=&chapter=25.&article="
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Bus. & Prof. Code \u00a7 17940 \u201317943",
+      "name": "California Bot Act",
+      "topic": "User-Facing AI",
+      "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=BPC&division=7.&title=&part=3.&chapter=6.&article"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Bus. & Prof. Code \u00a7 22601 et. seq.",
+      "name": "California Companion Chatbot",
+      "topic": "User-Facing AI",
+      "url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB243"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "11 CCR \u00a7 7001 et seq.",
+      "name": "California Consumer Privacy Act Regulations",
+      "topic": "Automated Decision-Making",
+      "url": "https://cppa.ca.gov/regulations/pdf/ccpa_updates_cyber_risk_admt_appr_text.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Gov. Code \u00a7 11546.45.5",
+      "name": "California Government AI Inventory Law",
+      "topic": "AI in Government",
+      "url": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=GOV&sectionNum=11546.45.5."
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Civ. Code \u00a7 1714.46",
+      "name": "Civil Actions",
+      "topic": "AI Liability",
+      "url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202520260AB316"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Civ. Code \u00a7 1798.99.82",
+      "name": "Data Broker Registration AI Disclosures",
+      "topic": "AI Transparency",
+      "url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB361"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Civil Rights Council Employment Regulations Regarding Automated-Decision Systems",
+      "name": "Employment Regulations Regarding Automated-Decision Systems, issued pursuant to the California Fair Employment and Housing Act, Cal. Gov. Code \u00a7 \u00a7 12935(a), 12940, 12941",
+      "topic": "AI in Employment",
+      "url": "https://calcivilrights.ca.gov/wp-content/uploads/sites/32/2025/03/Attachment-B-Final-Unmodified-Text-of-Proposed-Employment-Regulations-Regarding-Automated-Decision-Systems.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Bus. & Prof. Code \u00a7 4999.9",
+      "name": "Health Advice From Artificial Intelligence",
+      "topic": "AI Healthcare",
+      "url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260AB489"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Civ. Code \u00a7 13663",
+      "name": "Law Enforcement Usage of Artificial Intelligence",
+      "topic": "AI in Government",
+      "url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202520260SB524"
+    },
+    {
+      "source": "orrick",
+      "state": "ca",
+      "jurisdiction": "US-CA",
+      "citation": "Cal. Bus. & Prof. Code \u00a7 10140.8",
+      "name": "Real Estate Digitally Altered Images Disclosures",
+      "topic": "AI in Real Estate",
+      "url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202520260AB723"
+    },
+    {
+      "source": "orrick",
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "citation": "Co. Rev. Stat. \u00a7 6-1-1701 et seq.",
+      "name": "Colorado AI Act As amended by SB26-189",
+      "topic": "Automated Decision-Making",
+      "url": "https://leg.colorado.gov/bill_files/116489/download"
+    },
+    {
+      "source": "orrick",
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "citation": "Co. Rev. Stat. 1-45-111.5 to 111.7 and 1-46-101 to 106 Reprinted from Westlaw with the permission of Thomson Reuters.",
+      "name": "Colorado Candidate Election Deepfake Disclosures Law",
+      "topic": "AI in Political Advertising",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/Colorado-Rev.-Stat.-1-45-111.5-to-111.7-and-1-46-101-to-106.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "citation": "Col. Rev. Stat. \u00a7 6-1-1301 et seq. Reprinted from Westlaw with the permission of Thomson Reuters.",
+      "name": "Colorado Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/Colorado-\u00a7-6-1-1301-Colorado-Privacy-Act-with-Regulations.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "co",
+      "jurisdiction": "US-CO",
+      "citation": "Co. Rev. Stat. 10-3-1104.9 Reprinted from Westlaw with the permission of Thomson Reuters.",
+      "name": "Colorado Protecting Consumers from Unfair Discrimination in Insurance Practices",
+      "topic": "AI in Insurance",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/Colorado-10-3-11049-Insurers-use-of-external-consumer-with-regs.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "citation": "Conn. Gen. Stat. \u00a7 42-515 et seq.",
+      "name": "Connecticut Data Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://www.cga.ct.gov/current/pub/chap_743jj.htm"
+    },
+    {
+      "source": "orrick",
+      "state": "ct",
+      "jurisdiction": "US-CT",
+      "citation": "Conn. Gen. Stat. \u00a7 13b-118",
+      "name": "Transportation Network Company Dynamic Pricing",
+      "topic": "Algorithmic Pricing",
+      "url": "https://www.cga.ct.gov/current/pub/chap_244c.htm"
+    },
+    {
+      "source": "orrick",
+      "state": "de",
+      "jurisdiction": "US-DE",
+      "citation": "Del. Code tit. 6, \u00a7 12D-101 et seq.",
+      "name": "Delaware Personal Data Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://delcode.delaware.gov/title6/c012d/index.html"
+    },
+    {
+      "source": "orrick",
+      "state": "ga",
+      "jurisdiction": "US-GA",
+      "citation": "Ga. Code \u00a7 16-11-90",
+      "name": "Prohibition on Nude or Sexually Explicit Electronic Transmissions",
+      "topic": "AI Intimate Images",
+      "url": "https://www.legis.ga.gov/api/legislation/document/20132014/143392"
+    },
+    {
+      "source": "orrick",
+      "state": "id",
+      "jurisdiction": "US-ID",
+      "citation": "Idaho Code \u00a7 18-6606",
+      "name": "Idaho Explicit Synthetic Media law",
+      "topic": "AI Intimate Images",
+      "url": "https://legislature.idaho.gov/statutesrules/idstat/title18/t18ch66/sect18-6606/"
+    },
+    {
+      "source": "orrick",
+      "state": "id",
+      "jurisdiction": "US-ID",
+      "citation": "I.C. \u00a7 5-346",
+      "name": "Relating to Personhood",
+      "topic": "AI Definition",
+      "url": "https://legislature.idaho.gov/statutesrules/idstat/Title5/T5CH3/SECT5-346/"
+    },
+    {
+      "source": "orrick",
+      "state": "il",
+      "jurisdiction": "US-IL",
+      "citation": "820 ILCS 42",
+      "name": "Artificial Intelligence Video Interview Act",
+      "topic": "AI in Employment",
+      "url": "https://www.ilga.gov/legislation/ilcs/ilcs3.asp?ActID=4015&ChapterID=68"
+    },
+    {
+      "source": "orrick",
+      "state": "in",
+      "jurisdiction": "US-IN",
+      "citation": "Ind. Code. \u00a724-15-1",
+      "name": "Indiana Consumer Data Protection Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://iga.in.gov/ic/2024/Title_24/Article_15.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ia",
+      "jurisdiction": "US-IA",
+      "citation": "Iowa Code \u00a7 708.7",
+      "name": "Harassment",
+      "topic": "AI Intimate Images",
+      "url": "https://www.legis.iowa.gov/docs/code/2025/708.7.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ia",
+      "jurisdiction": "US-IA",
+      "citation": "Iowa Code \u00a7 728.12",
+      "name": "Sexual Exploitation of a Minor",
+      "topic": "AI CSAM",
+      "url": "https://www.legis.iowa.gov/docs/code/2025/728.12.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ky",
+      "jurisdiction": "US-KY",
+      "citation": "KRS 117.001",
+      "name": "AI Electioneering Communications",
+      "topic": "AI in Political Advertising",
+      "url": "https://apps.legislature.ky.gov/record/25rs/sb4.html"
+    },
+    {
+      "source": "orrick",
+      "state": "ky",
+      "jurisdiction": "US-KY",
+      "citation": "KRS 42.720 - 42.742",
+      "name": "Government Use of AI Law",
+      "topic": "AI in Government",
+      "url": "https://apps.legislature.ky.gov/record/25rs/sb4.html"
+    },
+    {
+      "source": "orrick",
+      "state": "ky",
+      "jurisdiction": "US-KY",
+      "citation": "Ky. Rev. Stat. \u00a7 367.3611 et seq.",
+      "name": "Kentucky Consumer Data Protection Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://apps.legislature.ky.gov/law/statutes/chapter.aspx?id=39092"
+    },
+    {
+      "source": "orrick",
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "citation": "14 La. Rev. Stat. Ann. \u00a7 73.14",
+      "name": "Louisiana AI Intimate Image Law",
+      "topic": "AI Intimate Images",
+      "url": "https://www.legis.la.gov/Legis/ViewDocument.aspx?d=1379408"
+    },
+    {
+      "source": "orrick",
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "citation": "14 La. Rev. Stat. Ann. \u00a7 73.13",
+      "name": "Louisiana Deepfake Law",
+      "topic": "AI Intimate Images",
+      "url": "https://www.legis.la.gov/Legis/ViewDocument.aspx?d=1333325"
+    },
+    {
+      "source": "orrick",
+      "state": "la",
+      "jurisdiction": "US-LA",
+      "citation": "14 La. Rev. Stat. Ann. \u00a7 73.13",
+      "name": "Louisiana Deepfake Law",
+      "topic": "AI CSAM",
+      "url": "https://www.legis.la.gov/Legis/ViewDocument.aspx?d=1333325"
+    },
+    {
+      "source": "orrick",
+      "state": "me",
+      "jurisdiction": "US-ME",
+      "citation": "10 MRSA c. 239",
+      "name": "Communications with Consumers via AI",
+      "topic": "User-Facing AI",
+      "url": "https://legislature.maine.gov/bills/getPDF.asp?paper=HP1154&item=3&snum=132"
+    },
+    {
+      "source": "orrick",
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "citation": "Md. Code Ann., Ins. \u00a7\u00a7 15-10A-06, 15-10B-05.1",
+      "name": "AI Utilization Review",
+      "topic": "AI Healthcare",
+      "url": "https://mgaleg.maryland.gov/2025RS/Chapters_noln/CH_747_hb0820t.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "citation": "MD. Code., Crim. Law 11-208",
+      "name": "Amendment to the Maryland CSAM Statute",
+      "topic": "AI CSAM",
+      "url": "https://casetext.com/statute/code-of-maryland/article-criminal-law/title-11-indecency-and-obscenity/subtitle-2-obscene-matter/section-11-208-possession-of-visual-representation-of-child-under-16-engaged-in-certain-sexual-acts"
+    },
+    {
+      "source": "orrick",
+      "state": "md",
+      "jurisdiction": "US-MD",
+      "citation": "Md. Code Ann. \u00a7 14-4601 et seq.",
+      "name": "Maryland Online Data Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://mgaleg.maryland.gov/2024RS/bills/hb/hb0567E.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "mn",
+      "jurisdiction": "US-MN",
+      "citation": "Minn. Stat. \u00a7 325O et seq.",
+      "name": "Minnesota Consumer Data Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/download-1-1.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "mo",
+      "jurisdiction": "US-MO",
+      "citation": "R.S.Mo \u00a7 573.010",
+      "name": "Pornography and Related Offenses",
+      "topic": "AI CSAM",
+      "url": "https://revisor.mo.gov/main/OneSection.aspx?section=573.010&bid=51065"
+    },
+    {
+      "source": "orrick",
+      "state": "mt",
+      "jurisdiction": "US-MT",
+      "citation": "Montana Code Ann. \u00a7 30-14-2801 et seq.",
+      "name": "Montana Consumer Data Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://archive.legmt.gov/bills/mca/title_0300/chapter_0140/part_0280/sections_index.html"
+    },
+    {
+      "source": "orrick",
+      "state": "mt",
+      "jurisdiction": "US-MT",
+      "citation": "MCA Title 45, Chapter 5, Part 6",
+      "name": "Montana Explicit Synthetic Media Law",
+      "topic": "AI Intimate Images",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/Montana-2025-SB413-Enrolled.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "mt",
+      "jurisdiction": "US-MT",
+      "citation": "MCA Section 45-8-213",
+      "name": "Privacy in Communications Law",
+      "topic": "AI Intimate Images",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/Montana-2025-HB514-Enrolled.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "mt",
+      "jurisdiction": "US-MT",
+      "citation": "MCA Title 30, Chapter 14, Section 1",
+      "name": "Property Right in Use of Names, Voices, and Visual Likenesses",
+      "topic": "AI Likeness",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/Montana-2025-HB513-Enrolled.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nv",
+      "jurisdiction": "US-NV",
+      "citation": "Nev. Rev. Stat. Chapter 629",
+      "name": "AI for Mental and Behavioral Health Care",
+      "topic": "AI Healthcare",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/AB406-Text.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nv",
+      "jurisdiction": "US-NV",
+      "citation": "Chapter 391 of NRS",
+      "name": "AI for School Counseling",
+      "topic": "AI in Education",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/AB406-Text.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nv",
+      "jurisdiction": "US-NV",
+      "citation": "Nev. Rev. Stat. Chapter 433",
+      "name": "General AI Chatbots and Mental Health Services",
+      "topic": "User-Facing AI",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/AB406-Text.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nv",
+      "jurisdiction": "US-NV",
+      "citation": "NRS Chapter 294A.347-95",
+      "name": "Nevada AI Political Advertising Law",
+      "topic": "AI in Political Advertising",
+      "url": "https://www.leg.state.nv.us/App/NELIS/REL/83rd2025/Bill/11888/Overview"
+    },
+    {
+      "source": "orrick",
+      "state": "nh",
+      "jurisdiction": "US-NH",
+      "citation": "N.H. Rev. Stat. \u00a7 507-H:8",
+      "name": "New Hampshire Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://gc.nh.gov/rsa/html/NHTOC/NHTOC-LII-507-H.htm"
+    },
+    {
+      "source": "orrick",
+      "state": "nh",
+      "jurisdiction": "US-NH",
+      "citation": "New Hampshire Chapter 270:1",
+      "name": "Responsive Generative Communication Law",
+      "topic": "User-Facing AI",
+      "url": "https://gc.nh.gov/bill_status/pdf.aspx?id=17004&q=billVersion"
+    },
+    {
+      "source": "orrick",
+      "state": "nj",
+      "jurisdiction": "US-NJ",
+      "citation": "NJ Rev. Stat. \u00a7 56:18-1 et seq.",
+      "name": "New Jersey Bot Act",
+      "topic": "User-Facing AI",
+      "url": "https://lis.njleg.state.nj.us/nxt/gateway.dll/statutes/1/53958/54710?f=templates&fn=default.htm&vid=Publish:10.1048/Enu"
+    },
+    {
+      "source": "orrick",
+      "state": "nj",
+      "jurisdiction": "US-NJ",
+      "citation": "N.J. Rev. Stat. \u00a7 56:8-166.4 et. seq.",
+      "name": "New Jersey Data Privacy Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://pub.njleg.state.nj.us/Bills/2022/PL23/266_.PDF"
+    },
+    {
+      "source": "orrick",
+      "state": "nj",
+      "jurisdiction": "US-NJ",
+      "citation": "N.J.A.C. 13:16",
+      "name": "Rules Pertaining to Disparate Impact Discrimination (N.J.A.C. 13:16)",
+      "topic": "AI in Employment",
+      "url": "https://www.njoag.gov/wp-content/uploads/2025/12/N.J.A.C.-13-16-Disparate-Impact-Discrimination.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nm",
+      "jurisdiction": "US-NM",
+      "citation": "N.M. Stat. Ann. \u00a7 1-19-26 et seq.",
+      "name": "New Mexico Campaign Reporting Act Amendment",
+      "topic": "AI in Political Advertising",
+      "url": "https://www.nmlegis.gov/Legislation/Legislation?chamber=H&legtype=B&legno=182&year=24"
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "New York General Business Law Article 47",
+      "name": "Artificial Intelligence Companion Models",
+      "topic": "User-Facing AI",
+      "url": "https://www.nysenate.gov/legislation/laws/GBS/A47"
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "N.Y. Election Law \u00a7 14-106",
+      "name": "Artificial Intelligence Deceptive Practices Act",
+      "topic": "AI in Political Advertising",
+      "url": "https://www.nysenate.gov/legislation/laws/ELN/14-106"
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "N.Y. Civ. Rights Law \u00a7 50 et seq.",
+      "name": "Artificial Intelligence Deceptive Practices Act",
+      "topic": "AI Likeness",
+      "url": "https://www.nysenate.gov/legislation/laws/CVR/50"
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "General Obligations CHAPTER 24-A, ARTICLE 5, TITLE 3",
+      "name": "Contracts for the Creation and Use of Digital Replicas",
+      "topic": "AI Likeness",
+      "url": "https://www.nysenate.gov/legislation/laws/GOB/5-302"
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "New York General Business Law Article 22-A,\u00a7 349-A",
+      "name": "New York Algorithmic Pricing Disclosure Act",
+      "topic": "Algorithmic Pricing",
+      "url": "https://www.nysenate.gov/legislation/laws/GBS/349-A"
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "New York General Business Law Article 22,\u00a7 340-B",
+      "name": "New York Landlord Algorithmic Pricing Law",
+      "topic": "Algorithmic Pricing",
+      "url": "https://www.nysenate.gov/legislation/laws/GBS/340-B"
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "(Local Law 144)",
+      "name": "NYC AI Employment Law",
+      "topic": "AI in Employment",
+      "url": "https://legistar.council.nyc.gov/LegislationDetail.aspx?ID=4344524&GUID=B051915D-A9AC-451E-81F8-6596032FA3F9&Options=ID%7cText%7c&Search="
+    },
+    {
+      "source": "orrick",
+      "state": "ny",
+      "jurisdiction": "US-NY",
+      "citation": "New York General Business Law, Article 44-B",
+      "name": "The Responsible AI Safety and Education (RAISE) Act Passed by the Legislature as A 6453A | Reflecting amendments from S 8828",
+      "topic": "Frontier or General-Purpose AI",
+      "url": "https://legislation.nysenate.gov/pdf/bills/2025/S8828"
+    },
+    {
+      "source": "orrick",
+      "state": "nd",
+      "jurisdiction": "US-ND",
+      "citation": "North Dakota Century Code Section 12.1-27.2-01 and 12.1-27.2-04.1",
+      "name": "AI CSAM Amendments",
+      "topic": "AI CSAM",
+      "url": "https://ndlegis.gov/assembly/69-2025/regular/documents/25-1064-05000.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nd",
+      "jurisdiction": "US-ND",
+      "citation": "ND Century Code, Chapter 16.1-10",
+      "name": "AI Political Advertising Disclaimer Law",
+      "topic": "AI in Political Advertising",
+      "url": "https://ndlegis.gov/assembly/69-2025/regular/documents/25-0529-05000.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nd",
+      "jurisdiction": "US-ND",
+      "citation": "N.D. Cent. Code \u00a7 12.1-27.1-01",
+      "name": "An Act Relating to Sexually Expressive Images",
+      "topic": "AI Intimate Images",
+      "url": "https://ndlegis.gov/assembly/69-2025/regular/documents/25-0034-05000.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nd",
+      "jurisdiction": "US-ND",
+      "citation": "North Dakota Century Code Section 12.1-17-07",
+      "name": "North Dakota Harassment Law",
+      "topic": "AI Robots",
+      "url": "https://ndlegis.gov/assembly/69-2025/regular/documents/25-0908-04000.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nd",
+      "jurisdiction": "US-ND",
+      "citation": "North Dakota Century Code Section 12.1-17-07.1",
+      "name": "North Dakota Stalking Law",
+      "topic": "AI Robots",
+      "url": "https://ndlegis.gov/assembly/69-2025/regular/documents/25-0908-04000.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "nd",
+      "jurisdiction": "US-ND",
+      "citation": "North Dakota Century Code 29-29.4-01 to 06",
+      "name": "North Dakota Unmanned Aerial Vehicle and Robot Law",
+      "topic": "AI in Government",
+      "url": "https://ndlegis.gov/assembly/69-2025/regular/documents/25-1307-04000.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ok",
+      "jurisdiction": "US-OK",
+      "citation": "Section 1040.13b",
+      "name": "Amendment of Oklahoma Law Governing Distribution of Intimate Images",
+      "topic": "AI Intimate Images",
+      "url": "https://www.oklegislature.gov/cf_pdf/2025-26 ENR/hB/HB1364 ENR.PDF"
+    },
+    {
+      "source": "orrick",
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "citation": "General Laws, Title 17-30-1 to 4",
+      "name": "Deceptive and Fraudulent Synthetic Media in Election Communications",
+      "topic": "AI in Political Advertising",
+      "url": "https://infobytes.orrick.com/wp-content/uploads/S0816A.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ri",
+      "jurisdiction": "US-RI",
+      "citation": "R.I. Gen. Law \u00a7 6-48.1-1 et seq.",
+      "name": "Rhode Island Data Transparency and Privacy Protection Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://legiscan.com/RI/text/S2500/2024"
+    },
+    {
+      "source": "orrick",
+      "state": "sc",
+      "jurisdiction": "US-SC",
+      "citation": "S.C. Code Ann. \u00a7 40-57-820",
+      "name": "Real Estate AI Responsibility Law",
+      "topic": "AI in Real Estate",
+      "url": "https://www.scstatehouse.gov/code/t40c057.php"
+    },
+    {
+      "source": "orrick",
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "citation": "Tennessee Code Annotated, Section 47-25-1101",
+      "name": "Ensuring Likeness, Voice, and Image Security (ELVIS) Act of 2024",
+      "topic": "AI Likeness",
+      "url": "https://www.capitol.tn.gov/Bills/113/Bill/HB2091.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "tn",
+      "jurisdiction": "US-TN",
+      "citation": "Tenn. Code. Ann. \u00a7 47-18-3301",
+      "name": "Tennessee Information Protection Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://advance.lexis.com/api/document/collection/statutes-legislation/id/68FT-J0C0-R03K-04F9-00008-00?cite=Tenn.%20Code%20Ann.%20%C2%A7%2047-18-3301&context=1000516"
+    },
+    {
+      "source": "orrick",
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "citation": "Chapter 2054, Government Code, Subchapter S",
+      "name": "Act Relating to the Regulation and Use of AI by Governmental Entities",
+      "topic": "AI in Government",
+      "url": "https://capitol.texas.gov/tlodocs/89R/billtext/pdf/SB01964F.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "tx",
+      "jurisdiction": "US-TX",
+      "citation": "Tex. Bus & Com. Code \u00a7 541.051(b)(5)(C)",
+      "name": "Texas Data Privacy and Security Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://statutes.capitol.texas.gov/Docs/BC/pdf/BC.541.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "citation": "Utah Code \u00a7 13-72a-101",
+      "name": "AI Applications Related to Mental Health",
+      "topic": "AI Healthcare",
+      "url": "https://le.utah.gov/Session/2025/bills/enrolled/HB0452.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "citation": "Utah Code \u00a7 13-75-102",
+      "name": "Artificial Intelligence Consumer Protection Amendments",
+      "topic": "AI Liability",
+      "url": "https://le.utah.gov/Session/2025/bills/introduced/SB0226.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "citation": "Utah Code \u00a7 13-75-101 to 106",
+      "name": "Artificial Intelligence Consumer Protection Amendments",
+      "topic": "User-Facing AI",
+      "url": "https://le.utah.gov/Session/2025/bills/introduced/SB0226.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "citation": "Utah Code \u00a7 53-25-601 to 602",
+      "name": "Law Enforcement Usage of Artificial Intelligence",
+      "topic": "AI in Government",
+      "url": "https://le.utah.gov/Session/2025/bills/enrolled/SB0180.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "citation": "Utah Code \u00a7 45-3-2 et. seq.",
+      "name": "Unauthorized Artificial Intelligence Impersonation Amendments",
+      "topic": "AI Likeness",
+      "url": "https://le.utah.gov/Session/2026/bills/enrolled/SB0256.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "ut",
+      "jurisdiction": "US-UT",
+      "citation": "Utah Code \u00a7 13-72-301 et seq.",
+      "name": "Utah Artificial Intelligence Policy Act",
+      "topic": "AI Liability",
+      "url": "https://le.utah.gov/xcode/Title13/Chapter72/C13-72_2024050120240501.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "citation": "Code of Virginia, Section 19.2-11.14",
+      "name": "Artificial Intelligence-Based Tools",
+      "topic": "AI in Government",
+      "url": "https://lis.blob.core.windows.net/files/1079123.PDF"
+    },
+    {
+      "source": "orrick",
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "citation": "Va. Code Ann. \u00a7 32.1-127",
+      "name": "Hospital / Nursing Home Virtual Assistant Law",
+      "topic": "AI Healthcare",
+      "url": "https://law.lis.virginia.gov/vacode/title32.1/chapter5/section32.1-127/"
+    },
+    {
+      "source": "orrick",
+      "state": "va",
+      "jurisdiction": "US-VA",
+      "citation": "Va. Code Ann. \u00a7 59.1-577A(A)(5)",
+      "name": "Virginia Consumer Data Protection Act",
+      "topic": "Automated Decision-Making",
+      "url": "https://law.lis.virginia.gov/vacode/title59.1/chapter53/section59.1-577/"
+    },
+    {
+      "source": "orrick",
+      "state": "wi",
+      "jurisdiction": "US-WI",
+      "citation": "Wis. Stat. \u00a7 11.1303",
+      "name": "2023 Wisconsin Act 123",
+      "topic": "AI in Political Advertising",
+      "url": "https://docs.legis.wisconsin.gov/statutes/statutes/11/xiii/1303"
+    },
+    {
+      "source": "orrick",
+      "state": "wi",
+      "jurisdiction": "US-WI",
+      "citation": "Wis. Stat. \u00a7 452.136(1m)",
+      "name": "Advertising Enhanced by Technology Law",
+      "topic": "AI in Real Estate",
+      "url": "https://docs.legis.wisconsin.gov/2025/related/acts/69"
+    },
+    {
+      "source": "orrick",
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "citation": "Wy. Code \u00a7 6-4-306",
+      "name": "Amendment to Intimate Image Law",
+      "topic": "AI CSAM",
+      "url": "https://wyoleg.gov/NXT/gateway.dll?f=templates&fn=default.htm"
+    },
+    {
+      "source": "orrick",
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "citation": "Wy. Code \u00a7\u00a7 6-4-303; 6-4-308",
+      "name": "Protecting Kids from Deepfakes and Exploitative Images",
+      "topic": "AI CSAM",
+      "url": "https://wyoleg.gov/2026/Enroll/HB0102.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "citation": "Wy. Code \u00a7 6-4-701",
+      "name": "Self-Harm Systems",
+      "topic": "User-Facing AI",
+      "url": "https://wyoleg.gov/2026/Enroll/HB0102.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "citation": "Wy. Code \u00a7 6-4-303",
+      "name": "Sexual Exploitation of Children",
+      "topic": "AI CSAM",
+      "url": "https://wyoleg.gov/NXT/gateway.dll?f=templates&fn=default.htm"
+    },
+    {
+      "source": "orrick",
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "citation": "Wy. Code \u00a7 6-1-206",
+      "name": "Wyoming AI Criminal Liability",
+      "topic": "AI Liability",
+      "url": "https://wyoleg.gov/2026/Enroll/HB0102.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "citation": "Wy. Code \u00a7 1-1-143",
+      "name": "Wyoming AI Developer Civil Liability",
+      "topic": "AI Liability",
+      "url": "https://wyoleg.gov/2026/Enroll/HB0102.pdf"
+    },
+    {
+      "source": "orrick",
+      "state": "wy",
+      "jurisdiction": "US-WY",
+      "citation": "Wy. Code \u00a7 6-4-307",
+      "name": "Wyoming Nonconsensual Synthetic Sexual Material",
+      "topic": "AI Intimate Images",
+      "url": "https://wyoleg.gov/2026/Enroll/HB0102.pdf"
+    }
+  ]
+}

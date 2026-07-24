@@ -31,6 +31,7 @@ from typing import Annotated, Literal
 
 import httpx
 import typer
+import yaml
 from pydantic import ValidationError
 
 from zwiadbrain import __version__
@@ -114,6 +115,14 @@ from zwiadbrain.pipeline.rejects import (
     write_reject_ledger,
 )
 from zwiadbrain.pipeline.render import sidecar_path, write_lawbrain_region, write_page
+from zwiadbrain.pipeline.tracker_gap import (
+    SessionBills,
+    build_gap,
+    entries_from_report,
+    entry_payload,
+    read_snapshot,
+    resolve_targets,
+)
 from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
 from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.pipeline.verdicts import Verdict, apply_summaries, split_by_verdict
@@ -830,6 +839,198 @@ def fetch_state_enacted_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"fetched {len(bills)} enacted {state} candidate(s) to {path}")
+
+
+def _tracked_state_bill_slugs(wiki: Path) -> list[str]:
+    """Page-id slugs already tracked under ``wiki/states/*/bills`` (``ca-2025-sb-243``).
+
+    The tracker cross-check joins on the SLUG (state + chamber + number), not on the
+    LegiScan ``bill_id`` that ``--skip-existing`` uses, because the trackers name laws
+    by bill number and never carry a LegiScan id.
+    """
+    bills = wiki / "states"
+    if not bills.exists():
+        return []
+    return [p.stem for p in bills.glob("*/bills/*.md") if not p.name.endswith(".text.md")]
+
+
+@app.command(name="tracker-gap")
+def tracker_gap(
+    snapshot: Annotated[
+        Path, typer.Option(help="External-tracker snapshot YAML (Orrick + MultiState).")
+    ] = Path("reference/orrick-ai-tracker-2026-07.yaml"),
+    wiki: Annotated[Path, typer.Option(help="Wiki root to cross-check against.")] = Path("wiki"),
+    out: Annotated[Path | None, typer.Option(help="Path for the gap report JSON.")] = None,
+) -> None:
+    """Cross-check the external AI-law trackers against tracked coverage (PHASE-29).
+
+    Buckets every tracker law into **tracked** (a wiki page exists), **rejected**
+    (decided out-of-scope in the state reject ledger), or **gap** (never seen). The
+    join ignores the session year — Orrick's rows carry only an effective date — so
+    matches whose year disagrees are reported under ``year_mismatch`` for a human
+    glance rather than silently trusted.
+
+    Read-only: writes the report and nothing else. ``fetch-tracker-candidates``
+    consumes the ``gap`` list.
+    """
+    try:
+        data = yaml.safe_load(snapshot.read_text(encoding="utf-8"))
+        laws, citations = read_snapshot(data)
+        ledger = load_reject_ledger(wiki / ".rejects" / "state.json")
+        report = build_gap(
+            laws,
+            tracked_ids=_tracked_state_bill_slugs(wiki),
+            rejected_ids=[e.id for e in ledger.values() if e.id is not None],
+        )
+        totals: dict[str, int] = {
+            "tracker_laws": len(laws),
+            "tracked": len(report.tracked),
+            "rejected": len(report.rejected),
+            "gap": len(report.gap),
+            "citation_only": len(citations),
+            "year_mismatch": len(report.year_mismatch),
+            "unkeyable": len(report.unkeyable),
+        }
+        payload = {
+            "snapshot": str(snapshot),
+            "totals": totals,
+            "gap": [entry_payload(e) for e in report.gap],
+            "tracked": [entry_payload(e) for e in report.tracked],
+            "rejected": [entry_payload(e) for e in report.rejected],
+            "year_mismatch": [entry_payload(e) for e in report.year_mismatch],
+            "unkeyable": [
+                {"state": law.state, "bill_number": law.bill_number, "name": law.name}
+                for law in report.unkeyable
+            ],
+            "citation_only": [
+                {
+                    "source": row.source,
+                    "state": row.state,
+                    "jurisdiction": row.jurisdiction,
+                    "citation": row.citation,
+                    "name": row.name,
+                    "topic": row.topic,
+                    "url": row.url,
+                }
+                for row in citations
+            ],
+        }
+        if out is None:
+            path = stage_json(payload, name="tracker-gap.json", out=None)
+        else:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            path = out
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"tracker cross-check -> {path}")
+    typer.echo(
+        f"  tracked={totals['tracked']} rejected={totals['rejected']} gap={totals['gap']}"
+        f" citation-only={totals['citation_only']}"
+        f" year-mismatch={totals['year_mismatch']} unkeyable={totals['unkeyable']}"
+    )
+
+
+@app.command(name="fetch-tracker-candidates")
+def fetch_tracker_candidates(
+    gap: Annotated[Path, typer.Option(help="Gap report written by `tracker-gap`.")],
+    state: Annotated[str, typer.Option(help="Two-letter state to resolve, e.g. ca.")],
+    min_year: Annotated[
+        int, typer.Option(help="Oldest session year to scan for the bill numbers.")
+    ] = 2018,
+    limit: Annotated[
+        int, typer.Option(min=1, help="Max resolved bills to enrich and stage.")
+    ] = 250,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            "--skip-existing/--no-skip-existing",
+            help="Drop bills already tracked or in the state reject ledger.",
+        ),
+    ] = False,
+    out: Annotated[Path | None, typer.Option(help="Run directory for candidates.json.")] = None,
+    wiki: Annotated[Path, typer.Option(help="Wiki root, for --skip-existing.")] = Path("wiki"),
+) -> None:
+    """Resolve one state's gap bill numbers to LegiScan bills and stage them (PHASE-29).
+
+    The trackers name a law by number; LegiScan's API is keyed by ``bill_id``. This
+    walks the state's sessions from ``--min-year`` via ``getSessionList`` +
+    ``getMasterList`` (enacted rows only — both trackers list enacted law), matches
+    each target's number, and enriches the hits via ``getBill`` into the same
+    ``candidates.json`` the classify → render procedure consumes.
+
+    Nothing is guessed: a number enacted in two sessions with no year hint to separate
+    them is written to ``unresolved.json`` as ``ambiguous``, not resolved to the newest.
+    """
+    try:
+        api_key = load_settings().require_legiscan_api_key()
+        source = LegiScanSource(api_key, state)
+        entries = entries_from_report(
+            _load_run_json_object(gap), state=state
+        )
+        if not entries:
+            typer.echo(f"no gap entries for {state} in {gap}")
+            return
+        sessions = [s for s in source.list_sessions() if s.year_end >= min_year]
+        session_bills = [
+            SessionBills(session=s, candidates=source.list_session_enacted(s.session_id))
+            for s in sessions
+        ]
+        typer.echo(
+            f"{state}: {len(entries)} target(s) against {len(session_bills)} session(s)"
+            f" (>= {min_year})"
+        )
+        resolutions = resolve_targets(entries, session_bills)
+        resolved = [r for r in resolutions if r.candidate is not None]
+        unresolved = [r for r in resolutions if r.candidate is None]
+        for res in unresolved:
+            typer.echo(f"  {res.status}: {res.detail}")
+
+        candidates = [r.candidate for r in resolved if r.candidate is not None]
+        if skip_existing:
+            known = _existing_state_bill_ids(wiki, state)
+            ledger = load_reject_ledger(wiki / ".rejects" / "state.json")
+            before = len(candidates)
+            candidates = filter_by_key(candidates, known, key_of=state_key)
+            after_unseen = len(candidates)
+            candidates = filter_cached_rejects(
+                candidates, ledger, key_of=state_key, cursor_of=state_cursor
+            )
+            typer.echo(
+                f"  skip-existing: dropped {before - after_unseen} already-tracked"
+                f" + {after_unseen - len(candidates)} cached-reject of {before}"
+            )
+        candidates = candidates[:limit]
+        bills = [enrich(source, candidate) for candidate in candidates]
+        bills = dedupe_companions(bills)  # D93: collapse same-as chamber pairs
+        path = stage_json(
+            [bill.model_dump(mode="json") for bill in bills], name="candidates.json", out=out
+        )
+        stage_json(
+            [
+                {
+                    "state": res.entry.state,
+                    "bill_number": res.entry.bill_number,
+                    "names": res.entry.names,
+                    "topics": res.entry.topics,
+                    "sources": res.entry.sources,
+                    "urls": res.entry.urls,
+                    "status": res.status,
+                    "detail": res.detail,
+                }
+                for res in unresolved
+            ],
+            name="unresolved.json",
+            out=path.parent,
+        )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"resolved {len(resolved)}/{len(entries)} {state} target(s);"
+        f" staged {len(bills)} bill(s) to {path}"
+    )
 
 
 @app.command(name="fetch-bill")

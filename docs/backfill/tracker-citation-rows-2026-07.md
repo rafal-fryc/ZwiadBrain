@@ -129,3 +129,61 @@ Most of the remaining `statute-text` and `unparsed` rows name acts already track
 their bill number (CT SB 6, DE HB 154, IL HB 2557, IN SB 5, KY HB 15, NH SB 255, TN HB 1181,
 TX HB 4, VA HB 2307, CO SB 190, CO SB 205, CA SB 942/AB 853, MN HF 4757, NJ S 332,
 UT SB 149), so the true remaining gap here is far smaller than 94.
+
+
+## Outcome (2026-07-25) — resolved and pulled
+
+The `resolves-to-bill` rows plus a full lookup pass over the `statute-text` and `unparsed`
+buckets produced **34 candidate bills**, resolved by searching LegiScan's FULL TEXT for the
+statute section each row cites and confirming the hit against the enacted masterlists.
+
+Two candidates were dropped because LegiScan shows them at status 2 (Engrossed), not
+enacted: CA AB 410 (Bots: disclosure) and CA AB 1609 (Customer service chatbots). The
+year-mismatch guard also refused a 2023 CA AB 410 about shared mobility devices — a
+different law that happens to share the number.
+
+**32 bills classified: 10 in scope, 22 rejected.** New states: **AR, NV** (36 tracked).
+
+Tracked from this pass:
+
+| bill | law |
+|---|---|
+| ar-2025-hb-1876 | Ownership of generative-AI output and trained models (Act 927) |
+| ca-2017-sb-1001 | **California B.O.T. Act** — bot-disclosure law, below the 2019 backfill floor |
+| ct-2023-sb-3 | CTDPA amendment — consumer health data, health-facility geofencing ban, minors |
+| ky-2025-sb-4 | State AI governance + synthetic media in electioneering, with medium liability |
+| ky-2025-hb-473 | KY CDPA amendment — HIPAA exemption, profiling disparate-impact assessments |
+| md-2025-hb-820 | AI in health-insurance utilization review |
+| mt-2023-sb-384 | **Montana Consumer Data Privacy Act** — the confirmed coverage gap |
+| mt-2025-hb-513 | Name/voice/visual-likeness property right incl. digital visual depictions |
+| nv-2025-ab-406 | AI marketing/programming limits + AI in mental & behavioural health care |
+| tx-2025-sb-1343 | Data broker registration and website notice requirements |
+
+**KY SB 4 is the one that tests the D91 line.** Its AI-governance half binds only state
+agencies, and its synthetic-media half is an election provision — both normally out. It is
+tracked because subsection (5) makes the *disseminating medium* or its advertising sales
+representative liable for stripping a required disclosure, which is a platform duty of the
+same kind that keeps CA AB 2655 tracked while CA AB 2355 is not.
+
+**Six D91 overrides** applied on the same basis as the bill-numbered half: AZ SB 1462,
+ID H 575, MT SB 413, MT HB 514 and ND HB 1386 (person-facing synthetic-imagery offences),
+and ND HB 1167 / RI S 816 (election-actor disclosure).
+
+**Provenance note:** the session's 200-subagent cap was reached partway through, so 12 of
+the 32 verdicts were classified in-session against `reference/topics.yaml` rather than by
+the `classifier` subagent. Those carry a `[classified in-session]` marker in the verdict
+record (`tracker-citation-verdicts-2026-07.json`).
+
+**Text-extraction note:** five sidecars came back as a status marker only (AR HB 1876,
+CT SB 3, MT SB 384, MT HB 513) or as leginfo navigation chrome (CA SB 1001). All five were
+re-fetched from the LegiScan text document and read directly; each sidecar header records
+how. MT HB 513's latest LegiScan document is the AMENDED version, not an enrolled copy.
+
+### Still open
+
+- **SC H 4754** — a real-estate licensing omnibus; Orrick cites S.C. Code 40-57-820 as an
+  AI-responsibility provision that may ride inside it. Rejected pending enacted text.
+- **NM HB 182** — "Election Changes", title-only; election-actor and out under D91 anyway.
+- The remaining `statute-text` rows whose named acts are already tracked under their bill
+  number needed no action; a handful of ND rows (16.1-10 political advertising beyond
+  HB 1167, 29-29.4 robot provisions) resolved to bills that were then rejected on scope.

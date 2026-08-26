@@ -169,6 +169,77 @@ list: AL SB 63 (health-AI) and UT SB 215 (dealer data — flagged as borderline)
 resolved by user (2026-07-20): all kept as-is** — the 2 TN classifier-overrides (hb-2163 AI-CSAM, hb-2265
 cyber-vandalism) and UT SB 215 (kept as cyber/privacy, not rejected as B2B commercial-data law).
 
+## External-tracker cross-check gap fill (2026-07-24) — PHASE-29
+
+A cross-check against two external AI-law trackers snapshotted in
+`reference/orrick-ai-tracker-2026-07.yaml` — **Orrick's US AI Law Tracker** (244 rows) and
+**MultiState's AI Legislation Tracker** (156 enacted 2025–2026 rows). New tooling:
+`zwiadbrain tracker-gap` buckets every tracked law against `wiki/states` + the reject ledger;
+`zwiadbrain fetch-tracker-candidates` resolves a tracker's bill NUMBER to a LegiScan `bill_id`
+by walking the state's enacted masterlists. Hand-verified tracker fixes live in
+`reference/tracker-corrections.yaml`. Method: **classify-all** (no recall pre-filter — the
+targets come from the trackers, not from keyword search). **Status `in-review`** (uncommitted).
+
+| Unit | Status | resolved | in | out | pages | new states | Notes |
+|------|--------|---------:|---:|----:|------:|-----------:|-------|
+| tracker-gap / 45 states | in-review | 177/177 | 31 | 146 | 31 | 6 | Cross-check: 38 already tracked, 30 already scope-rejected, **177 true gap**, 96 citation-only rows deferred. All 177 resolved to a session-verified LegiScan bill, **zero unresolved**. |
+
+**New states (6):** HI, ID, MT, OK, SC, WY → **34 tracked states**.
+
+**Pages by state:** VA 5; CT 3, NY 3; IA 2, IL 2; DE, GA, HI, ID, KY, MD, MN, MT, NJ, OK, OR,
+SC, TN, UT, WA, WY 1 each.
+
+**Marquee laws newly tracked:** NY **RAISE Act** (S 8828 — frontier-developer safety frameworks,
+72h incident reporting, $1M/$3M AG penalties), OK **Data Privacy Act** (SB 546 — comprehensive),
+SC **Stop Harm from Addictive Social Media Act** (H 4591 — age estimation + parental consent +
+addictive-feature ban, $10k statutory damages), MD **Protection From Predatory Pricing Act**
+(HB 895 — surveillance-pricing ban + algorithmic-pricing disclosure), NJ **FAIR Act** (A 3497 —
+algorithmic rent-coordination as an antitrust violation), OR **AI Companions Act** (SB 1546),
+IL **Transparency in Downcoding Act** (SB 3114 — no automated downcoding without human review),
+plus the conversational-AI/companion cluster (GA SB 540, HI SB 3001, IA SF 2417, ID SB 1297).
+
+**⚠ 38 documented OVERRIDES of classifier `in_scope`** (user decision 2026-07-24: apply D86/D91
+per-bill rather than change `topics.yaml`; no `scope_version` bump):
+- **12 election-actor** (D91, per NH HB 1596 / VT S 23 / CA AB 2355 / LA HB 459+639 / ME LD 517):
+  AL HB 172, AZ SB 1359, CA AB 2839, FL HB 919, HI SB 2687, MD SB 141, MI HB 5141, MI HB 5144,
+  MT SB 25, OR SB 1571, SD SB 164, TN HB 1513.
+- **26 person-facing criminal** deepfake/CSAM/intimate-image (D91, per TN HB 2163 / LA SB 110 /
+  NJ A 3540 / CA SB 926): AR HB 1877, AZ HB 2394, CO SB 288, DE HB 353, FL SB 1680, HI SB 309,
+  HI HB 2137, ID H 727, KS HB 2183, KY HB 366, MD SB 8, MN HF 1370, MS SB 2577, NE LB 383,
+  NY S 1042, RI H 8060, SD SB 41, TX HB 581 / SB 441 / SB 1361 / SB 1621 / SB 2373, UT HB 148,
+  VA HB 2678, WA HB 1999, WV SB 198.
+
+The override is per-bill, NOT by tracker topic: **CT HB 5312** is tagged "AI Intimate Images" but
+imposes a covered-platform takedown duty, and **WY HB 102** carries an AI-developer liability
+carve-out — both kept IN.
+
+**⚠ Open accuracy items (33 REVIEW-flagged rejects), all recorded in the verdict reasons:**
+- **11 empty text extractions** — the sidecar holds only a status marker, so the summary rests on
+  the official description: CT HB 5312 / SB 1103 / SB 1295, IL HB 4762, MT SB 212, OK SB 546,
+  VA HB 580 / HB 581 / HB 797 / SB 384 / SB 753. NY A 10008's sidecar is 1.1MB and unread.
+- **~12 REVIEW-RIDER** — LegiScan's title is an omnibus placeholder, so a title-only OUT is unsafe
+  (the D87 / PL 118-50 pattern): MN HF 2432 / HF 4188 / SF 4097 / SF 4760, MO HB 2372 / SB 999 /
+  SB 1019, NC S 257, VT H 878, NY S 9832 (Fashion Workers Act), MA H 4744, NC H 591.
+- **~10 THIN-SUMMARY** — 2026-session bills whose LegiScan description just repeats the title, so
+  the classifier had nothing to judge. Several are near-certainly in scope: **UT HB 276**
+  ("Artificial Intelligence Modifications" — Orrick: Digital Content Provenance Standards Act),
+  **UT HB 450** ("Data Privacy Amendments"), UT SB 256, UT SB 292, UT SB 38, UT HB 273, UT SB 131,
+  WA SB 5105, UT HB 238, UT HB 289.
+- **Health-AI candidates rejected on thin descriptions**, worth re-checking against enacted text:
+  CA SB 1120, IN HB 1271, MD HB 1563, TX SB 1188, UT SB 319, WA SB 5395.
+
+**Tracker errors found (fixed in `tracker-corrections.yaml`):** Orrick files Tennessee SB 837
+under **Texas**; VA "B 2678" drops its chamber prefix; KS "SB 2313" is HB 2313; DE "HB 233" is
+HB 333; ME "HP 1397" is LD 2082; TX "HB 441" is SB 441 (per Orrick's own link); NY A 9449 / A 9487
+are Assembly companions of S 8828 / S 8831. **GA SB 466** is listed as enacted but LegiScan's
+record ends at "Senate Read Second Time" — it died, same class as the Oregon SB 1546 (2025)
+finding. NY A 10005 / S 9000 / S 9006 are budget Article VII vehicles, excluded with reasons.
+
+**Not done:** the **96 citation-only tracker rows** (94 unique) that name a statute rather than a
+bill. A deterministic pass over the trackers' own links already maps 42 of them to a bill number;
+32 point at codified statute text, 16 are unparsed, and 4 are administrative regulations or a NYC
+local law that the LegiScan state-bill pipeline cannot take by construction.
+
 ## Progress
 
 - Federal: **4 / 4 units done** (119 partial — Congress in session, re-run at sine die: S 146 / TAKE IT DOWN Act + HR 2808 / Homebuyers Privacy Protection Act; 118: HR 815 / PADFAA+TikTok; 117: HR 7776 / Daniel Anderl Act; 116: HR 7898 / HIPAA Safe Harbor). ~1,010 enacted laws classified, 5 in-scope via units (+ CIRCIA via D99).

@@ -1284,3 +1284,89 @@ legacy URLs to its new scheme when sent a browser UA, so those specific links ar
 again; the persisted-page URL migration in accuracy-fixes-TODO remains worthwhile but is
 less urgent than the audit suggested.
 **Revisit if:** Soft-404s become a real miss class (add a lightweight body heuristic).
+
+---
+
+## 2026-08-26 — 113. External AI-law trackers as a coverage oracle
+**Chosen:** Snapshot two external trackers (Orrick US AI Law Tracker, MultiState AI
+Legislation Tracker) into `reference/orrick-ai-tracker-2026-07.yaml`, parsed deterministically
+from the source HTML — never via an LLM — and join them against `wiki/states` plus
+`wiki/.rejects/state.json` on `(state, chamber-class, digits)` with the session year ignored.
+Every tracked law must end up either as a wiki page or as a scope-stamped reject-ledger entry.
+Bill-number ambiguity is resolved by a hand-verified `reference/tracker-corrections.yaml`
+(`correct_number`, `correct_state`, `year` session pin, each with a `why`), and a correction
+matching no row is a **hard error**.
+**Alternatives:** (a) Trust our own discovery recall and skip the cross-check. (b) Ingest the
+trackers as a source, minting pages directly from their rows. (c) LLM-parse the tracker HTML.
+(d) Match on bill number alone.
+**Why:** Recall failures are invisible from the inside — a two-stage keyword filter cannot tell
+you what it never surfaced, and no amount of internal testing detects a law nobody searched
+for. An outside list is the only way to measure coverage rather than assume it. Deterministic
+parsing keeps the oracle trustworthy: an LLM-parsed ground truth is not ground truth. Ingesting
+tracker rows directly was rejected because the trackers disagree with our scope rubric on whole
+topic families (AI CSAM, intimate images, political advertising, government use) — the point of
+running those rows is precisely to record a permanent, scope-versioned *negative*, not to
+import someone else's scope. Corrections are a hard error rather than a warning so that stale
+overrides surface on the next refresh instead of silently rotting.
+**Trade-offs:** The snapshot is a point-in-time file that ages, and refreshing it is manual. The
+corrections file is hand-verified, so it carries human error and grows monotonically. Joining
+on `(state, chamber-class, digits)` cannot match the ~96 rows a tracker cites only by statute
+section — those needed separate triage. And a unique bill-number match is **not** automatically
+the right match: the same number recurs across sessions, which produced a class of
+confidently-wrong joins that had to be found and corrected by hand.
+**Revisit if:** The trackers change format or licensing; a third tracker would add real recall;
+or the corrections file grows large enough that the matching key itself should be reconsidered.
+
+---
+
+## 2026-08-26 — 114. Three docs, three owners: README, `wiki/README.md`, `ARCHITECTURE.md`
+**Chosen:** Split the documentation by audience question and give each file one job.
+`README.md` is the front door — what this is, how it works at a glance, what is in the wiki, how
+to set it up and run it. `wiki/README.md` owns the page schema — frontmatter fields, body
+sections, spliced regions, sidecars, the provenance ledgers. `ARCHITECTURE.md` owns the
+execution model — the fetch/subagent/render seam, the invariants, the source layout, status by
+phase. Cross-link rather than restate.
+**Alternatives:** (a) One large README. (b) Add a root `WIKI.md` for the schema, leaving
+`wiki/README.md` as the short orientation file it was. (c) Keep the status quo and patch
+whichever file is wrong at the time.
+**Why:** The status quo failed in a specific, diagnosable way: the README went roughly four
+phases stale, claiming PHASE-06 / v0.6.0 and that state sources, enforcement, law-brain
+commentary, and scheduling were "planned but not yet implemented" while all four were shipped
+and running. It also asserted "one validated page per tracked federal bill" when state pages
+outnumbered federal ones 27:1. The reason it rotted is that no file owned any particular fact,
+so every fact was everyone's problem and therefore nobody's. `wiki/README.md` was chosen over a
+root `WIKI.md` because it already existed and sits next to what it describes — two wiki docs
+would reintroduce exactly the drift this is meant to fix.
+**Trade-offs:** Three files means three places to check when something changes, and cross-links
+can rot. Some duplication is unavoidable at the boundaries — the law-brain relationship is
+summarized in two places and documented fully in a third.
+**Revisit if:** The docs drift again despite the split, which would mean the problem is cadence
+rather than ownership — at which point generate the counts and the command list mechanically
+instead of writing them by hand.
+
+---
+
+## 2026-08-26 — 115. The law brain is documented and snapshotted in `docs/law-brain/`, not submoduled
+**Chosen:** Add `docs/law-brain/` holding a written architecture document plus a `snapshot/`
+directory with verbatim, stamped copies of the law brain's seven operational files (its
+`CLAUDE.md`, `DECISIONS.md`, and five slash commands). Copy no wiki page content, no `sources/`,
+no `index.md`, no `log.md`. Mark the snapshot explicitly non-authoritative.
+**Alternatives:** (a) Leave the law brain undocumented, as it has been. (b) Make the law brain a
+git repo and add it as a submodule. (c) Document it only in prose, with no file copies.
+(d) Copy the whole law brain in.
+**Why:** ZwiadBrain has a hard dependency on the law brain — `/zwiad-sync-lawbrain` copies its
+analysis verbatim onto our pages — that is configured by a single absolute path in a gitignored
+`.env`. Nothing in the committed tree revealed what was on the other end of that path. The law
+brain is also not a git repo, so its design has no version history anywhere; snapshotting gives
+it one. A submodule is the structurally correct answer and was rejected only as out of scope
+here: it holds a practicing lawyer's work product under a confidentiality-by-default rule, so
+turning it into a repo is a decision about that material, not a documentation change. Content
+was excluded for the same reason; the operational files were screened first and mention
+confidentiality only as rules, never as client facts.
+**Trade-offs:** The snapshot **will drift** — it is a copy with no sync mechanism, and a reader
+could mistake it for the live thing. Mitigated by a stamp header on every file naming the source
+path and copy date, a non-authoritative notice, and a refresh procedure in the folder README;
+accepted because seven small files that drift are still better than a dependency nobody can see.
+**Revisit if:** The law brain becomes a git repo (switch to a submodule and delete the
+snapshot), the snapshot is ever mistaken for the source of truth, or ZwiadBrain starts reading
+these copies instead of `LAW_BRAIN_PATH` — which it must never do.

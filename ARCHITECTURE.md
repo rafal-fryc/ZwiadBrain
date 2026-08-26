@@ -1,16 +1,17 @@
 # ZwiadBrain Architecture
 
-> Authoritative current-state document. As of v0.7.0 (2026-05-29).
+> Authoritative current-state document. As of v0.9.0.
 > Supersedes the architecture sections of `docs/PLAN.md`, which predate the
 > 2026-05-27 subagent pivot. For the reasoning behind every choice, see
 > `DECISIONS.md` (decisions are append-only and authoritative).
 
 ## What ZwiadBrain is
 
-A Python 3.12 CLI that builds a **git-backed Markdown wiki** of U.S. federal
-legislation in AI, privacy, and cybersecurity. Each tracked bill is a Markdown
-page: validated YAML frontmatter (the watchlist/source-of-truth metadata) plus a
-rendered body (summary, status timeline, amendments, legislative history). The
+A Python 3.12 CLI that builds a **git-backed Markdown wiki** of U.S. federal and
+state legislation and enforcement actions in AI, privacy, and cybersecurity.
+Each tracked bill or enforcement matter is a Markdown page: validated YAML
+frontmatter (the watchlist/source-of-truth metadata) plus a rendered body
+(summary, status timeline, amendments, legislative history). The
 committed `wiki/**` tree **is** the product; the SQLite index under
 `data/cache/` is a derived cache rebuilt from frontmatter by `reindex` (D1).
 
@@ -89,6 +90,13 @@ slash command (interactive Claude Code session)
   `discover=false`); sole creator/updater of the `lawbrain:region` block, which other
   re-renders preserve verbatim (D63). Backed by CLI `fetch-lawbrain-candidates` +
   `render-lawbrain-commentary`.
+- **`/zwiad-run`** — the whole pipeline in one interactive session: refresh →
+  federal discover → state discover → enforcement → law-brain → reindex, with
+  per-source failure isolation, an auto-commit per source, and a deterministic
+  block appended to `scan-log.md` (`run-log`). This is the scheduling entrypoint
+  (PHASE-10, D65/D66): ZwiadBrain ships no cron wiring, so an external runner
+  capable of opening an interactive session triggers this one command on a
+  cadence. `--dry-run` plans without writing.
 
 **Requires an open interactive session.** Nothing is headless or cron-driven:
 `claude -p` and the Agent SDK would draw separate metered credit, so they are
@@ -137,27 +145,70 @@ src/zwiadbrain/
   reference/        topics.yaml taxonomy + DISQUALIFY lexicon + loader
   sources/          congress.py, govinfo.py, legiscan.py (HTTP transport + Bill mapping)
                     enforcement/ (base, ftc, state_ag — config-driven adapters, D54)
+                    transcripts.py (YouTube captions for spoken quotes, D72/D73)
                     lawbrain.py (read-only law-brain reader, PHASE-09/D2)
   pipeline/         discover, enrich, render, leg_history, refresh
+                    staging.py (run-dir convention), ids.py (bill-id parsing)
+                    rejects.py (scope-versioned negative cache, D82/D96)
+                    verdicts.py (resumable verdict/summary application, D83)
+                    extract.py + docling_text.py + docling_worker.py
+                      (.text.md sidecars; Docling out-of-process, D67/D105)
+                    playwright_render.py (JS re-ground pass, D78)
+                    linkcheck.py (link-rot by URL family, D112)
+                    tracker_gap.py (external-tracker cross-check, PHASE-29)
+                    run_log.py (scan-log.md block formatter, D65)
                     enforcement.py (matter matching / confirm / merge, D53)
                     lawbrain_{keys,match,links,copy,registry,review}.py (PHASE-09)
   wiki/             schema (frontmatter models) + templates (jinja2; lawbrain:region, D63)
 .claude/
   agents/           subagent prompts (classifier, summarizer, …, lawbrain-matcher)
-  commands/         slash commands (zwiad-backfill, -leg-history, -refresh, -sync-lawbrain)
+  commands/         9 slash commands (backfill, backfill-enacted[-state], scan-states,
+                    scan-enforcement, refresh, leg-history, sync-lawbrain, run)
 ```
 
 ## Status
 
-Shipped: PHASE-01..09 (skeleton, wiki layer, federal source, LLM subagents,
+Current: **v0.9.0**.
+
+**Shipped, PHASE-01..10** — skeleton, wiki layer, federal source, LLM subagents,
 legislative history, watchlist refresh, state sources via LegiScan, enforcement
-actions via FTC + 7 priority state AGs, law-brain commentary overlay). Current: v0.9.0.
+actions via FTC + config-driven state-AG adapters, law-brain commentary overlay,
+and the `/zwiad-run` single-entrypoint scheduling design (D65/D66).
 
-`src/zwiadbrain/sources/enforcement/` is fully implemented (PHASE-08); re-running
-`/zwiad-scan-enforcement` is the enforcement refresh — no cursor-based incremental
-pass, by design (D52). Law-brain commentary (PHASE-09) attaches verbatim commentary +
-`## Further Reading` links onto tracked pages via `/zwiad-sync-lawbrain`; re-running it
-is the law-brain refresh (D57–D63).
+**Shipped, PHASE-12..29** — the hardening and scale-out layer, all of it added
+after this document's original draft:
 
-**Not yet implemented:** law-brain discovery / stub-minting (PHASE-11, gated, D14),
-scheduling (PHASE-10).
+- **Full-text extraction (D67, D105).** `extract-text` writes `<id>.text.md`
+  sidecars via Docling, run in an isolated subprocess with a page cap because the
+  native stack can abort the interpreter. Enacted-bill summaries are written
+  against the extracted text rather than the API summary (D110).
+- **Scope-reject ledger (D82, D96).** `wiki/.rejects/{federal,state}.json` caches
+  negative classifications so no bill is re-classified for free. Entries are
+  scope-versioned: a scope change **surfaces** staleness via `stale-rejects`,
+  never auto-invalidates.
+- **Resumable campaigns (D83, D84, D85).** Enacted-first discovery plus
+  `apply-verdicts` / `apply-summaries`, batched one (jurisdiction × period) unit
+  per run with a human review gate, tracked in `docs/backfill/enacted-campaign.md`.
+- **Grounding-gate recall work (D76–D78, D101–D104).** Terminal-punctuation and
+  dash/mojibake normalization, a Playwright re-ground pass for JS-injected quotes,
+  verifier PDF staging, and Wayback recovery for pages that return 200 with an
+  empty JS shell — all widening recall without loosening the D36 trust boundary.
+- **Narrative gate (D106, D107).** The Legislative Journey narrative is
+  verifier-checked and fail-closed dropped at render, extending D36/D40 beyond
+  individual statements.
+- **Link-rot detection (D112).** `check-links` probes URLs on tracked pages and
+  groups dead links by URL family, built after a state legislature retired an
+  entire URL scheme at once.
+- **External-tracker cross-check (PHASE-29).** `tracker-gap` joins snapshots of
+  the Orrick and MultiState AI-law trackers against `wiki/states` and the reject
+  ledger, so coverage is measured against an outside authority rather than
+  against our own discovery. See D113.
+
+**Not implemented, by decision:** law-brain discovery / stub-minting (PHASE-11,
+gated by D14, `discover=false`); any built-in scheduler (`docs/scheduling.md` —
+`/zwiad-run` is designed to be triggered externally).
+
+**Implemented but not populated:** state-AG enforcement. The adapters and config
+exist; `wiki/states/*/enforcement/` is still empty and all 144 enforcement pages
+are FTC. Law-brain commentary is likewise a pilot — the machinery is complete and
+exactly one page carries it.

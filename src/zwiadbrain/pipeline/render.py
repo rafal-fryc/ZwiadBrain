@@ -1,5 +1,6 @@
 """Render models to committed wiki pages, route them to disk, write idempotently."""
 
+import re
 from pathlib import Path
 
 import frontmatter
@@ -77,6 +78,20 @@ def write_page(item: Bill | EnforcementAction, wiki_root: Path) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8", newline="\n")
     return True
+
+
+def committed_summary(page_text: str) -> str | None:
+    """The text under a committed page's ``## Summary`` heading, or ``None`` (D123).
+
+    The plain-language summary is body-only (D20) — frontmatter cannot rebuild it — so
+    a re-render from freshly fetched data must carry it over from the committed page.
+    """
+    body: str = frontmatter.loads(page_text).content
+    match = re.search(r"(?:^|\n)## Summary\n\n(.*?)(?:\n\n## |\Z)", body, re.S)
+    if match is None:
+        return None
+    summary = match.group(1).strip()
+    return summary or None
 
 
 def write_lawbrain_region(item: Bill | EnforcementAction, wiki_root: Path) -> bool:

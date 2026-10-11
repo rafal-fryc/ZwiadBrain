@@ -115,7 +115,13 @@ from zwiadbrain.pipeline.rejects import (
     state_key,
     write_reject_ledger,
 )
-from zwiadbrain.pipeline.render import sidecar_path, write_lawbrain_region, write_page
+from zwiadbrain.pipeline.render import (
+    committed_summary,
+    page_path,
+    sidecar_path,
+    write_lawbrain_region,
+    write_page,
+)
 from zwiadbrain.pipeline.run_log import RunSummary, append_run_log, format_run_log_entry
 from zwiadbrain.pipeline.staging import stage_json, validate_model
 from zwiadbrain.pipeline.tracker_gap import (
@@ -3074,6 +3080,19 @@ def render_leg_history(
             "summary_hash": summary_hash(bill.summary),
             "amendments_count": len(bill.amendments),
         })
+        # D123: the fetched bill carries the OFFICIAL summary and no topics; the committed
+        # page owns the plain-language summary and the classifier's topics. Carry both over
+        # (summary_hash above still tracks the official text, so refresh detection holds).
+        committed_page = page_path(bill, wiki)
+        if committed_page.exists():
+            committed_text = committed_page.read_text(encoding="utf-8")
+            committed = from_page(committed_text)
+            bill = bill.model_copy(
+                update={
+                    "summary": committed_summary(committed_text) or bill.summary,
+                    "topics": committed.topics or bill.topics,
+                }
+            )
 
         written = write_page(bill, wiki)
 

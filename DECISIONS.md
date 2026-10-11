@@ -1477,3 +1477,21 @@ D119/D120 extraction fixes made the enacted text readable and the D86 test could
 **Trade-offs:** SB 1103 is a thin company-facing hook on a government-AI law; a refresh
 re-classification may reject it and should be overridden back with a pointer here.
 **Revisit if:** the user narrows scope to exclude procurement-contract duties.
+
+## 2026-10-12 — 123. Legislative-history renders keep the page's summary and topics; 88 clobbered pages restored
+**Chosen:** `render-leg-history` now takes the plain-language Summary and the `topics` from the
+committed page instead of the freshly fetched bill (whose summary is the official LegiScan/CRS
+text and whose topics are empty). `summary_hash` is still computed from the official text, so
+refresh change-detection is unchanged. The 88 pages whose current summary was exactly the text
+a leg-history commit wrote were restored from that commit's parent — Summary section and
+`topics` only (verified: frontmatter otherwise identical, body otherwise identical). Before/after
+listing: `docs/backfill/summary-restoration-2026-10.md`.
+**Alternatives:** re-render the 88 from run data (rejected: lossy — the leg-history spine and the
+timeline are not all in frontmatter, D20); re-summarize them with the summarizer (rejected: the
+pre-clobber summaries were already reviewed, many by the 2026-07 audit, and cost nothing to
+restore).
+**Why:** every leg-history run since the state flow began silently reverted the page's summary to
+the raw description and dropped its topics; found during the PHASE-31 end-to-end runs.
+**Trade-offs:** a page whose official summary genuinely changed and was never re-summarized keeps
+the older plain-language text until refresh re-summarizes it (the existing refresh path).
+**Revisit if:** another body-only field (D20) is found missing after a leg-history render.

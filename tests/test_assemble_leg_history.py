@@ -552,3 +552,48 @@ def test_merge_lanes_dedups_hearings_by_event_identity_across_urls() -> None:
     # Partial rows (missing date/committee/chamber) are never identity-collapsed.
     assert "https://example.gov/partial-1" in urls
     assert "https://example.gov/partial-2" in urls
+
+
+def test_render_leg_history_keeps_the_pages_summary_and_topics(tmp_path: Path) -> None:
+    """should never replace the page's plain-language summary or topics with the raw fetch
+
+    The fetched bill carries the OFFICIAL summary (a LegiScan description or CRS text) and no
+    topics. Rendering it wholesale silently reverted 83 of 120 history pages to raw
+    descriptions and dropped their topics (D123).
+    """
+    from zwiadbrain.models import Bill
+    from zwiadbrain.pipeline.refresh import summary_hash
+    from zwiadbrain.pipeline.render import write_page
+    from zwiadbrain.wiki.schema import from_page
+
+    wiki = tmp_path / "wiki"
+    committed = Bill.model_validate(
+        {**_bill(), "summary": "Plain-language summary written from the enacted text.",
+         "topics": ["ai", "privacy"]}
+    )
+    write_page(committed, wiki)
+
+    run = tmp_path / "run"
+    fetched = {**_bill(), "summary": "Raw official description.", "topics": []}
+    _write_run(
+        run,
+        lane_files={"crec": _lane()},
+        leghistory={"bill": fetched, "spine": _spine(), "leads": {}},
+    )
+    _write_verifier(run, statements=[])
+    assert runner.invoke(app, ["assemble-leg-history-input", "--run-dir", str(run)]).exit_code == 0
+
+    result = runner.invoke(
+        app,
+        ["render-leg-history", "--in", str(run / "leghistory-research.json"), "--wiki", str(wiki)],
+    )
+
+    assert result.exit_code == 0, result.output
+    page = next(wiki.rglob("*.md")).read_text(encoding="utf-8")
+    assert "Plain-language summary written from the enacted text." in page
+    assert "Raw official description." not in page
+    rendered = from_page(page)
+    assert isinstance(rendered, Bill)
+    assert rendered.topics == ["ai", "privacy"]
+    # The refresh cursor still tracks the OFFICIAL summary, so a real change is detected.
+    assert rendered.summary_hash == summary_hash("Raw official description.")

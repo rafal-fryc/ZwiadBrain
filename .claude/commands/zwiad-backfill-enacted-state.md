@@ -13,7 +13,7 @@ you do the LLM steps via subagents (regular Claude plan, **not** API/Agent SDK c
 
 **Arguments:** `$1` = two-letter state (e.g. `ca`; campaign states: ca, ny, tx, co, va, wa, il).
 `$2` = year (resolves to the LegiScan session covering it; the campaign covers sessions across
-2019–2024). `$3` = optional `--classify-all` to skip recall and classify every enacted bill.
+2019–2024). `$3` = optional `--classify-all` to skip recall and classify every enacted bill. If the fetch reports that candidates exceed `--limit`, re-run with the `--limit` it names — it never truncates silently.
 
 Discovery is **enacted-only by construction**: `getSessionList` resolves the year → session, then
 `getMasterList` lists that session's bills and only `status == 4 (Passed)` are kept — failed/vetoed/
@@ -41,8 +41,16 @@ drops anything already tracked or in `wiki/.rejects/state.json`, and writes `can
 `description`, status, `enacted: true`, sponsors, actions, amendments, `legiscan_bill_id`).
 
 ### 3. Classify each bill (subagent: `classifier`) → `verdicts.json`
-For every candidate, dispatch the **classifier** with `title` + `summary`. It reads
-`reference/topics.yaml` and returns the verdict object.
+Stage the batches first (Python, deterministic — D118):
+```
+uv run zwiadbrain stage-classifier-batches --in data/runs/<id>/candidates.json
+```
+It writes `data/runs/<id>/batch/batchNN.json` (15 bills each) and repairs inputs the classifier
+cannot judge: a summary that only restates the title gets `text_snippets` from the bill text, an
+oversized omnibus summary is cut to a head plus `summary_snippets`, and anything unrepairable
+carries an `input_note` starting `THIN-SUMMARY`. Then dispatch one **classifier** per batch file
+(in parallel; tell it the batch path) — it returns a JSON array of verdict objects with `id`.
+Every verdict whose rationale starts with `REVIEW` goes in the unit report as a borderline.
 - Log each decision; **validate topics** (only `{ai, privacy, cyber}` — any other = classifier
   error → `in_scope: false`, do not enrich).
 - Collect `[{ "id", "in_scope", "topics", "reason" }]` into `verdicts.json` and `Write` it (resumable

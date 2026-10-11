@@ -186,7 +186,7 @@ targets come from the trackers, not from keyword search). **Status `done`** (com
 
 **New states (6):** HI, ID, MT, OK, SC, WY → **34 tracked states**.
 
-**Pages by state:** VA 5; CT 3, NY 3; IA 2, IL 2; DE, GA, HI, ID, KY, MD, MN, MT, NJ, OK, OR,
+**Pages by state:** VA 5 (3 after the D117 removals); CT 3, NY 3; IA 2, IL 2; DE, GA, HI, ID, KY, MD, MN, MT, NJ, OK, OR,
 SC, TN, UT, WA, WY 1 each.
 
 **Marquee laws newly tracked:** NY **RAISE Act** (S 8828 — frontier-developer safety frameworks,
@@ -212,6 +212,15 @@ per-bill rather than change `topics.yaml`; no `scope_version` bump):
 The override is per-bill, NOT by tracker topic: **CT HB 5312** is tagged "AI Intimate Images" but
 imposes a covered-platform takedown duty, and **WY HB 102** carries an AI-developer liability
 carve-out — both kept IN.
+
+**2026-10-11 rubric re-check (D116/D117):** VA HB 797 and SB 384 (JCOTS study of AI
+verification organizations — no company duty) were removed from the wiki and recorded in the
+reject ledger. VA HB 580 (Division of Consumer Counsel AI-complaint intake) is kept by user
+ruling as an AI enforcement body. **TX HB 581 flipped IN** on enacted text — the July
+"person-facing criminal" override was wrong: it imposes age-verification, no-retention and
+source-consent duties on operators of AI sexual-material tools ($10k/day penalties). NE LB 383
+(title adopts the Parental Rights in Social Media Act) is pending a text check — Docling cannot
+read the enrolled PDF.
 
 **⚠ Open accuracy items (33 REVIEW-flagged rejects), all recorded in the verdict reasons:**
 - **11 empty text extractions** — the sidecar holds only a status marker, so the summary rests on

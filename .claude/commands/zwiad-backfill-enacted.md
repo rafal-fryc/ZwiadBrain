@@ -1,6 +1,6 @@
 ---
 description: Backfill ENACTED federal laws (one Congress) into the ZwiadBrain wiki — enacted-only discovery, classify + summarize via subagents, per-unit review gate (runs on your regular Claude plan usage).
-argument-hint: <congress> [--classify-all]
+argument-hint: <congress> [--no-classify-all]
 allowed-tools: Bash, Read, Write, Edit, Task
 ---
 
@@ -13,8 +13,10 @@ you (this interactive session) do the LLM steps via subagents, so the work runs 
 regular Claude plan — **not** the API or Agent SDK credit.
 
 **Arguments:** `$1` = Congress number (required; the campaign covers 116, 117, 118).
-`$2` = optional `--classify-all` to skip the recall pre-filter and classify *every* enacted
-law (zero recall risk; ~6× more classifier work — use only if a review revealed a missed law).
+`$2` = optional `--no-classify-all` to apply the recall pre-filter. The default classifies
+*every* enacted law (D87 — recall hid PL 118-50; a Congress is ~300–400 laws). If the fetch
+reports that candidates exceed `--limit`, re-run with the `--limit` it names — it never
+truncates silently.
 
 Unlike `/zwiad-backfill`, discovery is **enacted-only by construction**: `/law/{congress}/pub`
 lists only bills that became public law, so no pending/failed bill ever enters the pipeline.
@@ -27,8 +29,8 @@ Run:
 uv run zwiadbrain fetch-enacted-candidates --congress $1 --skip-existing $2
 ```
 It discovers the Congress's enacted public laws via `/law/{congress}/pub`, applies the
-two-stage `recall_filter` (title seeds + `policyArea` probe over the whole enacted set; skipped
-under `--classify-all`), enriches the survivors, drops anything already tracked or in
+two-stage `recall_filter` only under `--no-classify-all` (title seeds + `policyArea` probe over
+the whole enacted set), enriches the survivors, drops anything already tracked or in
 `wiki/.rejects/federal.json`, and writes `candidates.json` under `data/runs/<id>/`. **Note the
 exact path it prints.**
 
@@ -37,9 +39,18 @@ exact path it prints.**
 `enacted: true`, `public_law`, sponsors, actions, amendments).
 
 ### 3. Classify each bill (subagent: `classifier`) → `verdicts.json`
-For every candidate, dispatch the **classifier** subagent with the bill's `title` and `summary`.
-It reads `reference/topics.yaml` and returns `{in_scope, topics, confidence, rationale,
-positive_criterion, disqualifier_survived, disqualifier_applied}`.
+Stage the batches first (Python, deterministic — D118):
+```
+uv run zwiadbrain stage-classifier-batches --in data/runs/<id>/candidates.json
+```
+It writes `data/runs/<id>/batch/batchNN.json` (15 bills each) and repairs inputs the classifier
+cannot judge: a summary that only restates the title gets `text_snippets` from the bill text, an
+oversized omnibus summary is cut to a head plus `summary_snippets`, and anything unrepairable
+carries an `input_note` starting `THIN-SUMMARY`. Then dispatch one **classifier** per batch file
+(in parallel; tell it the batch path) — it returns a JSON array of verdict objects with `id`.
+Every verdict whose rationale starts with `REVIEW` goes in the unit report as a borderline.
+Each verdict is `{id, in_scope, topics, confidence, rationale, positive_criterion,
+disqualifier_survived, disqualifier_applied}`.
 - Log each decision (id, in_scope, confidence, criterion/disqualifier) to the transcript.
 - **Validate topics**: any topic not in `{ai, privacy, cyber}` is a classifier error — record the
   bill out-of-scope (`in_scope: false`) and do not enrich it.

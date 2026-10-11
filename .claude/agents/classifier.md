@@ -23,8 +23,17 @@ Read `reference/topics.yaml`. It is the single source of truth and contains:
 
 ## Input
 
-The prompt gives you one bill: its `title` and `summary` (an official CRS-style
-summary). Judge scope from the operative substance, not keyword presence.
+Either one bill (`title` + `summary`) in the prompt, or — the normal backfill path — a
+**batch file** path (`batch/batchNN.json`, written by `stage-classifier-batches`): a JSON list
+of bills. Judge every bill in a batch independently. Each bill may also carry:
+- `text_snippets` — passages from the bill's own text around topic terms (or its `[opening]`),
+  attached because the official summary only restates the title. Judge scope from these.
+- `summary_snippets` — passages from an oversized (omnibus) summary. Treat each as a possible
+  discrete operative provision under the omnibus-rider rule.
+- `input_note` — what you are looking at. If it starts with `THIN-SUMMARY`, you have only a
+  title: decide on it, set `confidence` ≤ 0.5, and start the `rationale` with `REVIEW`.
+
+Judge scope from the operative substance, not keyword presence.
 
 ## How to decide
 
@@ -42,7 +51,9 @@ or a title is a disqualifier.
 
 ## Output
 
-Respond with ONLY a single JSON object (no prose, no code fence) of this exact shape:
+For a batch, respond with ONLY a JSON array — one object per bill, in input order, each the
+shape below plus an `"id"` field. For a single bill, respond with ONLY a single JSON object
+(no prose, no code fence) of this exact shape:
 
 ```
 {
@@ -65,4 +76,5 @@ Rules for the fields:
 - `disqualifier_survived`: a disqualifier the bill mentions but survives; nullable in both cases.
 - `disqualifier_applied`: the disqualifier that put the bill out of scope; required (non-null) when `in_scope` is false, `null` when true.
 
-Do not use any tool other than reading `reference/topics.yaml`. Do not write files.
+Do not use any tool other than reading `reference/topics.yaml` and the batch file. Do not
+write files.

@@ -280,7 +280,7 @@ def test_fetch_candidates_recovers_title_miss_via_policy_area(
 def test_fetch_enacted_keeps_only_topical_enacted_laws(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """should discover /law/{congress}/pub, recall-filter, and enrich only survivors"""
+    """should recall-filter /law/{congress}/pub and enrich only survivors (--no-classify-all)"""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
     out = tmp_path / "run"
@@ -293,8 +293,8 @@ def test_fetch_enacted_keeps_only_topical_enacted_laws(
         _route_backfill(mock)  # enrich routes for the survivor 118/hr/8818
         result = runner.invoke(
             app,
-            ["fetch-enacted-candidates", "--congress", "118", "--out", str(out),
-             "--topics", str(_TOPICS)],
+            ["fetch-enacted-candidates", "--congress", "118", "--no-classify-all",
+             "--out", str(out), "--topics", str(_TOPICS)],
         )
     assert result.exit_code == 0, result.output
     data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
@@ -337,6 +337,45 @@ def test_fetch_enacted_classify_all_skips_recall(
     assert law.called and not probe.called  # no Stage-2 probe under --classify-all
 
 
+def test_fetch_enacted_defaults_to_classify_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should stage every enacted law with no recall probe when no flag is given (D87)"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_enrich)
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/law/118/pub").respond(json=_fixture("law_list.json"))
+        probe = mock.get("/bill/118/s/2073").respond(json={"bill": {}})
+        result = runner.invoke(
+            app, ["fetch-enacted-candidates", "--congress", "118", "--out", str(out)]
+        )
+    assert result.exit_code == 0, result.output
+    data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
+    assert [b["id"] for b in data] == ["118-hr-8818", "118-s-2073"]
+    assert not probe.called
+
+
+def test_fetch_enacted_errors_when_candidates_exceed_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should fail loudly instead of silently dropping candidates beyond --limit"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONGRESS_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_enrich)
+    out = tmp_path / "run"
+    with respx.mock(base_url=CONGRESS_API_BASE, assert_all_called=False) as mock:
+        mock.get("/law/118/pub").respond(json=_fixture("law_list.json"))
+        result = runner.invoke(
+            app,
+            ["fetch-enacted-candidates", "--congress", "118", "--limit", "1", "--out", str(out)],
+        )
+    assert result.exit_code == 1
+    assert "--limit" in result.output
+    assert not (out / "candidates.json").exists()
+
+
 def test_fetch_enacted_skip_existing_drops_tracked_law(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -357,7 +396,7 @@ def test_fetch_enacted_skip_existing_drops_tracked_law(
         result = runner.invoke(
             app,
             [
-                "fetch-enacted-candidates", "--congress", "118",
+                "fetch-enacted-candidates", "--congress", "118", "--no-classify-all",
                 "--skip-existing", "--wiki", str(wiki), "--out", str(out),
                 "--topics", str(_TOPICS),
             ],
@@ -1800,6 +1839,29 @@ def test_fetch_state_enacted_classify_all_stages_all_enacted(
     assert result.exit_code == 0, result.output
     data = json.loads((out / "candidates.json").read_text(encoding="utf-8"))
     assert [b["legiscan_bill_id"] for b in data] == [1132030, 1132099]  # both enacted, no recall
+
+
+def test_fetch_state_enacted_errors_when_candidates_exceed_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """should fail loudly instead of silently dropping enacted bills beyond --limit"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LEGISCAN_API_KEY", "test-key")
+    monkeypatch.setattr("zwiadbrain.cli.enrich", _fake_state_enrich)
+    out = tmp_path / "run"
+    with respx.mock(assert_all_called=False) as mock:
+        _route_legiscan(mock, {
+            "getSessionList": _legiscan_fixture("getSessionList.json"),
+            "getMasterList": _legiscan_fixture("getMasterList.json"),
+        })
+        result = runner.invoke(
+            app,
+            ["fetch-state-enacted-candidates", "--state", "ca", "--year", "2019",
+             "--classify-all", "--limit", "1", "--out", str(out)],
+        )
+    assert result.exit_code == 1
+    assert "--limit" in result.output
+    assert not (out / "candidates.json").exists()
 
 
 def test_fetch_state_enacted_errors_without_key(

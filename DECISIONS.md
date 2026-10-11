@@ -1371,6 +1371,64 @@ accepted because seven small files that drift are still better than a dependency
 snapshot), the snapshot is ever mistaken for the source of truth, or ZwiadBrain starts reading
 these copies instead of `LAW_BRAIN_PATH` — which it must never do.
 
+## 2026-10-11 — 116. Election-actor, person-facing-criminal, and D88 boundaries encoded in `topics.yaml`; no `scope_version` bump
+**Chosen:** User decision: the D88 (telecom-service / supply-chain / government-assistance OUT),
+D91 (election-actor OUT, platform duty IN) and person-facing-criminal (AI-CSAM / sexual-deepfake /
+impersonation crimes OUT unless a company-facing duty rides along) boundaries become `disqualify`
+entries in `reference/topics.yaml`, reversing the PHASE-29 choice to apply them per bill.
+`scope_version` stays `"D95"`.
+**Alternatives:** keep per-bill overrides (PHASE-29) — rejected: 38 hand overrides in one unit and
+every future state sweep hits the same categories; encode and bump `scope_version` — rejected: the
+new rules only NARROW scope, so no existing reject can become wrong, yet a bump would mark all
+~1,450 ledger entries stale (D96) for nothing.
+**Why:** a rule the classifier cannot see is a rule re-applied by hand forever. Regression run
+(70 tracker-gap bills, same title+summary inputs, 5 batched classifier calls): **36/38** former
+overrides now rejected by the classifier itself; **28/32** in-scope verdicts unchanged.
+Mismatches: NE LB 383 stays IN — its title adopts the *Parental Rights in Social Media Act*
+(platform duty), so the July override looks wrong; TX HB 581 stays IN on a title-only summary
+(unverified); VA HB 580 / HB 797 / SB 384 (government study / complaint intake) now OUT under the
+D88 assistance rule; DE HB 191 flips OUT on a title-only summary (thin-input variance).
+**Trade-offs:** stricter rubric text may reject a borderline bill a human would keep; the
+`NOT disqualified when…` carve-outs (platform duty, developer liability, data-broker duty) are
+the guard. Rule changes that BROADEN scope must still bump `scope_version`.
+**Revisit if:** a later sweep shows a pattern of wrongly rejected platform-duty or company-duty
+laws under these entries.
+
+## 2026-10-11 — 117. Government-only AI study bills out; AI-complaint intake body kept
+**Chosen:** User decision on the D116 regression mismatches: VA HB 797 / SB 384 (JCOTS feasibility
+study of AI verification organizations) are removed from the wiki and recorded in the state reject
+ledger; VA HB 580 (Division of Consumer Counsel gains AI-fraud complaint-intake and investigation
+duties) stays tracked under positive criterion 5 (an enforcement body for AI).
+**Alternatives:** keep all three (would require broadening the rubric to admit government AI
+studies — a `scope_version` bump); remove all three (consistent with D86/D88 but drops a real
+consumer-protection enforcement function).
+**Why:** a study directive binds only a legislative commission; an agency newly charged with
+investigating AI-related consumer harm is enforcement capacity companies answer to.
+**Trade-offs:** HB 580 is a judgment the classifier may not reproduce — a future refresh that
+re-classifies it OUT should be overridden back with a pointer to this entry. First removal of
+committed bill pages (rather than `tracking: false`): pages were wrongly admitted, not
+flipped by a later change.
+**Revisit if:** the user wants government AI-governance studies tracked as a category.
+
+## 2026-10-11 — 118. Classifier input is staged deterministically: batches of 15, thin summaries repaired from bill text
+**Chosen:** `stage-classifier-batches` writes `batch/batchNN.json` (15 bills each). A summary that
+is missing, under 150 chars, or merely restates the title is "thin": the bill's operative text
+version is fetched (Docling) and seed-hit snippets (±300 chars, ≤10, or the opening 3,000 chars
+when no seed hits) are attached. A summary over 20,000 chars is cut to a 5,000-char head plus
+seed-hit snippets from the full summary. Unrepairable thin bills carry a `THIN-SUMMARY` note
+that makes the classifier mark them `REVIEW` at confidence ≤ 0.5.
+**Alternatives:** keep per-bill dispatch (≈13k tokens of agent overhead per bill and the 200-agent
+cap); keep hand-built batches and `mega_*.json` (unrepeatable, undocumented — D87); give the
+classifier the full sidecar (too large for a 15-bill batch; extraction happens post-classification).
+**Why:** in the tracker gap set 102 of 177 state summaries were thin — the classifier was judging
+titles, which produced the thin-summary rejects, title-only omnibus OUTs, and the D116 regression
+variance (DE HB 191 flipped on identical title-only input). Batching cuts agent count ~15×.
+**Trade-offs:** thin repair costs one Docling extraction per thin bill (~1 min per long PDF after
+D119) before classification; snippets can miss an operative provision that contains no seed term
+(the opening-text fallback only covers no-hit bills).
+**Revisit if:** REVIEW-flagged volume stays high after D119, or a missed law is traced to a
+snippet window that cut off its operative provision.
+
 ## 2026-10-11 — 119. Docling reads the first N pages (`page_range`), text layer first, OCR only as fallback, no table structure
 **Chosen:** The extraction worker converts `page_range=(1, max_pages)` instead of passing
 `max_num_pages`; it first converts with OCR off and table-structure recognition off, and re-runs

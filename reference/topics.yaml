@@ -69,7 +69,8 @@ topics:
       - "CISA"
 
 # Scope-rule vintage (D96). Bump to the newest DECISIONS entry whenever a change
-# below alters what is in/out of scope. `record-rejects` stamps this version onto
+# below could ADMIT a previously rejected bill (a broadening). Narrowing-only
+# changes cannot strand a reject, so they do not bump it (D116). `record-rejects` stamps this version onto
 # every new reject-ledger entry; `stale-rejects` compares stamped versions against
 # this value to surface rejects recorded under superseded rules.
 scope_version: "D95"
@@ -100,6 +101,9 @@ disqualify:
   - "Health, education, or financial bill where any data/technology mention is incidental to a non-AI/privacy/cyber purpose."
   - "Bill solely about physical telecommunications/broadband infrastructure with no data-protection or cybersecurity provisions."
   - "Governs the GOVERNMENT's own use or operations — its surveillance/intelligence authorities (e.g. FISA Section 702), internal IT/cybersecurity, federal hiring, procurement, or inter-agency data-sharing — without imposing AI/privacy/cyber obligations on private-sector companies (D86)."
+  - "Telecom-carrier SERVICE obligations whose data angle is incidental (e.g. Safe Connections Act), equipment/supply-chain market-access restrictions (e.g. Secure Equipment Act), or government capacity-building/assistance programs that impose no duty on companies (D88). A discrete personal-data or data-broker handling duty on companies is NOT disqualified by this rule — data-broker laws stay IN even when they protect only a narrow class (e.g. judges)."
+  - "AI/deepfake ELECTION law whose duty falls on election actors — candidates, campaigns, committees, or political advertisers under election/political-reform law (e.g. AI-disclosure on political ads) (D91, D116). NOT disqualified when the operative duty falls on a private platform or company (e.g. a large online platform must block/label deceptive AI election content, or the disseminating medium is liable for stripping a required disclosure)."
+  - "PERSON-FACING CRIMINAL law — a new crime, sentencing enhancement, or private right of action against the individual who creates/possesses/distributes AI-generated CSAM, sexual deepfakes, intimate images, or impersonations — with no compliance duty on a company (D116, codifying the PHASE-29 overrides). NOT disqualified when the law also imposes a company-facing duty (e.g. a covered-platform takedown-request duty, or a developer liability rule)."
 
 # Enforcement-action relevance (D55). Reuses the shared topic keys (ai|privacy|cyber)
 # above; the classifier subagent applies these enforcement-specific criteria, NOT the

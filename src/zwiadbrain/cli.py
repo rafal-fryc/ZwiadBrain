@@ -46,6 +46,7 @@ from zwiadbrain.models import (
     RelatedMedia,
     Statement,
 )
+from zwiadbrain.pipeline.classifier_input import batch_items, classifier_item
 from zwiadbrain.pipeline.discover import (
     dedupe_companions,
     filter_unseen,
@@ -230,6 +231,20 @@ def backfill(
     typer.echo(f"backfilled {written} federal bill(s) into {wiki}")
 
 
+def _require_within_limit(candidates: list[Candidate], limit: int) -> list[Candidate]:
+    """Refuse to stage a truncated enacted set — a backfill must see every candidate.
+
+    Enacted backfills are completeness sweeps (D84): a ``[:limit]`` slice silently dropped
+    the tail of large sessions (the 117th Congress has 362 laws vs the old 250 default).
+    """
+    if len(candidates) > limit:
+        raise ConfigError(
+            f"{len(candidates)} candidates exceed --limit {limit}; "
+            f"re-run with --limit {len(candidates)} or higher (nothing was staged)"
+        )
+    return candidates
+
+
 def _existing_federal_bill_ids(wiki: Path) -> set[str]:
     """Bill-id slugs already tracked under ``wiki/federal/bills`` (PHASE-22, --skip-existing).
 
@@ -363,9 +378,10 @@ def fetch_enacted_candidates(
         bool,
         typer.Option(
             "--classify-all/--no-classify-all",
-            help="Skip the recall pre-filter; stage every enacted law for classification.",
+            help="Skip the recall pre-filter and stage every enacted law (default, D87);"
+            " --no-classify-all applies the title-seed + policyArea recall instead.",
         ),
-    ] = False,
+    ] = True,
     skip_existing: Annotated[
         bool,
         typer.Option(
@@ -383,8 +399,9 @@ def fetch_enacted_candidates(
     lists only enacted public laws, so non-enacted bills never enter the pipeline. By default
     the two-stage ``recall_filter`` (title seeds + ``policyArea`` probe over the *whole* enacted
     set) keeps the topically-relevant laws and the classifier subagent gates the survivors.
-    ``--classify-all`` skips recall and stages every enacted law (zero recall risk, ~6x more
-    enrichment + classifier work).
+    Federal enacted units classify everything by default (D87: recall hid PL 118-50);
+    ``--no-classify-all`` restores recall. More candidates than ``--limit`` is an error,
+    never a silent truncation.
     """
     try:
         api_key = load_settings().require_congress_api_key()
@@ -405,7 +422,7 @@ def fetch_enacted_candidates(
                 f" ({len(known)} on wiki, {len(ledger)} rejects)"
             )
         if classify_all:
-            candidates = scanned[:limit]
+            candidates = _require_within_limit(scanned, limit)
         else:
             reference = load_reference(topics)
             seeds, policy_areas = reference.seeds, reference.policy_areas
@@ -414,9 +431,10 @@ def fetch_enacted_candidates(
                 source,
                 seeds=seeds,
                 policy_areas=policy_areas,
-                limit=limit,
+                limit=len(scanned),  # never truncate here; the limit guard below fails loudly
                 max_probe=len(scanned),  # probe the WHOLE enacted set — recall not truncated
             )
+            candidates = _require_within_limit(candidates, limit)
         bills = [enrich(source, candidate) for candidate in candidates]
         payload = [bill.model_dump(mode="json") for bill in bills]
         path = stage_json(payload, name="candidates.json", out=out)
@@ -424,6 +442,65 @@ def fetch_enacted_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"fetched {len(bills)} enacted candidate(s) to {path}")
+
+
+@app.command(name="stage-classifier-batches")
+def stage_classifier_batches(
+    input_file: Annotated[Path, typer.Option("--in", help="candidates.json to classify.")],
+    out_dir: Annotated[
+        Path | None, typer.Option(help="Batch directory (default: <run>/batch).")
+    ] = None,
+    size: Annotated[int, typer.Option(min=1, help="Bills per classifier subagent.")] = 15,
+    fetch_text: Annotated[
+        bool,
+        typer.Option(
+            "--fetch-text/--no-fetch-text",
+            help="Fetch bill text for thin summaries (needs Docling; skipped if absent).",
+        ),
+    ] = True,
+    topics: Annotated[Path, typer.Option(help="Relevance taxonomy file.")] = _DEFAULT_TOPICS,
+) -> None:
+    """Split candidates into classifier batches, repairing thin and oversized summaries (D118).
+
+    Each ``batchNN.json`` is one classifier subagent's input. A summary that only repeats the
+    title gets seed-hit snippets from the bill's enacted text; an oversized summary is cut to
+    a head plus snippets from the full summary. Bills that cannot be repaired carry an
+    ``input_note`` telling the classifier to flag them REVIEW.
+    """
+    try:
+        seeds = load_reference(topics).seeds or []
+        try:
+            raw: object = json.loads(input_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"could not read candidates file {input_file}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise ConfigError(f"candidates file must be a JSON list, got {type(raw).__name__}")
+        entries: list[object] = list(raw)  # pyright: ignore[reportUnknownArgumentType]
+        bills = [validate_model(Bill, entry, label="candidate bill") for entry in entries]
+
+        def fetch(url: str) -> str:
+            return extract_markdown(url) if fetch_text else ""
+
+        items = [classifier_item(bill, seeds, fetch) for bill in bills]
+        target = out_dir or input_file.parent / "batch"
+        target.mkdir(parents=True, exist_ok=True)
+        batches = batch_items(items, size)
+        for number, batch in enumerate(batches, start=1):
+            (target / f"batch{number:02d}.json").write_text(
+                json.dumps(batch, indent=1, ensure_ascii=False), encoding="utf-8"
+            )
+    except AppError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    notes = [str(item.get("input_note", "")) for item in items]
+    thin = sum("text_snippets" in item or note.startswith("THIN") for item, note in
+               zip(items, notes, strict=True))
+    unrepaired = sum(note.startswith("THIN") for note in notes)
+    oversized = sum("summary_snippets" in item for item in items)
+    typer.echo(
+        f"staged {len(items)} bill(s) in {len(batches)} batch(es) to {target}: "
+        f"{thin} thin ({unrepaired} without text, flagged REVIEW), {oversized} oversized"
+    )
 
 
 @app.command(name="render-classified")
@@ -832,7 +909,7 @@ def fetch_state_enacted_candidates(
                 f" + {after_unseen - len(candidates)} cached-reject of {before} enacted"
                 f" ({len(known)} on wiki, {len(ledger)} rejects)"
             )
-        candidates = candidates[:limit]
+        candidates = _require_within_limit(candidates, limit)
         bills = [enrich(source, candidate) for candidate in candidates]
         bills = dedupe_companions(bills)  # D93: collapse same-as Assembly/Senate pairs
         payload = [bill.model_dump(mode="json") for bill in bills]
@@ -1017,7 +1094,7 @@ def fetch_tracker_candidates(
                 f"  skip-existing: dropped {before - after_unseen} already-tracked"
                 f" + {after_unseen - len(candidates)} cached-reject of {before}"
             )
-        candidates = candidates[:limit]
+        candidates = _require_within_limit(candidates, limit)
         bills = [enrich(source, candidate) for candidate in candidates]
         bills = dedupe_companions(bills)  # D93: collapse same-as chamber pairs
         path = stage_json(

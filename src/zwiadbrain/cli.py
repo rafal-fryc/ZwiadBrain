@@ -138,6 +138,7 @@ from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.sources.transcripts import make_gate_fetch, memoize_fetch
 from zwiadbrain.store import Store
+from zwiadbrain.tls import use_system_trust_store
 from zwiadbrain.wiki.schema import from_page
 
 _LOGGER = logging.getLogger(__name__)
@@ -3384,6 +3385,7 @@ def main() -> None:
         if reconfigure is not None:
             with contextlib.suppress(Exception):
                 reconfigure(encoding="utf-8")
+    use_system_trust_store()  # D120: state portals with incomplete TLS chains
     app()
 
 

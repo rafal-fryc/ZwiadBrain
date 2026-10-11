@@ -27,6 +27,7 @@ dependencies = [
   # it is a declared dependency. The transcript helper still fails closed if it is absent.
   "youtube-transcript-api>=1.2,<2",
   "playwright>=1.60.0",
+  "truststore>=0.10,<0.11",
 ]
 
 [project.optional-dependencies]

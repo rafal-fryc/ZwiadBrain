@@ -1370,3 +1370,52 @@ accepted because seven small files that drift are still better than a dependency
 **Revisit if:** The law brain becomes a git repo (switch to a submodule and delete the
 snapshot), the snapshot is ever mistaken for the source of truth, or ZwiadBrain starts reading
 these copies instead of `LAW_BRAIN_PATH` — which it must never do.
+
+## 2026-10-11 — 119. Docling reads the first N pages (`page_range`), text layer first, OCR only as fallback, no table structure
+**Chosen:** The extraction worker converts `page_range=(1, max_pages)` instead of passing
+`max_num_pages`; it first converts with OCR off and table-structure recognition off, and re-runs
+with OCR only when that pass yields under 200 characters (a scanned PDF).
+**Alternatives:** keep `max_num_pages` (the bug); raise `max_num_pages` (segfaulted on a 68-page
+PDF — the std::bad_alloc crash D81 guards against); keep OCR always on (≈5 min per long PDF,
+near the 300 s timeout); keep table structure (270 s vs 58 s on UT HB 450 for the same words).
+**Why:** Docling documents `max_num_pages` as the maximum pages ACCEPTED — longer documents are
+rejected as "not valid", so every PDF over 12 pages silently produced an empty sidecar. 44 of
+242 committed sidecars (CT, VT, UT, VA, MD…) were empty for this reason, and their summaries
+fell back to official descriptions. The same worker serves the leg-history verifier's PDF
+grounding, so long PDF sources were also unreadable there (cf. D103).
+**Trade-offs:** statute tables (fee schedules, penalty grids) lose cell structure in sidecars;
+the words survive. A PDF with a thin-but-nonzero text layer under 200 chars still goes to OCR.
+**Revisit if:** a sidecar consumer needs table structure, or text-layer PDFs with garbled
+encodings start passing the 200-char check with junk text.
+
+## 2026-10-11 — 120. Outbound TLS verifies against the OS trust store (`truststore`); text-layer PDFs read to 60 pages
+**Chosen:** User decision: add `truststore>=0.10,<0.11` and inject it at process start (CLI
+`main()` and the Docling worker). Separately, the Docling worker's no-OCR text pass reads up to
+60 pages; the OCR fallback keeps the 12-page cap (D119).
+**Alternatives:** TLS — vendor the missing intermediate certificates (no dependency, but
+hand-maintained per site and silently breaks on rotation); `verify=False` (rejected outright);
+leave UT/CT unreadable. Page cap — keep 12 (misses the core of long bills); unlimited (omnibus
+laws take minutes and produce huge sidecars).
+**Why:** le.utah.gov and cga.ct.gov serve incomplete certificate chains that Windows completes
+and certifi cannot, so every Python fetch to them failed — extraction, and the leg-history
+grounding fetch alike. Text-layer conversion measured 60 pages in 85 s (UT HB 450), well under
+the 300 s worker timeout, while 12 pages missed MN HF 4757's privacy chapter and VT S.71's
+coverage and enforcement provisions.
+**Trade-offs:** verification now depends on the host OS store (behavior can differ across
+machines); sidecars for long bills grow ~2–5×.
+**Revisit if:** the pipeline moves to a non-Windows runner, or sidecar size slows reindexing.
+
+## 2026-10-11 — 121. Enacted-text re-reads: UT HB 444 removed as government-only; CT SB 1103 kept on its contractor clause
+**Chosen:** User decision. UT HB 444 (2025) — whose enacted text amends Utah's governmental
+data-privacy and records law (privacy annotations, state privacy auditor, government breach
+notices) and binds no business — is removed from the wiki and recorded in the reject ledger.
+CT SB 1103 (PA 23-16) stays tracked: although it mainly governs state agencies' AI inventories
+and impact assessments, it requires state contracts to bind contractors to the Connecticut Data
+Privacy Act — a company-facing privacy duty.
+**Alternatives:** remove both (treat the contract clause as incidental); keep both.
+**Why:** both pages had been summarized from synopses describing provisions the enacted texts do
+not contain (HB 444 "amends the Consumer Privacy Act"; SB 1103 "creates an Office of AI"). The
+D119/D120 extraction fixes made the enacted text readable and the D86 test could be applied.
+**Trade-offs:** SB 1103 is a thin company-facing hook on a government-AI law; a refresh
+re-classification may reject it and should be overridden back with a pointer here.
+**Revisit if:** the user narrows scope to exclude procurement-contract duties.

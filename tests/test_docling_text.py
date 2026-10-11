@@ -8,8 +8,6 @@ exercised separately with a fake ``DocumentConverter``.
 """
 
 import subprocess
-import sys
-import types
 from pathlib import Path
 
 import pytest
@@ -100,39 +98,68 @@ def test_extract_markdown_returns_empty_when_docling_absent(
 
 
 class _FakeDoc:
+    def __init__(self, markdown: str) -> None:
+        self._markdown = markdown
+
     def export_to_markdown(self) -> str:
-        return "# Title\n\nBody text."
+        return self._markdown
 
 
 class _FakeResult:
-    document = _FakeDoc()
+    def __init__(self, markdown: str) -> None:
+        self.document = _FakeDoc(markdown)
 
 
 class _FakeConverter:
-    calls: list[tuple[object, int]] = []
+    def __init__(self, ocr: bool, outputs: dict[bool, str], calls: list[object]) -> None:
+        self._ocr, self._outputs, self._calls = ocr, outputs, calls
 
-    def convert(self, source: object, *, max_num_pages: int) -> _FakeResult:
-        _FakeConverter.calls.append((source, max_num_pages))
-        return _FakeResult()
-
-
-def _install_fake_docling(monkeypatch: pytest.MonkeyPatch) -> None:
-    _FakeConverter.calls = []
-    fake_module = types.ModuleType("docling.document_converter")
-    fake_module.DocumentConverter = _FakeConverter  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "docling.document_converter", fake_module)
+    def convert(self, source: object, *, page_range: tuple[int, int]) -> _FakeResult:
+        self._calls.append((source, self._ocr, page_range))
+        return _FakeResult(self._outputs[self._ocr])
 
 
-def test_worker_converts_with_page_cap(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """should call convert() with the page cap and write the markdown to out_path"""
-    _install_fake_docling(monkeypatch)
+def _install_fake_converters(
+    monkeypatch: pytest.MonkeyPatch, outputs: dict[bool, str]
+) -> list[object]:
+    calls: list[object] = []
+
+    def make(ocr: bool) -> _FakeConverter:
+        return _FakeConverter(ocr, outputs, calls)
+
+    monkeypatch.setattr(docling_worker, "_make_converter", make)
+    return calls
+
+
+_TEXT = "Section 1. A controller may not sell personal data. " * 10
+
+
+def test_worker_should_read_text_layer_pdfs_without_ocr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """a text-layer PDF is read up to 60 pages, never rejected (D119)"""
+    calls = _install_fake_converters(monkeypatch, {False: _TEXT, True: "unused"})
     out = tmp_path / "out.md"
 
     rc = docling_worker.main(["https://example.gov/a.pdf", "9", str(out)])
 
     assert rc == 0
-    assert out.read_text(encoding="utf-8") == "# Title\n\nBody text."
-    assert _FakeConverter.calls == [("https://example.gov/a.pdf", 9)]
+    assert out.read_text(encoding="utf-8") == _TEXT
+    assert calls == [("https://example.gov/a.pdf", False, (1, 60))]
+
+
+def test_worker_should_fall_back_to_ocr_when_text_layer_is_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """a scanned PDF (no text layer) is retried with OCR, capped at max_pages"""
+    calls = _install_fake_converters(monkeypatch, {False: "<!-- image -->", True: _TEXT})
+    out = tmp_path / "out.md"
+
+    rc = docling_worker.main(["scan.pdf", "12", str(out)])
+
+    assert rc == 0
+    assert out.read_text(encoding="utf-8") == _TEXT
+    assert calls == [("scan.pdf", False, (1, 60)), ("scan.pdf", True, (1, 12))]
 
 
 def test_worker_rejects_bad_arguments(tmp_path: Path) -> None:

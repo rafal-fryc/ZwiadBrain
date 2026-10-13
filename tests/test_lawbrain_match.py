@@ -150,6 +150,54 @@ def test_build_shortlist_empty_when_no_jurisdiction_match() -> None:
     assert build_shortlist(page, targets) == []
 
 
+def _ca_target(id_: str, title: str) -> TargetRef:
+    return TargetRef(id=id_, kind="bill", jurisdiction="US-CA", title=title, keys=[])
+
+
+def test_build_shortlist_should_drop_targets_below_overlap_floor_when_min_overlap_set() -> None:
+    # Arrange — page tokens: {frontier, transparency, liability}.
+    page = _page(tags=["frontier", "transparency"], title="Liability")
+    targets = [
+        _ca_target("ca-two", "Frontier transparency act"),  # overlap 2
+        _ca_target("ca-one", "Frontier robots"),  # overlap 1
+        _ca_target("ca-zero", "Unrelated employment topic"),  # overlap 0
+    ]
+
+    # Act
+    short = build_shortlist(page, targets, min_overlap=2)
+
+    # Assert
+    assert [t.id for t in short] == ["ca-two"]
+
+
+def test_build_shortlist_should_keep_top_n_by_overlap_when_limit_set() -> None:
+    # Arrange
+    page = _page(tags=["frontier", "transparency", "liability"], title="Model")
+    targets = [
+        _ca_target("ca-a", "Frontier"),  # overlap 1
+        _ca_target("ca-b", "Frontier transparency liability"),  # overlap 3
+        _ca_target("ca-c", "Frontier transparency"),  # overlap 2
+    ]
+
+    # Act
+    short = build_shortlist(page, targets, limit=2)
+
+    # Assert
+    assert [t.id for t in short] == ["ca-b", "ca-c"]
+
+
+def test_build_shortlist_should_return_every_jurisdiction_match_when_no_cap_or_floor() -> None:
+    # Arrange — the defaults keep the pre-cap behavior for existing callers.
+    page = _page(tags=["frontier"], title="X")
+    targets = [_ca_target("ca-a", "Frontier"), _ca_target("ca-b", "Unrelated")]
+
+    # Act
+    short = build_shortlist(page, targets)
+
+    # Assert
+    assert {t.id for t in short} == {"ca-a", "ca-b"}
+
+
 # ---------------------------------------------------------------------------
 # confirm_match
 # ---------------------------------------------------------------------------

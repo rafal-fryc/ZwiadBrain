@@ -196,6 +196,7 @@ def test_fetch_lawbrain_candidates_keyless_single_subject_gets_shortlist(
                 "tags:",
                 "  - liability",
                 "  - frontier-ai",
+                "  - transparency",
                 "status: active",
                 "---",
                 "",
@@ -229,6 +230,123 @@ def test_fetch_lawbrain_candidates_keyless_single_subject_gets_shortlist(
     assert entry["keys"] == []
     # The same-jurisdiction (US-CA) SB 53 target appears in the shortlist.
     assert entry["shortlist"] == ["ca-2025-sb-53"]
+
+
+def _write_keyless_lawbrain_page(law_brain: Path, *, tags: list[str]) -> None:
+    """A single-subject US-CA concept page with no bill/docket/public-law key."""
+    page = law_brain / "wiki" / "concept-keyless-note.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "\n".join(
+            [
+                "---",
+                'title: "Keyless Note"',
+                "type: concept",
+                "jurisdiction: US-CA",
+                "tags:",
+                *[f"  - {tag}" for tag in tags],
+                "status: active",
+                "---",
+                "",
+                "## Summary",
+                "",
+                "A keyless single-subject note.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_ca_bill(wiki: Path, *, id_: str, bill_number: str, title: str) -> None:
+    page = wiki / "bills" / f"{id_}.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "\n".join(
+            [
+                "---",
+                f"id: {id_}",
+                "type: bill",
+                "jurisdiction: US-CA",
+                f"title: {title}",
+                f"bill_number: {bill_number}",
+                "status: introduced",
+                "sources: {}",
+                "commentary_sources: []",
+                "---",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _fetch(wiki: Path, out: Path) -> list[dict[str, object]]:
+    result = _RUNNER.invoke(
+        app, ["fetch-lawbrain-candidates", "--wiki", str(wiki), "--out", str(out)]
+    )
+    assert result.exit_code == 0, result.output
+    loaded: list[dict[str, object]] = json.loads(
+        (out / "lawbrain-candidates.json").read_text(encoding="utf-8")
+    )
+    return loaded
+
+
+def test_fetch_lawbrain_candidates_should_mark_not_in_scope_when_shortlist_is_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — the only same-jurisdiction target shares no topical tokens.
+    from zwiadbrain.pipeline.lawbrain_keys import keyless_decision_hash  # noqa: PLC0415
+
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["agriculture", "drones"])
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+
+    # Act
+    candidates = _fetch(wiki, tmp_path / "run")
+
+    # Assert — settled deterministically: no shortlist, no LLM step needed.
+    entry = {str(c["slug"]): c for c in candidates}["concept-keyless-note"]
+    assert entry["match"] == "not_in_scope"
+    assert entry["shortlist"] == []
+    assert entry["keys_hash"] == keyless_decision_hash(set(), [])
+
+
+def test_fetch_lawbrain_candidates_should_skip_recorded_not_in_scope_until_shortlist_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — fetch, then record the keyless page as not_in_scope via render.
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["frontier", "transparency"])
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    first = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run1")}
+    assert first["concept-keyless-note"]["shortlist"] == ["ca-2025-sb-53"]
+    classified = tmp_path / "classified.json"
+    classified.write_text(
+        json.dumps([{"slug": "concept-keyless-note", "matched_by": "not_in_scope"}]),
+        encoding="utf-8",
+    )
+    rendered = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(classified), "--wiki", str(wiki),
+         "--db", str(tmp_path / "index.sqlite")],
+    )
+    assert rendered.exit_code == 0, rendered.output
+
+    # Act — re-fetch unchanged, then track a new overlapping bill and re-fetch.
+    unchanged = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run2")}
+    _write_ca_bill(
+        wiki, id_="ca-2026-sb-9", bill_number="SB 9", title="Frontier model transparency"
+    )
+    widened = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run3")}
+
+    # Assert — sticky while nothing changes; re-proposed once a new candidate appears.
+    assert "concept-keyless-note" not in unchanged
+    assert widened["concept-keyless-note"]["match"] == "keyless"
 
 
 def test_fetch_lawbrain_candidates_skips_settled_registry_page(

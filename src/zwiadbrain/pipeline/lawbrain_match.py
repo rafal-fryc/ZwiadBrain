@@ -66,18 +66,33 @@ def _overlap(page: LawBrainPage, target: TargetRef) -> int:
     return len(page_tokens & target_tokens)
 
 
-def build_shortlist(page: LawBrainPage, targets: list[TargetRef]) -> list[TargetRef]:
+def build_shortlist(
+    page: LawBrainPage,
+    targets: list[TargetRef],
+    *,
+    limit: int | None = None,
+    min_overlap: int = 0,
+) -> list[TargetRef]:
     """Candidate tracked items for the ``lawbrain-matcher`` subagent: those sharing the
     page's normalized jurisdiction, ranked by descending tag/keyword overlap.
 
     Jurisdiction is the hard filter (``US-Federal`` normalizes to ``US`` to match
-    ZwiadBrain's federal targets); never returns the full corpus.
+    ZwiadBrain's federal targets). Jurisdiction alone still admits every federal
+    target for a federal page, so ``min_overlap`` drops topically unrelated targets
+    and ``limit`` caps the survivors to the top-N by overlap. The defaults apply
+    neither (the uncapped jurisdiction scope).
     """
     page_jurisdictions = {normalize_jurisdiction(j) for j in page.jurisdiction}
-    in_scope = [
-        t for t in targets if normalize_jurisdiction(t.jurisdiction) in page_jurisdictions
+    scored = [
+        (_overlap(page, t), t)
+        for t in targets
+        if normalize_jurisdiction(t.jurisdiction) in page_jurisdictions
     ]
-    return sorted(in_scope, key=lambda t: (-_overlap(page, t), t.id))
+    ranked = [
+        t for score, t in sorted(scored, key=lambda st: (-st[0], st[1].id))
+        if score >= min_overlap
+    ]
+    return ranked if limit is None else ranked[:limit]
 
 
 def confirm_match(

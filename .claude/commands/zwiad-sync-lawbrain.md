@@ -34,8 +34,10 @@ If the law brain is unavailable (`LAW_BRAIN_PATH` missing or `lawbrain.enabled=f
 it prints a no-op line and exits 0 — **stop here and report the no-op**. Otherwise it
 reads the law-brain wiki, extracts jurisdiction-qualified keys per page, loads the
 tracked items (bills + enforcement actions) from the committed wiki as `TargetRef`s,
-consults `links.yaml` (skipping pages already decided whose key-set is unchanged, D9),
-runs the deterministic set-intersection match, and writes
+consults `links.yaml` (skipping pages already decided whose decision hash is unchanged —
+the key-set, or for a keyless page its key-set plus candidate shortlist, D9), runs the
+deterministic set-intersection match, builds a capped, topically-floored shortlist for
+pages with no key match (D124), and writes
 `lawbrain-candidates.json` + `targets.json` under `data/runs/<id>/`. **Note the exact
 path it prints** — you use it in steps 2–5.
 
@@ -43,26 +45,26 @@ path it prints** — you use it in steps 2–5.
 
 `Read` both files it wrote:
 - `lawbrain-candidates.json` — each entry: `slug, title, type, jurisdiction, tags,
-  citation, summary_excerpt, keys, match ("deterministic" | "keyless" | "collision"),
-  target_id?, shortlist?`
+  citation, summary_excerpt, keys, keys_hash, match ("deterministic" | "keyless" |
+  "collision" | "not_in_scope"), target_id?, shortlist?`
 - `targets.json` — the tracked items as `{id, kind, jurisdiction, title, keys}`.
 
 A `match: "deterministic"` entry already has its `target_id` (exactly one shared key,
 confidence 1.0) — **do not** dispatch a subagent for it. A `match: "collision"` entry
 shares keys with more than one target — it is destined for the review queue; do not
-dispatch a subagent for it either. Only `match: "keyless"` entries (zero shared keys,
-not a slug-marker page) carry a `shortlist` and need the LLM step.
+dispatch a subagent for it either. A `match: "not_in_scope"` entry matched no key and
+no shortlist candidate cleared the topical floor — it is already decided; stage it as
+`not_in_scope` without a dispatch. Only `match: "keyless"` entries (zero shared keys,
+non-empty shortlist) need the LLM step.
 
 ### 3. Judge keyless pages (subagent: `lawbrain-matcher`)
 
-For every candidate with `match: "keyless"` **and** a non-empty `shortlist`, dispatch
+For every candidate with `match: "keyless"`, dispatch
 the **lawbrain-matcher** subagent with the page's `slug, title, type, jurisdiction,
 tags, citation, summary_excerpt` and the entry's `shortlist`. It returns
 `{decision, target_id, confidence, rationale}`.
 - Log each decision (slug, decision, target_id, confidence, rationale) to the
   transcript.
-- A keyless entry with an **empty** `shortlist` gets no dispatch — record it as
-  `decision: "not_in_scope"` directly.
 - Carry the matcher result onto the entry as `matched_by: "llm"`, `target_id`,
   `confidence`. Leave `match: "deterministic"` entries as `matched_by: "deterministic"`,
   `confidence: 1.0`.
@@ -73,18 +75,17 @@ Note: `render-lawbrain-commentary` re-confirms every `llm` link deterministicall
 
 ### 4. Stage the classified items
 
-`Write` the decided entries to `classified.json` in the run directory. Include every
-deterministic-link entry and every `llm` `decision: "link"` entry; drop
-`not_in_scope` entries (they are recorded in `links.yaml` by the render half). Each
-entry **must** carry:
-- `slug` (the law-brain page slug)
-- `target_id` (the tracked item id to attach to)
-- `matched_by` (`"deterministic"` | `"llm"`)
-- `confidence` (float)
-- `keys` (the page's extracted keys — used to re-confirm and to compute `keys_hash`)
+`Write` the decided entries to `classified.json` in the run directory:
+- every deterministic-link entry and every `llm` `decision: "link"` entry, each with
+  `slug`, `target_id`, `matched_by` (`"deterministic"` | `"llm"`) and `confidence`;
+- every `not_in_scope` entry — both `match: "not_in_scope"` candidates and keyless
+  pages the matcher declined — as `{slug, matched_by: "not_in_scope"}`. **Do not drop
+  these**: staging them is what records them in `links.yaml`, so they are not
+  re-proposed next run.
 
-`render-lawbrain-commentary` re-reads the actual page body from the law brain by slug
-(it does not trust a body passed through JSON), so the staged entry stays lightweight.
+`render-lawbrain-commentary` re-reads the page from the law brain by slug and recomputes
+its keys and decision hash from disk (it does not trust keys, hashes, or a body passed
+through JSON), so the staged entry stays lightweight.
 
 ### 5. Render + index (Python, deterministic)
 

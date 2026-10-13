@@ -27,7 +27,7 @@ import logging
 import sys
 import tempfile
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NamedTuple
 
 import httpx
 import typer
@@ -35,7 +35,7 @@ import yaml
 from pydantic import ValidationError
 
 from zwiadbrain import __version__
-from zwiadbrain.config import Settings, load_settings
+from zwiadbrain.config import LawBrainSettings, Settings, load_settings
 from zwiadbrain.exceptions import AppError, ConfigError, WikiSchemaError
 from zwiadbrain.models import (
     Bill,
@@ -68,7 +68,12 @@ from zwiadbrain.pipeline.lawbrain_copy import (
     detect_stale,
     merge_commentary,
 )
-from zwiadbrain.pipeline.lawbrain_keys import keys_hash, page_keys, tracked_item_keys
+from zwiadbrain.pipeline.lawbrain_keys import (
+    keyless_decision_hash,
+    keys_hash,
+    page_keys,
+    tracked_item_keys,
+)
 from zwiadbrain.pipeline.lawbrain_links import harvest_links
 from zwiadbrain.pipeline.lawbrain_match import TargetRef, build_shortlist
 from zwiadbrain.pipeline.lawbrain_match import confirm_match as lawbrain_confirm_match
@@ -141,7 +146,7 @@ from zwiadbrain.sources.enforcement.base import EnforcementSource
 from zwiadbrain.sources.enforcement.ftc import FTCSource
 from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
-from zwiadbrain.sources.lawbrain import LawBrainReader
+from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.sources.transcripts import make_gate_fetch, memoize_fetch
 from zwiadbrain.store import Store
@@ -1603,6 +1608,59 @@ def _lawbrain_targets(wiki: Path) -> list[TargetRef]:
     return targets
 
 
+class _PageMatch(NamedTuple):
+    """How one law-brain page relates to the tracked corpus right now.
+
+    ``match`` is ``deterministic`` (one key-sharing target), ``collision`` (several),
+    ``keyless`` (none, but a non-empty topical shortlist for the matcher) or
+    ``not_in_scope`` (none and an empty shortlist — settled without the LLM).
+    ``target_ids`` holds the key-sharing targets or the shortlist. ``decision_hash``
+    is the registry stickiness cursor a decision about this page must carry (D9).
+    """
+
+    match: Literal["deterministic", "collision", "keyless", "not_in_scope"]
+    target_ids: list[str]
+    decision_hash: str
+
+
+class _LawBrainMatcher:
+    """Classify law-brain pages against the tracked corpus — the single place the
+    fetch half, the render half, and queue resolution derive a page's match and its
+    decision hash, so a decision recorded by one is recognized by the others."""
+
+    def __init__(self, targets: list[TargetRef], settings: LawBrainSettings) -> None:
+        self._targets = targets
+        self._settings = settings
+        # key -> target-ids, built once; a page's key match is a set intersection.
+        self._index: dict[str, list[str]] = {}
+        for target in targets:
+            for key in target.keys:
+                self._index.setdefault(key, []).append(target.id)
+
+    def classify(self, page: LawBrainPage, keys: set[str]) -> _PageMatch:
+        matched_ids = sorted({tid for key in keys for tid in self._index.get(key, [])})
+        if len(matched_ids) == 1:
+            return _PageMatch("deterministic", matched_ids, keys_hash(keys))
+        if matched_ids:
+            return _PageMatch("collision", matched_ids, keys_hash(keys))
+        # No key match: the LLM matcher decides over a capped, topically-floored,
+        # jurisdiction-scoped shortlist; an empty one is settled as not_in_scope.
+        shortlist = [
+            t.id
+            for t in build_shortlist(
+                page,
+                self._targets,
+                limit=self._settings.shortlist_limit,
+                min_overlap=self._settings.shortlist_min_overlap,
+            )
+        ]
+        return _PageMatch(
+            "keyless" if shortlist else "not_in_scope",
+            shortlist,
+            keyless_decision_hash(keys, shortlist),
+        )
+
+
 def _lawbrain_registry_path(wiki: Path) -> Path:
     """The committed link-decision registry lives beside the wiki (wiki/links.yaml)."""
     return wiki / "links.yaml"
@@ -1658,12 +1716,7 @@ def fetch_lawbrain_candidates(
             typer.echo("law brain unavailable or disabled; nothing to do")
             return
         targets = _lawbrain_targets(wiki) if wiki.exists() else []
-        # Build a key -> target-ids index once. A page's match is the set of targets
-        # sharing >=1 key with the page (set intersection over this index).
-        index: dict[str, list[str]] = {}
-        for target in targets:
-            for key in target.keys:
-                index.setdefault(key, []).append(target.id)
+        matcher = _LawBrainMatcher(targets, settings.lawbrain)
         registry = LinkRegistry.load(_lawbrain_registry_path(wiki))
         markers = settings.lawbrain.commentary_only_slug_markers
         candidates: list[dict[str, object]] = []
@@ -1674,24 +1727,18 @@ def fetch_lawbrain_candidates(
             # it must not go to the matcher either, so it is skipped entirely (D60).
             if not keys and _is_marker_slug(page.slug, markers):
                 continue
-            khash = keys_hash(keys)
+            classified = matcher.classify(page, keys)
             decided = registry.decision_for(page.slug)
-            # Skip a settled page unless its freshly-extracted key-set differs (D9).
-            if decided is not None and decided.keys_hash == khash:
+            # Skip a settled page unless its decision hash moved — its keys, or for a
+            # keyless page its candidate shortlist (D9).
+            if decided is not None and decided.keys_hash == classified.decision_hash:
                 continue
-            matched_ids = sorted({tid for key in keys for tid in index.get(key, [])})
-            match: str
-            target_id: str | None
-            shortlist: list[str] | None
-            if len(matched_ids) == 1:
-                match, target_id, shortlist = "deterministic", matched_ids[0], None
-            elif len(matched_ids) > 1:
-                match, target_id, shortlist = "collision", None, matched_ids
-            else:
-                # Zero keys on a single-subject page -> the LLM matcher decides over a
-                # jurisdiction-scoped shortlist (never the full corpus).
-                match, target_id = "keyless", None
-                shortlist = [t.id for t in build_shortlist(page, targets)]
+            target_id = (
+                classified.target_ids[0] if classified.match == "deterministic" else None
+            )
+            shortlist = (
+                None if classified.match == "deterministic" else classified.target_ids
+            )
             entry: dict[str, object] = {
                 "slug": page.slug,
                 "title": page.title,
@@ -1701,8 +1748,8 @@ def fetch_lawbrain_candidates(
                 "citation": page.citation,
                 "summary_excerpt": _summary_excerpt(page.body),
                 "keys": sorted(keys),
-                "keys_hash": khash,
-                "match": match,
+                "keys_hash": classified.decision_hash,
+                "match": classified.match,
                 "target_id": target_id,
                 "shortlist": shortlist,
             }
@@ -2033,6 +2080,19 @@ def render_lawbrain_commentary(
         # staleness check read from this map, never a fresh reader.pages() call.
         pages_by_slug = {p.slug: p for p in reader.pages()}
         live_slugs = set(pages_by_slug)
+        markers = settings.lawbrain.commentary_only_slug_markers
+        matchers: list[_LawBrainMatcher] = []  # built on first need (wiki scan)
+
+        def decision_hash_for(slug: str) -> str:
+            """The hash fetch will compare against, derived from disk — never from
+            staged JSON — so a recorded decision is recognized as settled (D9)."""
+            page = pages_by_slug.get(slug)
+            if page is None:
+                raise ConfigError(f"law-brain page not found: {slug}")
+            if not matchers:
+                matchers.append(_LawBrainMatcher(_lawbrain_targets(wiki), settings.lawbrain))
+            return matchers[0].classify(page, page_keys(page, markers)).decision_hash
+
         review: list[ReviewEntry] = []
         linked = reviewed = 0
         notes: list[str] = []
@@ -2050,7 +2110,6 @@ def render_lawbrain_commentary(
             try:
                 slug = str(e["slug"])
                 matched_by = str(e["matched_by"])
-                page_key_set = {str(k) for k in _as_list(e.get("page_keys"), "page_keys")}
                 # A not_in_scope/reject decision attaches nothing — it is recorded in
                 # links.yaml so the page is never re-proposed (sticky, D9). target_id
                 # is optional for these (the subagent may resolve a keyless page to
@@ -2077,7 +2136,7 @@ def render_lawbrain_commentary(
                                 decision=new_decision,
                                 target_id=_opt_str_e(e.get("target_id")),
                                 matched_by=None,
-                                keys_hash=keys_hash(page_key_set),
+                                keys_hash=decision_hash_for(slug),
                                 decided=decided_date,
                             )
                         )

@@ -7,6 +7,7 @@ import hashlib
 from zwiadbrain.models import Bill, EnforcementAction
 from zwiadbrain.pipeline.lawbrain_keys import (
     _bill_keys_from_text,  # pyright: ignore[reportPrivateUsage]
+    keyless_decision_hash,
     keys_hash,
     normalize_jurisdiction,
     page_keys,
@@ -294,3 +295,22 @@ def test_bill_keys_from_text_strips_leading_zeros() -> None:
 def test_bill_keys_from_text_handles_dotted_prefix() -> None:
     keys = _bill_keys_from_text("H.R. 8818", "US")
     assert "US::bill::HR-8818" in keys
+
+
+def test_keyless_decision_hash_should_differ_from_keys_hash_when_shortlist_is_empty() -> None:
+    # A keyless not_in_scope must never collide with the hash a later
+    # deterministic match on the same keys would produce.
+    assert keyless_decision_hash(set(), []) != keys_hash(set())
+    assert keyless_decision_hash({"US-CA::bill::SB-1"}, []) != keys_hash({"US-CA::bill::SB-1"})
+
+
+def test_keyless_decision_hash_should_change_when_shortlist_changes() -> None:
+    before = keyless_decision_hash(set(), ["ca-a"])
+    assert keyless_decision_hash(set(), ["ca-a", "ca-b"]) != before
+    assert keyless_decision_hash(set(), []) != before
+
+
+def test_keyless_decision_hash_should_ignore_shortlist_order() -> None:
+    assert keyless_decision_hash(set(), ["ca-b", "ca-a"]) == keyless_decision_hash(
+        set(), ["ca-a", "ca-b"]
+    )

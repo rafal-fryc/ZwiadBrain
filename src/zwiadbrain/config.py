@@ -89,6 +89,8 @@ class LawBrainSettings(BaseModel):
     path: Path | None = None
     min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.75
     require_shared_key: bool = True
+    shortlist_limit: Annotated[int, Field(ge=1)] = 10
+    shortlist_min_overlap: Annotated[int, Field(ge=0)] = 2
     demote_headings: bool = True
     commentary: bool = True
     discover: bool = False

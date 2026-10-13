@@ -197,3 +197,17 @@ def keys_hash(keys: set[str]) -> str:
     """
     joined = "\n".join(sorted(keys))
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+
+def keyless_decision_hash(keys: set[str], shortlist_ids: list[str]) -> str:
+    """D9 stickiness cursor for a page that matched no tracked target by key.
+
+    A keyless page's own keys rarely change, so hashing them alone would settle a
+    ``not_in_scope`` forever — even after a relevant item becomes tracked. Folding in
+    the candidate shortlist re-surfaces the page whenever that shortlist moves. The
+    ``match::keyless`` marker keeps it distinct from :func:`keys_hash`, so a page that
+    later gains a deterministic key match never reads as already settled.
+    """
+    return keys_hash(
+        keys | {"match::keyless"} | {f"shortlist::{tid}" for tid in shortlist_ids}
+    )

@@ -1720,6 +1720,11 @@ def fetch_lawbrain_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"staged {len(candidates)} law-brain candidate(s) to {path.parent}")
+    if reader.malformed:
+        typer.echo(
+            f"  {len(reader.malformed)} malformed law-brain page(s) skipped:"
+            f" {', '.join(reader.malformed)}"
+        )
 
 
 def _opt_date(value: object) -> dt.date | None:

@@ -318,6 +318,27 @@ def test_fetch_lawbrain_candidates_collision_when_two_targets_share_key(
     assert "public_law::119-12" in entry["keys"]
 
 
+def test_fetch_lawbrain_candidates_should_report_malformed_count_when_pages_fail_to_parse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — the committed fixture brain carries one malformed page.
+    law_brain = tmp_path / "law"
+    shutil.copytree(_FIXTURE_LAWBRAIN, law_brain)
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["fetch-lawbrain-candidates", "--wiki", str(wiki), "--out", str(tmp_path / "run")],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.output
+    assert "1 malformed law-brain page(s) skipped" in result.output
+
+
 def test_fetch_lawbrain_candidates_no_op_when_disabled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

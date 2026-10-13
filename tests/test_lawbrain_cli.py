@@ -1104,6 +1104,137 @@ def test_render_lawbrain_dry_run_writes_nothing(
     assert not (wiki / "review-queue.md").exists()
 
 
+def _render(tmp_path: Path, wiki: Path, entries: list[dict[str, object]]) -> str:
+    classified = tmp_path / "classified.json"
+    classified.write_text(json.dumps(entries), encoding="utf-8")
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(classified), "--wiki", str(wiki),
+         "--db", str(tmp_path / "index.sqlite")],
+    )
+    assert result.exit_code == 0, result.output
+    return result.output
+
+
+def test_render_lawbrain_should_record_real_decision_hash_when_operator_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — an operator [reject] on a page that deterministically matches SB 53.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    (wiki / "review-queue.md").write_text(
+        "- [reject] regulation-fixture-sb53 -> ca-2025-sb-53 (weak-grounding)\n",
+        encoding="utf-8",
+    )
+
+    # Act — resolve the queue, then fetch again.
+    _render(tmp_path, wiki, [])
+    candidates = _fetch(wiki, tmp_path / "run")
+
+    # Assert — the reject is sticky: fetch no longer proposes the page.
+    assert "regulation-fixture-sb53" not in {c["slug"] for c in candidates}
+
+
+def test_render_lawbrain_should_record_real_decision_hash_when_operator_accepts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    from zwiadbrain.pipeline.lawbrain_keys import keys_hash  # noqa: PLC0415
+
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    (wiki / "review-queue.md").write_text(
+        "- [accept] regulation-california-sb53-tfaia -> ca-2025-sb-53 (collision)\n",
+        encoding="utf-8",
+    )
+
+    # Act
+    _render(tmp_path, wiki, [])
+
+    # Assert — the accept carries the page's real hash, not "".
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    assert f"keys_hash: {keys_hash({'US-CA::bill::SB-53'})}" in links_yaml
+
+
+def test_render_lawbrain_should_scope_override_to_its_own_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — override for the SAME page but a DIFFERENT target than proposed.
+    from zwiadbrain.pipeline.lawbrain_registry import (  # noqa: PLC0415
+        LinkDecision,
+        LinkRegistry,
+    )
+
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    _write_enforcement(wiki, id_="ftc-other")
+    registry = LinkRegistry()
+    registry.record(
+        LinkDecision(
+            lawbrain_slug="concept-fixture-ai-landscape",
+            decision="link",
+            target_id="ftc-other",
+            matched_by="llm",
+            keys_hash="",
+            decided=dt.date(2026, 10, 1),
+        )
+    )
+    registry.dump(wiki / "links.yaml")
+
+    # Act
+    output = _render(
+        tmp_path,
+        wiki,
+        [{"slug": "concept-fixture-ai-landscape", "target_id": "ca-2025-sb-53",
+          "matched_by": "llm", "confidence": 0.95}],
+    )
+
+    # Assert
+    assert "0 linked" in output
+    assert "1 review" in output
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "## Commentary & Analysis" not in page
+
+
+def test_fetch_lawbrain_candidates_should_emit_accepted_override_until_it_is_attached(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — a keyless page the operator accepted onto SB 53 (link override).
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["frontier", "transparency"])
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    (wiki / "review-queue.md").write_text(
+        "- [accept] concept-keyless-note -> ca-2025-sb-53 (weak-grounding)\n",
+        encoding="utf-8",
+    )
+    _render(tmp_path, wiki, [])
+
+    # Act — fetch proposes the override; stage it as the skill would; fetch again.
+    first = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run1")}
+    entry = first["concept-keyless-note"]
+    output = _render(
+        tmp_path,
+        wiki,
+        [{"slug": "concept-keyless-note", "target_id": entry["target_id"],
+          "matched_by": "llm", "confidence": 1.0}],
+    )
+    second = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run2")}
+
+    # Assert — attached once via the override, then settled.
+    assert entry["match"] == "override"
+    assert entry["target_id"] == "ca-2025-sb-53"
+    assert "1 linked" in output
+    assert "concept-keyless-note" not in second
+
+
 def test_render_lawbrain_should_parse_the_law_brain_once_when_rendering_many_items(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

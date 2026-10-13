@@ -1273,6 +1273,110 @@ def test_fetch_lawbrain_candidates_should_propose_refresh_when_linked_page_conte
     assert "regulation-california-sb53-tfaia" not in after
 
 
+_TAKE_IT_DOWN = "regulation-take-it-down-act"
+
+
+def _collision_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A law-brain page whose public-law key is shared by two tracked FTC actions."""
+    law_brain = tmp_path / "law"
+    _write_take_it_down_lawbrain_page(law_brain)
+    wiki = tmp_path / "wiki"
+    _write_enforcement(wiki, id_="ftc-acme")
+    _write_enforcement(wiki, id_="ftc-beta")
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    return wiki
+
+
+def _collision_entry() -> dict[str, object]:
+    return {"slug": _TAKE_IT_DOWN, "matched_by": "collision"}
+
+
+def test_render_lawbrain_should_queue_one_line_per_target_when_staging_a_collision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    wiki = _collision_setup(tmp_path, monkeypatch)
+
+    # Act
+    output = _render(tmp_path, wiki, [_collision_entry()])
+
+    # Assert — both candidates queued, nothing attached, nothing recorded.
+    queue = (wiki / "review-queue.md").read_text(encoding="utf-8")
+    assert f"- [pending] {_TAKE_IT_DOWN} -> ftc-acme (collision)" in queue
+    assert f"- [pending] {_TAKE_IT_DOWN} -> ftc-beta (collision)" in queue
+    assert "0 linked" in output
+    assert not (wiki / "links.yaml").exists()
+
+
+def test_render_lawbrain_should_link_accepted_target_and_prune_siblings_when_collision_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — queue the collision, then the operator accepts ftc-beta.
+    wiki = _collision_setup(tmp_path, monkeypatch)
+    _render(tmp_path, wiki, [_collision_entry()])
+    queue_path = wiki / "review-queue.md"
+    queue_path.write_text(
+        queue_path.read_text(encoding="utf-8").replace(
+            f"- [pending] {_TAKE_IT_DOWN} -> ftc-beta", f"- [accept] {_TAKE_IT_DOWN} -> ftc-beta"
+        ),
+        encoding="utf-8",
+    )
+
+    # Act — resolve (this run also re-stages the still-colliding page), then fetch.
+    _render(tmp_path, wiki, [_collision_entry()])
+    candidates = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run")}
+
+    # Assert — sibling pruned and not re-queued; fetch proposes the accepted target.
+    assert _TAKE_IT_DOWN not in queue_path.read_text(encoding="utf-8")
+    assert candidates[_TAKE_IT_DOWN]["match"] == "override"
+    assert candidates[_TAKE_IT_DOWN]["target_id"] == "ftc-beta"
+
+
+def test_render_lawbrain_should_record_reject_when_every_collision_line_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    wiki = _collision_setup(tmp_path, monkeypatch)
+    _render(tmp_path, wiki, [_collision_entry()])
+    queue_path = wiki / "review-queue.md"
+    queue_path.write_text(
+        queue_path.read_text(encoding="utf-8").replace("[pending]", "[reject]"),
+        encoding="utf-8",
+    )
+
+    # Act
+    _render(tmp_path, wiki, [])
+    candidates = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run")}
+
+    # Assert — the page is settled as rejected.
+    assert _TAKE_IT_DOWN not in candidates
+    assert "decision: reject" in (wiki / "links.yaml").read_text(encoding="utf-8")
+
+
+def test_render_lawbrain_should_keep_partial_collision_resolution_when_only_some_lines_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — one candidate rejected, the other still pending.
+    wiki = _collision_setup(tmp_path, monkeypatch)
+    _render(tmp_path, wiki, [_collision_entry()])
+    queue_path = wiki / "review-queue.md"
+    queue_path.write_text(
+        queue_path.read_text(encoding="utf-8").replace(
+            f"- [pending] {_TAKE_IT_DOWN} -> ftc-acme", f"- [reject] {_TAKE_IT_DOWN} -> ftc-acme"
+        ),
+        encoding="utf-8",
+    )
+
+    # Act — the page is re-staged as a collision on the next run.
+    _render(tmp_path, wiki, [_collision_entry()])
+
+    # Assert — the operator's reject survives; no page-level decision yet.
+    queue = queue_path.read_text(encoding="utf-8")
+    assert f"- [reject] {_TAKE_IT_DOWN} -> ftc-acme (collision)" in queue
+    assert f"- [pending] {_TAKE_IT_DOWN} -> ftc-beta (collision)" in queue
+    assert not (wiki / "links.yaml").exists()
+
+
 def test_render_lawbrain_should_parse_the_law_brain_once_when_rendering_many_items(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

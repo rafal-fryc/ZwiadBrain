@@ -51,8 +51,8 @@ path it prints** — you use it in steps 2–5.
 
 A `match: "deterministic"` entry already has its `target_id` (exactly one shared key,
 confidence 1.0) — **do not** dispatch a subagent for it. A `match: "collision"` entry
-shares keys with more than one target — it is destined for the review queue; do not
-dispatch a subagent for it either. A `match: "not_in_scope"` entry matched no key and
+shares keys with more than one target — the operator picks the target in the review
+queue; do not dispatch a subagent for it either. A `match: "not_in_scope"` entry matched no key and
 no shortlist candidate cleared the topical floor — it is already decided; stage it as
 `not_in_scope` without a dispatch. A `match: "override"` entry is a link the operator
 accepted in `review-queue.md` whose commentary is not yet on its target — it carries its
@@ -88,7 +88,11 @@ Note: `render-lawbrain-commentary` re-confirms every `llm` link deterministicall
 - every `not_in_scope` entry — both `match: "not_in_scope"` candidates and keyless
   pages the matcher declined — as `{slug, matched_by: "not_in_scope"}`. **Do not drop
   these**: staging them is what records them in `links.yaml`, so they are not
-  re-proposed next run.
+  re-proposed next run;
+- every `collision` entry as `{slug, matched_by: "collision"}`. Render queues one
+  `(collision)` line per candidate target in `review-queue.md`. The operator marks one
+  `[accept]` (that target is linked on the next sync and its sibling lines are pruned)
+  or marks every line `[reject]` (the page is recorded as rejected).
 
 `render-lawbrain-commentary` re-reads the page from the law brain by slug and recomputes
 its keys and decision hash from disk (it does not trust keys, hashes, or a body passed

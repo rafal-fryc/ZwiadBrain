@@ -1531,3 +1531,25 @@ over-corrected: a keyless page's keys almost never change, so it could never res
 untracked — re-proposes the page, so large tracked-corpus growth re-opens settled keyless pages.
 **Revisit if:** re-proposals after a backfill become noisy enough to want a narrower trigger
 (e.g. only new targets above the floor).
+
+## 2026-10-13 — 126. Key collisions go to the review queue, one line per candidate; operator decisions are sticky and target-scoped
+**Chosen:** a staged `collision` makes render queue `- [pending] <slug> -> <target> (collision)`
+for every target sharing the page's keys (derived from disk). Resolution is per page: any
+`[accept]` records a link override for that target and prunes the siblings; all `[reject]`
+records a page reject; a partly-rejected page keeps its lines as marked. Accept/reject now record
+the page's real decision hash (previously `""`, which never matched, so rejects were re-proposed
+every run and accepts never attached). An override grounds only its own target (D16); fetch
+proposes an accepted link as `override` until the page's current content is on that target, and
+any standing link as `refresh` when the law-brain page changed (D20). Implements the collision
+half of D61; `low-confidence` remains unimplemented.
+**Alternatives:** let the LLM matcher pick among colliding targets (rejected: all of them share a
+real key, so the choice is about which bill the page is *about* — an operator call, and only 3
+pages today); record the operator's choice as a new decision type (rejected: a link override
+already expresses it).
+**Why:** before this, collision candidates were not staged by the skill and had no render path,
+so they produced no queue line, no registry record, and came back every run (2026-10-13: MD MODPA,
+NY SAFE for Kids, WA chatbot provenance).
+**Trade-offs:** a page linked by override keeps that link even if its keys later change; undoing
+one means editing `links.yaml`. Partly-rejected collisions keep re-queuing their pending lines
+until the operator finishes them.
+**Revisit if:** collisions become common enough that operator resolution is a bottleneck.

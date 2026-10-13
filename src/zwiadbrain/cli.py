@@ -2003,6 +2003,47 @@ def _lawbrain_page_by_id(wiki: Path, target_id: str) -> Path | None:
     return matches[0] if matches else None
 
 
+def _record_accept(
+    registry: LinkRegistry,
+    entry: ReviewEntry,
+    decision_hash: Callable[[str], str],
+    notes: list[str],
+) -> None:
+    """Record an operator ``[accept]`` as a link override for the entry's target."""
+    registry.record(
+        LinkDecision(
+            lawbrain_slug=entry.slug,
+            decision="link",
+            target_id=entry.target_id,
+            matched_by="llm",
+            keys_hash=decision_hash(entry.slug),
+            decided=dt.date.today(),
+        )
+    )
+    notes.append(f"accepted: {entry.slug} -> {entry.target_id}")
+
+
+def _record_reject(
+    registry: LinkRegistry,
+    slug: str,
+    target_id: str | None,
+    decision_hash: Callable[[str], str],
+    notes: list[str],
+) -> None:
+    """Record an operator ``[reject]`` as a page-level reject decision."""
+    registry.record(
+        LinkDecision(
+            lawbrain_slug=slug,
+            decision="reject",
+            target_id=target_id,
+            matched_by=None,
+            keys_hash=decision_hash(slug),
+            decided=dt.date.today(),
+        )
+    )
+    notes.append(f"rejected: {slug}")
+
+
 def _resolve_review_queue(
     queue_path: Path,
     new_entries: list[ReviewEntry],
@@ -2022,38 +2063,51 @@ def _resolve_review_queue(
 
     Each resolution records the page's real decision hash (``decision_hash``), so
     fetch recognizes a reject as settled instead of re-proposing it every run (D9).
+
+    Collision lines (one per candidate target) resolve per page: any ``[accept]``
+    records a link override for that target and prunes the page's sibling lines; a
+    page whose every line is ``[reject]`` is recorded as a reject; a partly-rejected
+    page is left as marked (rejects kept) until the operator finishes it. This run's
+    new proposals for a page resolved here are dropped — they predate the decision.
     """
     existing: list[ReviewEntry] = []
     if queue_path.exists():
         existing = parse_review_queue(queue_path.read_text(encoding="utf-8"))
+    collisions: dict[str, list[ReviewEntry]] = {}
+    for entry in existing:
+        if entry.reason == "collision":
+            collisions.setdefault(entry.slug, []).append(entry)
+    open_collisions: set[str] = set()
+    resolved: set[str] = set()
+    for slug, lines in collisions.items():
+        accepted = [e for e in lines if e.status == "accept"]
+        if accepted:
+            _record_accept(registry, accepted[0], decision_hash, notes)
+            if len(accepted) > 1:
+                notes.append(
+                    f"collision {slug}: {len(accepted)} lines accepted; "
+                    f"linked the first ({accepted[0].target_id})"
+                )
+            resolved.add(slug)
+        elif all(e.status == "reject" for e in lines):
+            _record_reject(registry, slug, None, decision_hash, notes)
+            resolved.add(slug)
+        else:
+            open_collisions.add(slug)
     pending: list[ReviewEntry] = []
     for entry in existing:
-        if entry.status == "accept":
-            registry.record(
-                LinkDecision(
-                    lawbrain_slug=entry.slug,
-                    decision="link",
-                    target_id=entry.target_id,
-                    matched_by="llm",
-                    keys_hash=decision_hash(entry.slug),
-                    decided=dt.date.today(),
-                )
-            )
-            notes.append(f"accepted: {entry.slug} -> {entry.target_id}")
+        if entry.reason == "collision":
+            if entry.slug in open_collisions:
+                pending.append(entry)  # partly resolved: keep every line as marked
+        elif entry.status == "accept":
+            _record_accept(registry, entry, decision_hash, notes)
+            resolved.add(entry.slug)
         elif entry.status == "reject":
-            registry.record(
-                LinkDecision(
-                    lawbrain_slug=entry.slug,
-                    decision="reject",
-                    target_id=entry.target_id,
-                    matched_by=None,
-                    keys_hash=decision_hash(entry.slug),
-                    decided=dt.date.today(),
-                )
-            )
-            notes.append(f"rejected: {entry.slug}")
+            _record_reject(registry, entry.slug, entry.target_id, decision_hash, notes)
+            resolved.add(entry.slug)
         else:
             pending.append(entry)
+    new_entries = [e for e in new_entries if e.slug not in resolved]
     seen: set[tuple[str, str | None, str]] = set()
     merged: list[ReviewEntry] = []
     for entry in [*pending, *new_entries]:
@@ -2121,9 +2175,10 @@ def render_lawbrain_commentary(
         markers = settings.lawbrain.commentary_only_slug_markers
         matchers: list[_LawBrainMatcher] = []  # built on first need (wiki scan)
 
-        def decision_hash_for(slug: str) -> str:
-            """The hash fetch will compare against, derived from disk — never from
-            staged JSON — so a recorded decision is recognized as settled (D9)."""
+        def classify_for(slug: str) -> _PageMatch:
+            """The page's match and decision hash exactly as fetch derives them, from
+            disk — never from staged JSON — so a recorded decision is recognized as
+            settled (D9) and a collision lists the real candidates."""
             page = pages_by_slug.get(slug)
             if page is None:
                 raise ConfigError(f"law-brain page not found: {slug}")
@@ -2131,7 +2186,10 @@ def render_lawbrain_commentary(
                 matchers.append(
                     _LawBrainMatcher(_lawbrain_targets(wiki).targets, settings.lawbrain)
                 )
-            return matchers[0].classify(page, page_keys(page, markers)).decision_hash
+            return matchers[0].classify(page, page_keys(page, markers))
+
+        def decision_hash_for(slug: str) -> str:
+            return classify_for(slug).decision_hash
 
         review: list[ReviewEntry] = []
         linked = reviewed = 0
@@ -2181,6 +2239,29 @@ def render_lawbrain_commentary(
                             )
                         )
                     recorded += 1
+                    continue
+                if matched_by == "collision":
+                    # Several tracked targets share this page's keys: queue one line
+                    # per candidate for the operator, attach nothing, record nothing.
+                    collision = classify_for(slug)
+                    if collision.match != "collision":
+                        raise ConfigError(f"no longer a key collision ({collision.match})")
+                    prior = registry.decision_for(slug)
+                    if prior is not None and (
+                        prior.matched_by == "llm"
+                        or prior.keys_hash == collision.decision_hash
+                    ):
+                        notes.append(f"collision {slug}: already decided ({prior.decision})")
+                        continue
+                    if dry_run:
+                        intended.append(
+                            f"queue collision {slug} -> {', '.join(collision.target_ids)}"
+                        )
+                    review.extend(
+                        ReviewEntry(slug=slug, target_id=tid, reason="collision")
+                        for tid in collision.target_ids
+                    )
+                    reviewed += 1
                     continue
                 if matched_by not in ("deterministic", "llm"):
                     raise ConfigError(f"unknown matched_by {matched_by!r}")

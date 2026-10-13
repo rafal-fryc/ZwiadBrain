@@ -1495,3 +1495,75 @@ the raw description and dropped its topics; found during the PHASE-31 end-to-end
 **Trade-offs:** a page whose official summary genuinely changed and was never re-summarized keeps
 the older plain-language text until refresh re-summarizes it (the existing refresh path).
 **Revisit if:** another body-only field (D20) is found missing after a leg-history render.
+
+## 2026-10-13 — 124. Keyless law-brain shortlist: top 10 by topical overlap, floor of 2 shared tokens
+**Chosen:** `build_shortlist` keeps only same-jurisdiction targets sharing at least
+`shortlist_min_overlap = 2` significant title/tag tokens with the page, capped at
+`shortlist_limit = 10` (both in `[lawbrain]`). A keyless page whose shortlist comes out empty
+is settled as `not_in_scope` by the fetch half — no `lawbrain-matcher` dispatch.
+**Alternatives:** the old jurisdiction-only filter (150–240 targets per federal page; 142
+dispatches on 2026-10-13, each over an unreadably long list); record every keyless page
+`not_in_scope` with no LLM step (cheapest, but hides real topical matches such as
+`regulation-colorado-ai-act` → `co-2024-sb-205`); dispatch all keyless pages once (accurate but
+the cost recurs whenever the corpus grows).
+**Why:** measured on the 2026-10-13 corpus: floor 1 kept 129/165 pages (median 6, max 158), floor
+2 kept 78 (median 2), floor 3 kept 31 (median 1) and lost plausible matches. Floor 2 + cap 10
+roughly halves the dispatches and keeps every shortlist readable.
+**Trade-offs:** a relevant target whose title shares fewer than two significant tokens with the
+page is never proposed; the token overlap is coarse (a broad federal privacy bill appears on many
+shortlists — the cap bounds that).
+**Revisit if:** the review queue shows matches the operator had to add by hand, or the matcher
+starts declining most top-ranked candidates.
+
+## 2026-10-13 — 125. Keyless decisions hash the candidate shortlist; render derives the hash from disk
+**Chosen:** a page with no key match records its decision under
+`keyless_decision_hash(keys, shortlist)` (keys + a `match::keyless` marker + the shortlist ids)
+instead of `keys_hash(keys)`. Fetch, render, and queue resolution all derive it through one
+`_LawBrainMatcher`, from the law brain and wiki on disk, never from staged JSON. The skill now
+stages `not_in_scope` entries instead of dropping them.
+**Alternatives:** keep `keys_hash` (a keyless `not_in_scope` would stay settled forever, even
+after a relevant item is tracked); trust a hash staged in `classified.json` (render would record
+whatever the session wrote).
+**Why:** before this, `not_in_scope` was never recorded (the skill dropped it before render) and
+165 keyless pages were re-proposed every run. Recording it with the keys-only hash would have
+over-corrected: a keyless page's keys almost never change, so it could never resurface.
+**Trade-offs:** any shortlist movement — a new target ranking into the top 10, or one being
+untracked — re-proposes the page, so large tracked-corpus growth re-opens settled keyless pages.
+**Revisit if:** re-proposals after a backfill become noisy enough to want a narrower trigger
+(e.g. only new targets above the floor).
+
+## 2026-10-13 — 126. Key collisions go to the review queue, one line per candidate; operator decisions are sticky and target-scoped
+**Chosen:** a staged `collision` makes render queue `- [pending] <slug> -> <target> (collision)`
+for every target sharing the page's keys (derived from disk). Resolution is per page: any
+`[accept]` records a link override for that target and prunes the siblings; all `[reject]`
+records a page reject; a partly-rejected page keeps its lines as marked. Accept/reject now record
+the page's real decision hash (previously `""`, which never matched, so rejects were re-proposed
+every run and accepts never attached). An override grounds only its own target (D16); fetch
+proposes an accepted link as `override` until the page's current content is on that target, and
+any standing link as `refresh` when the law-brain page changed (D20). Implements the collision
+half of D61; `low-confidence` remains unimplemented.
+**Alternatives:** let the LLM matcher pick among colliding targets (rejected: all of them share a
+real key, so the choice is about which bill the page is *about* — an operator call, and only 3
+pages today); record the operator's choice as a new decision type (rejected: a link override
+already expresses it).
+**Why:** before this, collision candidates were not staged by the skill and had no render path,
+so they produced no queue line, no registry record, and came back every run (2026-10-13: MD MODPA,
+NY SAFE for Kids, WA chatbot provenance).
+**Trade-offs:** a page linked by override keeps that link even if its keys later change; undoing
+one means editing `links.yaml`. Partly-rejected collisions keep re-queuing their pending lines
+until the operator finishes them.
+**Revisit if:** collisions become common enough that operator resolution is a bottleneck.
+
+## 2026-10-13 — 127. Fetch skips law-brain pages that have a line in the review queue
+**Chosen:** `fetch-lawbrain-candidates` does not stage a page with any line in
+`wiki/review-queue.md` (pending, or resolved but not yet applied). Render applies the operator's
+`[accept]`/`[reject]` and prunes the lines; the page is evaluated again on the following fetch.
+**Alternatives:** keep re-staging (each sync re-dispatched the matcher for every pending
+weak-grounding page — 9 calls per run after the 2026-10-13 sync, all producing the same queue
+line); record a `pending` decision in `links.yaml` (rejected: a second source of truth for what the
+queue file already says).
+**Why:** a queued page's proposal is already in front of the operator; re-staging it costs matcher
+calls and adds nothing.
+**Trade-offs:** a page edited in the law brain while queued is not re-evaluated until the operator
+resolves its lines; an accepted page attaches one sync after the accept (unchanged from D126).
+**Revisit if:** queue lines are routinely left unresolved for long periods.

@@ -139,6 +139,63 @@ def test_pages_skips_page_with_malformed_frontmatter(reader: LawBrainReader) -> 
     assert "regulation-fixture-sb53" in slugs
 
 
+def _write_unquoted_colon_page(root: Path) -> None:
+    """A page whose citation carries an unquoted ': ' — the real-world failure mode."""
+    wiki = root / "wiki"
+    wiki.mkdir(parents=True, exist_ok=True)
+    (wiki / "concept-unquoted-colon.md").write_text(
+        "\n".join(
+            [
+                "---",
+                "title: Unquoted Colon Fixture",
+                "type: concept",
+                "jurisdiction: [US-Multi-state]",
+                "citation: NAIC Model Bulletin: Use of AI Systems by Insurers",
+                "---",
+                "",
+                "## Summary",
+                "",
+                "Body.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_pages_should_name_failing_frontmatter_line_when_yaml_is_malformed(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    # Arrange
+    _write_unquoted_colon_page(tmp_path)
+
+    # Act
+    with caplog.at_level("WARNING"):
+        LawBrainReader(tmp_path).pages()
+
+    # Assert — file line 5 is the citation line; the warning shows it and a fix hint.
+    message = caplog.text
+    assert "concept-unquoted-colon.md" in message
+    assert "line 5" in message
+    assert "citation: NAIC Model Bulletin: Use of AI Systems by Insurers" in message
+    assert "quote" in message
+
+
+def test_pages_should_record_malformed_slugs_when_frontmatter_fails_to_parse(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    _write_unquoted_colon_page(tmp_path)
+    reader = LawBrainReader(tmp_path)
+
+    # Act
+    reader.pages()
+    reader.pages()  # a second enumeration must not double-count
+
+    # Assert
+    assert reader.malformed == ["concept-unquoted-colon"]
+
+
 def test_pages_isolates_construction_error(
     reader: LawBrainReader, monkeypatch: pytest.MonkeyPatch
 ) -> None:

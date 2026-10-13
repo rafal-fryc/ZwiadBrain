@@ -196,6 +196,7 @@ def test_fetch_lawbrain_candidates_keyless_single_subject_gets_shortlist(
                 "tags:",
                 "  - liability",
                 "  - frontier-ai",
+                "  - transparency",
                 "status: active",
                 "---",
                 "",
@@ -231,10 +232,157 @@ def test_fetch_lawbrain_candidates_keyless_single_subject_gets_shortlist(
     assert entry["shortlist"] == ["ca-2025-sb-53"]
 
 
+def _write_keyless_lawbrain_page(law_brain: Path, *, tags: list[str]) -> None:
+    """A single-subject US-CA concept page with no bill/docket/public-law key."""
+    page = law_brain / "wiki" / "concept-keyless-note.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "\n".join(
+            [
+                "---",
+                'title: "Keyless Note"',
+                "type: concept",
+                "jurisdiction: US-CA",
+                "tags:",
+                *[f"  - {tag}" for tag in tags],
+                "status: active",
+                "---",
+                "",
+                "## Summary",
+                "",
+                "A keyless single-subject note.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_ca_bill(wiki: Path, *, id_: str, bill_number: str, title: str) -> None:
+    page = wiki / "bills" / f"{id_}.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "\n".join(
+            [
+                "---",
+                f"id: {id_}",
+                "type: bill",
+                "jurisdiction: US-CA",
+                f"title: {title}",
+                f"bill_number: {bill_number}",
+                "status: introduced",
+                "sources: {}",
+                "commentary_sources: []",
+                "---",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _fetch(wiki: Path, out: Path) -> list[dict[str, object]]:
+    result = _RUNNER.invoke(
+        app, ["fetch-lawbrain-candidates", "--wiki", str(wiki), "--out", str(out)]
+    )
+    assert result.exit_code == 0, result.output
+    loaded: list[dict[str, object]] = json.loads(
+        (out / "lawbrain-candidates.json").read_text(encoding="utf-8")
+    )
+    return loaded
+
+
+def test_fetch_lawbrain_candidates_should_mark_not_in_scope_when_shortlist_is_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — the only same-jurisdiction target shares no topical tokens.
+    from zwiadbrain.pipeline.lawbrain_keys import keyless_decision_hash  # noqa: PLC0415
+
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["agriculture", "drones"])
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+
+    # Act
+    candidates = _fetch(wiki, tmp_path / "run")
+
+    # Assert — settled deterministically: no shortlist, no LLM step needed.
+    entry = {str(c["slug"]): c for c in candidates}["concept-keyless-note"]
+    assert entry["match"] == "not_in_scope"
+    assert entry["shortlist"] == []
+    assert entry["keys_hash"] == keyless_decision_hash(set(), [])
+
+
+def test_fetch_lawbrain_candidates_should_skip_recorded_not_in_scope_until_shortlist_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — fetch, then record the keyless page as not_in_scope via render.
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["frontier", "transparency"])
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    first = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run1")}
+    assert first["concept-keyless-note"]["shortlist"] == ["ca-2025-sb-53"]
+    classified = tmp_path / "classified.json"
+    classified.write_text(
+        json.dumps([{"slug": "concept-keyless-note", "matched_by": "not_in_scope"}]),
+        encoding="utf-8",
+    )
+    rendered = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(classified), "--wiki", str(wiki),
+         "--db", str(tmp_path / "index.sqlite")],
+    )
+    assert rendered.exit_code == 0, rendered.output
+
+    # Act — re-fetch unchanged, then track a new overlapping bill and re-fetch.
+    unchanged = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run2")}
+    _write_ca_bill(
+        wiki, id_="ca-2026-sb-9", bill_number="SB 9", title="Frontier model transparency"
+    )
+    widened = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run3")}
+
+    # Assert — sticky while nothing changes; re-proposed once a new candidate appears.
+    assert "concept-keyless-note" not in unchanged
+    assert widened["concept-keyless-note"]["match"] == "keyless"
+
+
+def test_fetch_lawbrain_candidates_should_skip_page_when_it_awaits_operator_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — a keyless page with a candidate, already queued as weak-grounding.
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["frontier", "transparency"])
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    (wiki / "review-queue.md").write_text(
+        "- [pending] concept-keyless-note -> ca-2025-sb-53 (weak-grounding)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["fetch-lawbrain-candidates", "--wiki", str(wiki), "--out", str(tmp_path / "run")],
+    )
+
+    # Assert — not re-staged (no repeat matcher dispatch); the skip is reported.
+    assert result.exit_code == 0, result.output
+    candidates = json.loads(
+        (tmp_path / "run" / "lawbrain-candidates.json").read_text(encoding="utf-8")
+    )
+    assert "concept-keyless-note" not in {c["slug"] for c in candidates}
+    assert "1 page(s) awaiting review" in result.output
+
+
 def test_fetch_lawbrain_candidates_skips_settled_registry_page(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Arrange — record a link decision whose keys_hash matches the live key-set.
+    # Arrange — record a reject decision whose keys_hash matches the live key-set.
+    # (A link is settled by its copied content instead — see the refresh test.)
     from zwiadbrain.pipeline.lawbrain_keys import keys_hash, page_keys
     from zwiadbrain.pipeline.lawbrain_registry import LinkDecision, LinkRegistry
     from zwiadbrain.sources.lawbrain import LawBrainReader
@@ -262,9 +410,9 @@ def test_fetch_lawbrain_candidates_skips_settled_registry_page(
     registry.record(
         LinkDecision(
             lawbrain_slug="regulation-california-sb53-tfaia",
-            decision="link",
+            decision="reject",
             target_id="ca-2025-sb-53",
-            matched_by="deterministic",
+            matched_by=None,
             keys_hash=live_hash,
             decided=dt.date(2026, 5, 29),
         )
@@ -316,6 +464,27 @@ def test_fetch_lawbrain_candidates_collision_when_two_targets_share_key(
     assert entry["target_id"] is None
     assert entry["shortlist"] == ["ftc-acme", "ftc-beta"]
     assert "public_law::119-12" in entry["keys"]
+
+
+def test_fetch_lawbrain_candidates_should_report_malformed_count_when_pages_fail_to_parse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — the committed fixture brain carries one malformed page.
+    law_brain = tmp_path / "law"
+    shutil.copytree(_FIXTURE_LAWBRAIN, law_brain)
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["fetch-lawbrain-candidates", "--wiki", str(wiki), "--out", str(tmp_path / "run")],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.output
+    assert "1 malformed law-brain page(s) skipped" in result.output
 
 
 def test_fetch_lawbrain_candidates_no_op_when_disabled(
@@ -963,6 +1132,318 @@ def test_render_lawbrain_dry_run_writes_nothing(
     assert "## Commentary & Analysis" not in before
     assert not (wiki / "links.yaml").exists()
     assert not (wiki / "review-queue.md").exists()
+
+
+def _render(tmp_path: Path, wiki: Path, entries: list[dict[str, object]]) -> str:
+    classified = tmp_path / "classified.json"
+    classified.write_text(json.dumps(entries), encoding="utf-8")
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(classified), "--wiki", str(wiki),
+         "--db", str(tmp_path / "index.sqlite")],
+    )
+    assert result.exit_code == 0, result.output
+    return result.output
+
+
+def test_render_lawbrain_should_record_real_decision_hash_when_operator_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — an operator [reject] on a page that deterministically matches SB 53.
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    (wiki / "review-queue.md").write_text(
+        "- [reject] regulation-fixture-sb53 -> ca-2025-sb-53 (weak-grounding)\n",
+        encoding="utf-8",
+    )
+
+    # Act — resolve the queue, then fetch again.
+    _render(tmp_path, wiki, [])
+    candidates = _fetch(wiki, tmp_path / "run")
+
+    # Assert — the reject is sticky: fetch no longer proposes the page.
+    assert "regulation-fixture-sb53" not in {c["slug"] for c in candidates}
+
+
+def test_render_lawbrain_should_record_real_decision_hash_when_operator_accepts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    from zwiadbrain.pipeline.lawbrain_keys import keys_hash  # noqa: PLC0415
+
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    (wiki / "review-queue.md").write_text(
+        "- [accept] regulation-california-sb53-tfaia -> ca-2025-sb-53 (collision)\n",
+        encoding="utf-8",
+    )
+
+    # Act
+    _render(tmp_path, wiki, [])
+
+    # Assert — the accept carries the page's real hash, not "".
+    links_yaml = (wiki / "links.yaml").read_text(encoding="utf-8")
+    assert f"keys_hash: {keys_hash({'US-CA::bill::SB-53'})}" in links_yaml
+
+
+def test_render_lawbrain_should_scope_override_to_its_own_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — override for the SAME page but a DIFFERENT target than proposed.
+    from zwiadbrain.pipeline.lawbrain_registry import (  # noqa: PLC0415
+        LinkDecision,
+        LinkRegistry,
+    )
+
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    _write_enforcement(wiki, id_="ftc-other")
+    registry = LinkRegistry()
+    registry.record(
+        LinkDecision(
+            lawbrain_slug="concept-fixture-ai-landscape",
+            decision="link",
+            target_id="ftc-other",
+            matched_by="llm",
+            keys_hash="",
+            decided=dt.date(2026, 10, 1),
+        )
+    )
+    registry.dump(wiki / "links.yaml")
+
+    # Act
+    output = _render(
+        tmp_path,
+        wiki,
+        [{"slug": "concept-fixture-ai-landscape", "target_id": "ca-2025-sb-53",
+          "matched_by": "llm", "confidence": 0.95}],
+    )
+
+    # Assert
+    assert "0 linked" in output
+    assert "1 review" in output
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "## Commentary & Analysis" not in page
+
+
+def test_fetch_lawbrain_candidates_should_emit_accepted_override_until_it_is_attached(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — a keyless page the operator accepted onto SB 53 (link override).
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["frontier", "transparency"])
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    (wiki / "review-queue.md").write_text(
+        "- [accept] concept-keyless-note -> ca-2025-sb-53 (weak-grounding)\n",
+        encoding="utf-8",
+    )
+    _render(tmp_path, wiki, [])
+
+    # Act — fetch proposes the override; stage it as the skill would; fetch again.
+    first = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run1")}
+    entry = first["concept-keyless-note"]
+    output = _render(
+        tmp_path,
+        wiki,
+        [{"slug": "concept-keyless-note", "target_id": entry["target_id"],
+          "matched_by": "llm", "confidence": 1.0}],
+    )
+    second = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run2")}
+
+    # Assert — attached once via the override, then settled.
+    assert entry["match"] == "override"
+    assert entry["target_id"] == "ca-2025-sb-53"
+    assert "1 linked" in output
+    assert "concept-keyless-note" not in second
+
+
+def test_fetch_lawbrain_candidates_should_propose_refresh_when_linked_page_content_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — link SB 53 commentary once from a writable copy of the fixture brain.
+    law_brain = tmp_path / "law"
+    shutil.copytree(_FIXTURE_LAWBRAIN, law_brain)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    _render(tmp_path, wiki, _classified_deterministic())
+    unchanged = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run1")}
+    source = law_brain / "wiki" / "regulation-california-sb53-tfaia.md"
+    source.write_text(
+        source.read_text(encoding="utf-8") + "\nNewly added analysis paragraph.\n",
+        encoding="utf-8",
+    )
+
+    # Act — fetch after the edit, stage the refresh as the skill would, fetch again.
+    edited = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run2")}
+    entry = edited["regulation-california-sb53-tfaia"]
+    _render(
+        tmp_path,
+        wiki,
+        [{"slug": entry["slug"], "target_id": entry["target_id"],
+          "matched_by": "deterministic", "confidence": 1.0}],
+    )
+    after = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run3")}
+
+    # Assert — unchanged content is settled; edited content is re-copied once.
+    assert "regulation-california-sb53-tfaia" not in unchanged
+    assert entry["match"] == "refresh"
+    assert entry["target_id"] == "ca-2025-sb-53"
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "Newly added analysis paragraph." in page
+    assert "regulation-california-sb53-tfaia" not in after
+
+
+_TAKE_IT_DOWN = "regulation-take-it-down-act"
+
+
+def _collision_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A law-brain page whose public-law key is shared by two tracked FTC actions."""
+    law_brain = tmp_path / "law"
+    _write_take_it_down_lawbrain_page(law_brain)
+    wiki = tmp_path / "wiki"
+    _write_enforcement(wiki, id_="ftc-acme")
+    _write_enforcement(wiki, id_="ftc-beta")
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    return wiki
+
+
+def _collision_entry() -> dict[str, object]:
+    return {"slug": _TAKE_IT_DOWN, "matched_by": "collision"}
+
+
+def test_render_lawbrain_should_queue_one_line_per_target_when_staging_a_collision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    wiki = _collision_setup(tmp_path, monkeypatch)
+
+    # Act
+    output = _render(tmp_path, wiki, [_collision_entry()])
+
+    # Assert — both candidates queued, nothing attached, nothing recorded.
+    queue = (wiki / "review-queue.md").read_text(encoding="utf-8")
+    assert f"- [pending] {_TAKE_IT_DOWN} -> ftc-acme (collision)" in queue
+    assert f"- [pending] {_TAKE_IT_DOWN} -> ftc-beta (collision)" in queue
+    assert "0 linked" in output
+    assert not (wiki / "links.yaml").exists()
+
+
+def test_render_lawbrain_should_link_accepted_target_and_prune_siblings_when_collision_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — queue the collision, then the operator accepts ftc-beta.
+    wiki = _collision_setup(tmp_path, monkeypatch)
+    _render(tmp_path, wiki, [_collision_entry()])
+    queue_path = wiki / "review-queue.md"
+    queue_path.write_text(
+        queue_path.read_text(encoding="utf-8").replace(
+            f"- [pending] {_TAKE_IT_DOWN} -> ftc-beta", f"- [accept] {_TAKE_IT_DOWN} -> ftc-beta"
+        ),
+        encoding="utf-8",
+    )
+
+    # Act — resolve (this run also re-stages the still-colliding page), then fetch.
+    _render(tmp_path, wiki, [_collision_entry()])
+    candidates = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run")}
+
+    # Assert — sibling pruned and not re-queued; fetch proposes the accepted target.
+    assert _TAKE_IT_DOWN not in queue_path.read_text(encoding="utf-8")
+    assert candidates[_TAKE_IT_DOWN]["match"] == "override"
+    assert candidates[_TAKE_IT_DOWN]["target_id"] == "ftc-beta"
+
+
+def test_render_lawbrain_should_record_reject_when_every_collision_line_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    wiki = _collision_setup(tmp_path, monkeypatch)
+    _render(tmp_path, wiki, [_collision_entry()])
+    queue_path = wiki / "review-queue.md"
+    queue_path.write_text(
+        queue_path.read_text(encoding="utf-8").replace("[pending]", "[reject]"),
+        encoding="utf-8",
+    )
+
+    # Act
+    _render(tmp_path, wiki, [])
+    candidates = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run")}
+
+    # Assert — the page is settled as rejected.
+    assert _TAKE_IT_DOWN not in candidates
+    assert "decision: reject" in (wiki / "links.yaml").read_text(encoding="utf-8")
+
+
+def test_render_lawbrain_should_keep_partial_collision_resolution_when_only_some_lines_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — one candidate rejected, the other still pending.
+    wiki = _collision_setup(tmp_path, monkeypatch)
+    _render(tmp_path, wiki, [_collision_entry()])
+    queue_path = wiki / "review-queue.md"
+    queue_path.write_text(
+        queue_path.read_text(encoding="utf-8").replace(
+            f"- [pending] {_TAKE_IT_DOWN} -> ftc-acme", f"- [reject] {_TAKE_IT_DOWN} -> ftc-acme"
+        ),
+        encoding="utf-8",
+    )
+
+    # Act — the page is re-staged as a collision on the next run.
+    _render(tmp_path, wiki, [_collision_entry()])
+
+    # Assert — the operator's reject survives; no page-level decision yet.
+    queue = queue_path.read_text(encoding="utf-8")
+    assert f"- [reject] {_TAKE_IT_DOWN} -> ftc-acme (collision)" in queue
+    assert f"- [pending] {_TAKE_IT_DOWN} -> ftc-beta (collision)" in queue
+    assert not (wiki / "links.yaml").exists()
+
+
+def test_render_lawbrain_should_parse_the_law_brain_once_when_rendering_many_items(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — three staged items (two links + one not_in_scope) and a counter on
+    # LawBrainReader.pages(); every per-item lookup must reuse the single parse.
+    from zwiadbrain.sources.lawbrain import LawBrainReader  # noqa: PLC0415
+
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    entries = [
+        *_classified_deterministic(),
+        {**_classified_deterministic()[0], "slug": "regulation-fixture-sb53"},
+        {"slug": "concept-fixture-ai-landscape", "matched_by": "not_in_scope"},
+    ]
+    (run / "classified.json").write_text(json.dumps(entries), encoding="utf-8")
+    calls: list[int] = []
+    original = LawBrainReader.pages
+
+    def counting_pages(self: LawBrainReader) -> list[object]:
+        calls.append(1)
+        return list(original(self))
+
+    monkeypatch.setattr(LawBrainReader, "pages", counting_pages)
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 1
 
 
 def test_render_lawbrain_drops_malformed_entry_without_failing_batch(

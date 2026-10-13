@@ -26,8 +26,9 @@ import json
 import logging
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NamedTuple
 
 import httpx
 import typer
@@ -35,7 +36,7 @@ import yaml
 from pydantic import ValidationError
 
 from zwiadbrain import __version__
-from zwiadbrain.config import Settings, load_settings
+from zwiadbrain.config import LawBrainSettings, Settings, load_settings
 from zwiadbrain.exceptions import AppError, ConfigError, WikiSchemaError
 from zwiadbrain.models import (
     Bill,
@@ -68,7 +69,12 @@ from zwiadbrain.pipeline.lawbrain_copy import (
     detect_stale,
     merge_commentary,
 )
-from zwiadbrain.pipeline.lawbrain_keys import keys_hash, page_keys, tracked_item_keys
+from zwiadbrain.pipeline.lawbrain_keys import (
+    keyless_decision_hash,
+    keys_hash,
+    page_keys,
+    tracked_item_keys,
+)
 from zwiadbrain.pipeline.lawbrain_links import harvest_links
 from zwiadbrain.pipeline.lawbrain_match import TargetRef, build_shortlist
 from zwiadbrain.pipeline.lawbrain_match import confirm_match as lawbrain_confirm_match
@@ -1571,16 +1577,28 @@ def fetch_enforcement_candidates(
     typer.echo(f"staged {len(candidates)} enforcement candidate(s) to {path.parent}")
 
 
-def _lawbrain_targets(wiki: Path) -> list[TargetRef]:
+class _TrackedCorpus(NamedTuple):
+    """The tracked items as matcher targets, plus each target's copied commentary
+    (target id -> law-brain slug -> the ``content_hash`` that was copied)."""
+
+    targets: list[TargetRef]
+    commentary_hashes: dict[str, dict[str, str]]
+
+
+def _lawbrain_targets(wiki: Path) -> _TrackedCorpus:
     """Read every tracked Bill + EnforcementAction page into a TargetRef.
 
     A TargetRef carries the deterministic key-set (``tracked_item_keys``) the
     law-brain matcher intersects against page keys. Malformed pages are skipped
     (per-page isolation; mirrors ``_existing_matters``). Both kinds participate:
     commentary attaches on a shared jurisdiction-qualified key regardless of
-    ZwiadBrain page kind (D59).
+    ZwiadBrain page kind (D59). The commentary map lets fetch tell whether a linked
+    page's current law-brain content is already on its target.
     """
     targets: list[TargetRef] = []
+    commentary_hashes: dict[str, dict[str, str]] = {}
+    if not wiki.exists():
+        return _TrackedCorpus(targets, commentary_hashes)
     for page in sorted(wiki.glob("**/*.md")):
         try:
             item = from_page(page.read_text(encoding="utf-8"))
@@ -1600,7 +1618,63 @@ def _lawbrain_targets(wiki: Path) -> list[TargetRef]:
                 keys=sorted(tracked_item_keys(item)),
             )
         )
-    return targets
+        commentary_hashes[item.id] = {
+            c.slug: c.content_hash for c in item.commentary_sources
+        }
+    return _TrackedCorpus(targets, commentary_hashes)
+
+
+class _PageMatch(NamedTuple):
+    """How one law-brain page relates to the tracked corpus right now.
+
+    ``match`` is ``deterministic`` (one key-sharing target), ``collision`` (several),
+    ``keyless`` (none, but a non-empty topical shortlist for the matcher) or
+    ``not_in_scope`` (none and an empty shortlist — settled without the LLM).
+    ``target_ids`` holds the key-sharing targets or the shortlist. ``decision_hash``
+    is the registry stickiness cursor a decision about this page must carry (D9).
+    """
+
+    match: Literal["deterministic", "collision", "keyless", "not_in_scope"]
+    target_ids: list[str]
+    decision_hash: str
+
+
+class _LawBrainMatcher:
+    """Classify law-brain pages against the tracked corpus — the single place the
+    fetch half, the render half, and queue resolution derive a page's match and its
+    decision hash, so a decision recorded by one is recognized by the others."""
+
+    def __init__(self, targets: list[TargetRef], settings: LawBrainSettings) -> None:
+        self._targets = targets
+        self._settings = settings
+        # key -> target-ids, built once; a page's key match is a set intersection.
+        self._index: dict[str, list[str]] = {}
+        for target in targets:
+            for key in target.keys:
+                self._index.setdefault(key, []).append(target.id)
+
+    def classify(self, page: LawBrainPage, keys: set[str]) -> _PageMatch:
+        matched_ids = sorted({tid for key in keys for tid in self._index.get(key, [])})
+        if len(matched_ids) == 1:
+            return _PageMatch("deterministic", matched_ids, keys_hash(keys))
+        if matched_ids:
+            return _PageMatch("collision", matched_ids, keys_hash(keys))
+        # No key match: the LLM matcher decides over a capped, topically-floored,
+        # jurisdiction-scoped shortlist; an empty one is settled as not_in_scope.
+        shortlist = [
+            t.id
+            for t in build_shortlist(
+                page,
+                self._targets,
+                limit=self._settings.shortlist_limit,
+                min_overlap=self._settings.shortlist_min_overlap,
+            )
+        ]
+        return _PageMatch(
+            "keyless" if shortlist else "not_in_scope",
+            shortlist,
+            keyless_decision_hash(keys, shortlist),
+        )
 
 
 def _lawbrain_registry_path(wiki: Path) -> Path:
@@ -1657,14 +1731,21 @@ def fetch_lawbrain_candidates(
         if not reader.is_available():
             typer.echo("law brain unavailable or disabled; nothing to do")
             return
-        targets = _lawbrain_targets(wiki) if wiki.exists() else []
-        # Build a key -> target-ids index once. A page's match is the set of targets
-        # sharing >=1 key with the page (set intersection over this index).
-        index: dict[str, list[str]] = {}
-        for target in targets:
-            for key in target.keys:
-                index.setdefault(key, []).append(target.id)
+        tracked = _lawbrain_targets(wiki)
+        targets = tracked.targets
+        matcher = _LawBrainMatcher(targets, settings.lawbrain)
         registry = LinkRegistry.load(_lawbrain_registry_path(wiki))
+        queue_path = wiki / "review-queue.md"
+        # A page with any line in the review queue is waiting on the operator: its
+        # proposals are already queued, and re-staging it would only re-dispatch the
+        # matcher. Render applies the operator's [accept]/[reject] and prunes the
+        # lines; the page is evaluated again on the following fetch (D127).
+        awaiting_review = (
+            {e.slug for e in parse_review_queue(queue_path.read_text(encoding="utf-8"))}
+            if queue_path.exists()
+            else set[str]()
+        )
+        skipped_for_review = 0
         markers = settings.lawbrain.commentary_only_slug_markers
         candidates: list[dict[str, object]] = []
         for page in reader.pages():
@@ -1674,24 +1755,38 @@ def fetch_lawbrain_candidates(
             # it must not go to the matcher either, so it is skipped entirely (D60).
             if not keys and _is_marker_slug(page.slug, markers):
                 continue
-            khash = keys_hash(keys)
-            decided = registry.decision_for(page.slug)
-            # Skip a settled page unless its freshly-extracted key-set differs (D9).
-            if decided is not None and decided.keys_hash == khash:
+            if page.slug in awaiting_review:
+                skipped_for_review += 1
                 continue
-            matched_ids = sorted({tid for key in keys for tid in index.get(key, [])})
-            match: str
-            target_id: str | None
-            shortlist: list[str] | None
-            if len(matched_ids) == 1:
-                match, target_id, shortlist = "deterministic", matched_ids[0], None
-            elif len(matched_ids) > 1:
-                match, target_id, shortlist = "collision", None, matched_ids
-            else:
-                # Zero keys on a single-subject page -> the LLM matcher decides over a
-                # jurisdiction-scoped shortlist (never the full corpus).
-                match, target_id = "keyless", None
-                shortlist = [t.id for t in build_shortlist(page, targets)]
+            classified = matcher.classify(page, keys)
+            decided = registry.decision_for(page.slug)
+            match: str = classified.match
+            target_id = (
+                classified.target_ids[0] if classified.match == "deterministic" else None
+            )
+            shortlist: list[str] | None = (
+                None if classified.match == "deterministic" else classified.target_ids
+            )
+            override = decided is not None and decided.matched_by == "llm"
+            if (
+                decided is not None
+                and decided.decision == "link"
+                and decided.target_id in tracked.commentary_hashes
+                and (override or decided.keys_hash == classified.decision_hash)
+            ):
+                # A standing link is settled only while the page's current content is
+                # what was copied onto its target; an edited law-brain page is proposed
+                # again so its block is re-copied (D20). An operator-accepted (or
+                # LLM-confirmed) link is held by the decision itself, not key matching.
+                copied = tracked.commentary_hashes[decided.target_id].get(page.slug)
+                if copied == page.content_hash:
+                    continue
+                match = "override" if override else "refresh"
+                target_id, shortlist = decided.target_id, None
+            elif decided is not None and decided.keys_hash == classified.decision_hash:
+                # Settled unless its decision hash moved — its keys, or for a keyless
+                # page its candidate shortlist (D9).
+                continue
             entry: dict[str, object] = {
                 "slug": page.slug,
                 "title": page.title,
@@ -1701,7 +1796,7 @@ def fetch_lawbrain_candidates(
                 "citation": page.citation,
                 "summary_excerpt": _summary_excerpt(page.body),
                 "keys": sorted(keys),
-                "keys_hash": khash,
+                "keys_hash": classified.decision_hash,
                 "match": match,
                 "target_id": target_id,
                 "shortlist": shortlist,
@@ -1720,6 +1815,15 @@ def fetch_lawbrain_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"staged {len(candidates)} law-brain candidate(s) to {path.parent}")
+    if skipped_for_review:
+        typer.echo(
+            f"  {skipped_for_review} page(s) awaiting review in review-queue.md (skipped)"
+        )
+    if reader.malformed:
+        typer.echo(
+            f"  {len(reader.malformed)} malformed law-brain page(s) skipped:"
+            f" {', '.join(reader.malformed)}"
+        )
 
 
 def _opt_date(value: object) -> dt.date | None:
@@ -1917,9 +2021,45 @@ def _lawbrain_page_by_id(wiki: Path, target_id: str) -> Path | None:
     return matches[0] if matches else None
 
 
-def _lawbrain_page_by_slug(reader: LawBrainReader, slug: str) -> LawBrainPage | None:
-    """Return the parsed law-brain page with this slug, or None if it is gone (stale)."""
-    return next((p for p in reader.pages() if p.slug == slug), None)
+def _record_accept(
+    registry: LinkRegistry,
+    entry: ReviewEntry,
+    decision_hash: Callable[[str], str],
+    notes: list[str],
+) -> None:
+    """Record an operator ``[accept]`` as a link override for the entry's target."""
+    registry.record(
+        LinkDecision(
+            lawbrain_slug=entry.slug,
+            decision="link",
+            target_id=entry.target_id,
+            matched_by="llm",
+            keys_hash=decision_hash(entry.slug),
+            decided=dt.date.today(),
+        )
+    )
+    notes.append(f"accepted: {entry.slug} -> {entry.target_id}")
+
+
+def _record_reject(
+    registry: LinkRegistry,
+    slug: str,
+    target_id: str | None,
+    decision_hash: Callable[[str], str],
+    notes: list[str],
+) -> None:
+    """Record an operator ``[reject]`` as a page-level reject decision."""
+    registry.record(
+        LinkDecision(
+            lawbrain_slug=slug,
+            decision="reject",
+            target_id=target_id,
+            matched_by=None,
+            keys_hash=decision_hash(slug),
+            decided=dt.date.today(),
+        )
+    )
+    notes.append(f"rejected: {slug}")
 
 
 def _resolve_review_queue(
@@ -1927,6 +2067,7 @@ def _resolve_review_queue(
     new_entries: list[ReviewEntry],
     registry: LinkRegistry,
     notes: list[str],
+    decision_hash: Callable[[str], str],
 ) -> None:
     """Apply operator-resolved queue tokens, then write the merged pending queue (D61).
 
@@ -1937,38 +2078,54 @@ def _resolve_review_queue(
     is recorded as a ``reject`` decision. Resolved entries are pruned; unresolved
     ``[pending]`` entries plus this run's new proposals are written back, deduped by
     ``(slug, target_id, reason)``.
+
+    Each resolution records the page's real decision hash (``decision_hash``), so
+    fetch recognizes a reject as settled instead of re-proposing it every run (D9).
+
+    Collision lines (one per candidate target) resolve per page: any ``[accept]``
+    records a link override for that target and prunes the page's sibling lines; a
+    page whose every line is ``[reject]`` is recorded as a reject; a partly-rejected
+    page is left as marked (rejects kept) until the operator finishes it. This run's
+    new proposals for a page resolved here are dropped — they predate the decision.
     """
     existing: list[ReviewEntry] = []
     if queue_path.exists():
         existing = parse_review_queue(queue_path.read_text(encoding="utf-8"))
+    collisions: dict[str, list[ReviewEntry]] = {}
+    for entry in existing:
+        if entry.reason == "collision":
+            collisions.setdefault(entry.slug, []).append(entry)
+    open_collisions: set[str] = set()
+    resolved: set[str] = set()
+    for slug, lines in collisions.items():
+        accepted = [e for e in lines if e.status == "accept"]
+        if accepted:
+            _record_accept(registry, accepted[0], decision_hash, notes)
+            if len(accepted) > 1:
+                notes.append(
+                    f"collision {slug}: {len(accepted)} lines accepted; "
+                    f"linked the first ({accepted[0].target_id})"
+                )
+            resolved.add(slug)
+        elif all(e.status == "reject" for e in lines):
+            _record_reject(registry, slug, None, decision_hash, notes)
+            resolved.add(slug)
+        else:
+            open_collisions.add(slug)
     pending: list[ReviewEntry] = []
     for entry in existing:
-        if entry.status == "accept":
-            registry.record(
-                LinkDecision(
-                    lawbrain_slug=entry.slug,
-                    decision="link",
-                    target_id=entry.target_id,
-                    matched_by="llm",
-                    keys_hash="",  # operator override; re-evaluated on the next sync (D9)
-                    decided=dt.date.today(),
-                )
-            )
-            notes.append(f"accepted: {entry.slug} -> {entry.target_id}")
+        if entry.reason == "collision":
+            if entry.slug in open_collisions:
+                pending.append(entry)  # partly resolved: keep every line as marked
+        elif entry.status == "accept":
+            _record_accept(registry, entry, decision_hash, notes)
+            resolved.add(entry.slug)
         elif entry.status == "reject":
-            registry.record(
-                LinkDecision(
-                    lawbrain_slug=entry.slug,
-                    decision="reject",
-                    target_id=entry.target_id,
-                    matched_by=None,
-                    keys_hash="",
-                    decided=dt.date.today(),
-                )
-            )
-            notes.append(f"rejected: {entry.slug}")
+            _record_reject(registry, entry.slug, entry.target_id, decision_hash, notes)
+            resolved.add(entry.slug)
         else:
             pending.append(entry)
+    new_entries = [e for e in new_entries if e.slug not in resolved]
     seen: set[tuple[str, str | None, str]] = set()
     merged: list[ReviewEntry] = []
     for entry in [*pending, *new_entries]:
@@ -2029,8 +2186,29 @@ def render_lawbrain_commentary(
         registry_path = wiki / "links.yaml"
         queue_path = wiki / "review-queue.md"
         registry = LinkRegistry.load(registry_path)
-        # Cache the live law-brain slug set once; staleness is checked per target.
-        live_slugs = {p.slug for p in reader.pages()}
+        # Parse the law brain ONCE per run: every per-item page lookup and the
+        # staleness check read from this map, never a fresh reader.pages() call.
+        pages_by_slug = {p.slug: p for p in reader.pages()}
+        live_slugs = set(pages_by_slug)
+        markers = settings.lawbrain.commentary_only_slug_markers
+        matchers: list[_LawBrainMatcher] = []  # built on first need (wiki scan)
+
+        def classify_for(slug: str) -> _PageMatch:
+            """The page's match and decision hash exactly as fetch derives them, from
+            disk — never from staged JSON — so a recorded decision is recognized as
+            settled (D9) and a collision lists the real candidates."""
+            page = pages_by_slug.get(slug)
+            if page is None:
+                raise ConfigError(f"law-brain page not found: {slug}")
+            if not matchers:
+                matchers.append(
+                    _LawBrainMatcher(_lawbrain_targets(wiki).targets, settings.lawbrain)
+                )
+            return matchers[0].classify(page, page_keys(page, markers))
+
+        def decision_hash_for(slug: str) -> str:
+            return classify_for(slug).decision_hash
+
         review: list[ReviewEntry] = []
         linked = reviewed = 0
         notes: list[str] = []
@@ -2048,7 +2226,6 @@ def render_lawbrain_commentary(
             try:
                 slug = str(e["slug"])
                 matched_by = str(e["matched_by"])
-                page_key_set = {str(k) for k in _as_list(e.get("page_keys"), "page_keys")}
                 # A not_in_scope/reject decision attaches nothing — it is recorded in
                 # links.yaml so the page is never re-proposed (sticky, D9). target_id
                 # is optional for these (the subagent may resolve a keyless page to
@@ -2075,11 +2252,34 @@ def render_lawbrain_commentary(
                                 decision=new_decision,
                                 target_id=_opt_str_e(e.get("target_id")),
                                 matched_by=None,
-                                keys_hash=keys_hash(page_key_set),
+                                keys_hash=decision_hash_for(slug),
                                 decided=decided_date,
                             )
                         )
                     recorded += 1
+                    continue
+                if matched_by == "collision":
+                    # Several tracked targets share this page's keys: queue one line
+                    # per candidate for the operator, attach nothing, record nothing.
+                    collision = classify_for(slug)
+                    if collision.match != "collision":
+                        raise ConfigError(f"no longer a key collision ({collision.match})")
+                    prior = registry.decision_for(slug)
+                    if prior is not None and (
+                        prior.matched_by == "llm"
+                        or prior.keys_hash == collision.decision_hash
+                    ):
+                        notes.append(f"collision {slug}: already decided ({prior.decision})")
+                        continue
+                    if dry_run:
+                        intended.append(
+                            f"queue collision {slug} -> {', '.join(collision.target_ids)}"
+                        )
+                    review.extend(
+                        ReviewEntry(slug=slug, target_id=tid, reason="collision")
+                        for tid in collision.target_ids
+                    )
+                    reviewed += 1
                     continue
                 if matched_by not in ("deterministic", "llm"):
                     raise ConfigError(f"unknown matched_by {matched_by!r}")
@@ -2090,14 +2290,20 @@ def render_lawbrain_commentary(
                 )
                 confidence = float(e["confidence"])  # pyright: ignore[reportArgumentType]
                 decided = registry.decision_for(slug)
-                override = decided is not None and decided.decision == "link"
+                # An override grounds only the target it was recorded for — never a
+                # different target proposed later for the same page (D16).
+                override = (
+                    decided is not None
+                    and decided.decision == "link"
+                    and decided.target_id == target_id
+                )
                 # Load the fresh law-brain page + tracked target FIRST so the confirm
                 # grounds against real disk state, never the LLM-echoed keys carried in
                 # classified.json (D16): an untrusted proposal could echo intersecting
                 # fake keys. The keys are RECOMPUTED here from the freshly-read page and
                 # target, and these recomputed sets drive both the confirm gate and the
                 # stored keys_hash (registry stickiness must reflect real keys, D9).
-                page = _lawbrain_page_by_slug(reader, slug)
+                page = pages_by_slug.get(slug)
                 if page is None:
                     # Source vanished from the law brain: do not attach; flag stale.
                     review.append(
@@ -2221,7 +2427,14 @@ def render_lawbrain_commentary(
         # accept/reject decisions, so it runs before the dump decision.
         registry_changed = linked > 0 or recorded > 0
         notes_before = len(notes)
-        _resolve_review_queue(queue_path, review, registry, notes)
+        _resolve_review_queue(
+            queue_path,
+            review,
+            registry,
+            notes,
+            # A vanished page (stale entry) has no hash to derive; "" never matches.
+            lambda slug: decision_hash_for(slug) if slug in pages_by_slug else "",
+        )
         # A queue resolution that recorded an accept/reject appends a note.
         registry_changed = registry_changed or len(notes) > notes_before
         # Persist the registry when this run recorded a decision, or to refresh an

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import frontmatter
+import yaml
 from pydantic import BaseModel, Field
 
 _LOGGER = logging.getLogger(__name__)
@@ -90,6 +91,29 @@ def _parse_date(value: Any) -> dt.date | None:
         return None
 
 
+def _frontmatter_line_hint(text: str, exc: yaml.MarkedYAMLError) -> str:
+    """Point at the offending file line of a front-matter YAML error.
+
+    python-frontmatter hands YAML the block *including* the newline that ends the
+    opening ``---`` line, so the mark's 0-based line already counts that delimiter:
+    the 1-based file line is ``mark.line + 1`` (measured, not assumed). An
+    unquoted ``': '`` inside a value (``citation: Foo: Bar``) is by far the common
+    cause, so that error gets an explicit fix hint.
+    """
+    mark = exc.problem_mark
+    if mark is None:
+        return ""
+    file_line = mark.line + 1
+    lines = text.splitlines()
+    content = lines[file_line - 1].strip() if 0 < file_line <= len(lines) else ""
+    hint = (
+        " — unquoted ': ' in a value; quote the value"
+        if exc.problem is not None and "mapping values are not allowed" in exc.problem
+        else ""
+    )
+    return f" (front matter line {file_line}: {content}{hint})"
+
+
 class LawBrainPage(BaseModel):
     """One parsed law-brain wiki page (read-only view).
 
@@ -116,6 +140,9 @@ class LawBrainReader:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.wiki_dir = root / "wiki"
+        # Slugs skipped by the most recent pages() call for malformed front matter,
+        # so callers can surface a count instead of relying on scrolled-past warnings.
+        self.malformed: list[str] = []
 
     def is_available(self) -> bool:
         """True iff ``<root>/wiki`` is a directory — a missing path is a clean no-op."""
@@ -128,6 +155,7 @@ class LawBrainReader:
         ``index.md``/``log.md``/``CLAUDE.md`` are skipped). Per-page parse errors
         are logged and skipped — one bad page never sinks a sync run.
         """
+        self.malformed = []
         if not self.is_available():
             return []
         results: list[LawBrainPage] = []
@@ -143,6 +171,10 @@ class LawBrainReader:
     def _parse_page(self, path: Path, page_type: str) -> LawBrainPage | None:
         try:
             text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _LOGGER.warning("skipping unreadable law-brain page %s: %s", path.name, exc)
+            return None
+        try:
             parsed = frontmatter.loads(text)
             metadata: dict[str, Any] = parsed.metadata
             return LawBrainPage(
@@ -157,10 +189,17 @@ class LawBrainReader:
                 content_hash=_content_hash(text),
                 source_files=_coerce_str_list(metadata.get("sources")),
             )
-        except (OSError, UnicodeDecodeError) as exc:
-            _LOGGER.warning("skipping unreadable law-brain page %s: %s", path.name, exc)
+        except yaml.MarkedYAMLError as exc:
+            self.malformed.append(path.stem)
+            _LOGGER.warning(
+                "skipping malformed law-brain page %s%s: %s",
+                path.name,
+                _frontmatter_line_hint(text, exc),
+                exc.problem or exc,
+            )
             return None
         except Exception as exc:  # noqa: BLE001 — tolerant parse boundary (D5); malformed YAML or construction error must not sink the run
+            self.malformed.append(path.stem)
             _LOGGER.warning("skipping malformed law-brain page %s: %s", path.name, exc)
             return None
 

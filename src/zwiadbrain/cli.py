@@ -141,7 +141,7 @@ from zwiadbrain.sources.enforcement.base import EnforcementSource
 from zwiadbrain.sources.enforcement.ftc import FTCSource
 from zwiadbrain.sources.enforcement.state_ag import StateAGSource
 from zwiadbrain.sources.govinfo import GovInfoSource
-from zwiadbrain.sources.lawbrain import LawBrainPage, LawBrainReader
+from zwiadbrain.sources.lawbrain import LawBrainReader
 from zwiadbrain.sources.legiscan import LegiScanSource
 from zwiadbrain.sources.transcripts import make_gate_fetch, memoize_fetch
 from zwiadbrain.store import Store
@@ -1917,11 +1917,6 @@ def _lawbrain_page_by_id(wiki: Path, target_id: str) -> Path | None:
     return matches[0] if matches else None
 
 
-def _lawbrain_page_by_slug(reader: LawBrainReader, slug: str) -> LawBrainPage | None:
-    """Return the parsed law-brain page with this slug, or None if it is gone (stale)."""
-    return next((p for p in reader.pages() if p.slug == slug), None)
-
-
 def _resolve_review_queue(
     queue_path: Path,
     new_entries: list[ReviewEntry],
@@ -2029,8 +2024,10 @@ def render_lawbrain_commentary(
         registry_path = wiki / "links.yaml"
         queue_path = wiki / "review-queue.md"
         registry = LinkRegistry.load(registry_path)
-        # Cache the live law-brain slug set once; staleness is checked per target.
-        live_slugs = {p.slug for p in reader.pages()}
+        # Parse the law brain ONCE per run: every per-item page lookup and the
+        # staleness check read from this map, never a fresh reader.pages() call.
+        pages_by_slug = {p.slug: p for p in reader.pages()}
+        live_slugs = set(pages_by_slug)
         review: list[ReviewEntry] = []
         linked = reviewed = 0
         notes: list[str] = []
@@ -2097,7 +2094,7 @@ def render_lawbrain_commentary(
                 # fake keys. The keys are RECOMPUTED here from the freshly-read page and
                 # target, and these recomputed sets drive both the confirm gate and the
                 # stored keys_hash (registry stickiness must reflect real keys, D9).
-                page = _lawbrain_page_by_slug(reader, slug)
+                page = pages_by_slug.get(slug)
                 if page is None:
                     # Source vanished from the law brain: do not attach; flag stale.
                     review.append(

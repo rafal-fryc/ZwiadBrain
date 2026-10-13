@@ -965,6 +965,46 @@ def test_render_lawbrain_dry_run_writes_nothing(
     assert not (wiki / "review-queue.md").exists()
 
 
+def test_render_lawbrain_should_parse_the_law_brain_once_when_rendering_many_items(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — three staged items (two links + one not_in_scope) and a counter on
+    # LawBrainReader.pages(); every per-item lookup must reuse the single parse.
+    from zwiadbrain.sources.lawbrain import LawBrainReader  # noqa: PLC0415
+
+    monkeypatch.chdir(tmp_path)
+    _write_render_settings(tmp_path)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    run = tmp_path / "run"
+    run.mkdir()
+    entries = [
+        *_classified_deterministic(),
+        {**_classified_deterministic()[0], "slug": "regulation-fixture-sb53"},
+        {"slug": "concept-fixture-ai-landscape", "matched_by": "not_in_scope"},
+    ]
+    (run / "classified.json").write_text(json.dumps(entries), encoding="utf-8")
+    calls: list[int] = []
+    original = LawBrainReader.pages
+
+    def counting_pages(self: LawBrainReader) -> list[object]:
+        calls.append(1)
+        return list(original(self))
+
+    monkeypatch.setattr(LawBrainReader, "pages", counting_pages)
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["render-lawbrain-commentary", "--in", str(run / "classified.json"),
+         "--wiki", str(wiki), "--db", str(tmp_path / "index.sqlite")],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 1
+
+
 def test_render_lawbrain_drops_malformed_entry_without_failing_batch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

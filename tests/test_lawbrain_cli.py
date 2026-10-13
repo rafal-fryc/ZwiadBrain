@@ -349,6 +349,35 @@ def test_fetch_lawbrain_candidates_should_skip_recorded_not_in_scope_until_short
     assert widened["concept-keyless-note"]["match"] == "keyless"
 
 
+def test_fetch_lawbrain_candidates_should_skip_page_when_it_awaits_operator_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — a keyless page with a candidate, already queued as weak-grounding.
+    law_brain = tmp_path / "law"
+    _write_keyless_lawbrain_page(law_brain, tags=["frontier", "transparency"])
+    wiki = tmp_path / "wiki"
+    _write_sb53_bill(wiki)
+    (wiki / "review-queue.md").write_text(
+        "- [pending] concept-keyless-note -> ca-2025-sb-53 (weak-grounding)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+
+    # Act
+    result = _RUNNER.invoke(
+        app,
+        ["fetch-lawbrain-candidates", "--wiki", str(wiki), "--out", str(tmp_path / "run")],
+    )
+
+    # Assert — not re-staged (no repeat matcher dispatch); the skip is reported.
+    assert result.exit_code == 0, result.output
+    candidates = json.loads(
+        (tmp_path / "run" / "lawbrain-candidates.json").read_text(encoding="utf-8")
+    )
+    assert "concept-keyless-note" not in {c["slug"] for c in candidates}
+    assert "1 page(s) awaiting review" in result.output
+
+
 def test_fetch_lawbrain_candidates_skips_settled_registry_page(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

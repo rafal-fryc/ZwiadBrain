@@ -37,7 +37,8 @@ tracked items (bills + enforcement actions) from the committed wiki as `TargetRe
 consults `links.yaml` (skipping pages already decided whose decision hash is unchanged —
 the key-set, or for a keyless page its key-set plus candidate shortlist, D9), runs the
 deterministic set-intersection match, builds a capped, topically-floored shortlist for
-pages with no key match (D124), and writes
+pages with no key match (D124), skips pages that already have a line in
+`wiki/review-queue.md` (they wait for the operator's `[accept]`/`[reject]`, D127), and writes
 `lawbrain-candidates.json` + `targets.json` under `data/runs/<id>/`. **Note the exact
 path it prints** — you use it in steps 2–5.
 

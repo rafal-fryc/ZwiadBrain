@@ -1553,3 +1553,17 @@ NY SAFE for Kids, WA chatbot provenance).
 one means editing `links.yaml`. Partly-rejected collisions keep re-queuing their pending lines
 until the operator finishes them.
 **Revisit if:** collisions become common enough that operator resolution is a bottleneck.
+
+## 2026-10-13 — 127. Fetch skips law-brain pages that have a line in the review queue
+**Chosen:** `fetch-lawbrain-candidates` does not stage a page with any line in
+`wiki/review-queue.md` (pending, or resolved but not yet applied). Render applies the operator's
+`[accept]`/`[reject]` and prunes the lines; the page is evaluated again on the following fetch.
+**Alternatives:** keep re-staging (each sync re-dispatched the matcher for every pending
+weak-grounding page — 9 calls per run after the 2026-10-13 sync, all producing the same queue
+line); record a `pending` decision in `links.yaml` (rejected: a second source of truth for what the
+queue file already says).
+**Why:** a queued page's proposal is already in front of the operator; re-staging it costs matcher
+calls and adds nothing.
+**Trade-offs:** a page edited in the law brain while queued is not re-evaluated until the operator
+resolves its lines; an accepted page attaches one sync after the accept (unchanged from D126).
+**Revisit if:** queue lines are routinely left unresolved for long periods.

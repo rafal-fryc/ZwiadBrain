@@ -1735,6 +1735,17 @@ def fetch_lawbrain_candidates(
         targets = tracked.targets
         matcher = _LawBrainMatcher(targets, settings.lawbrain)
         registry = LinkRegistry.load(_lawbrain_registry_path(wiki))
+        queue_path = wiki / "review-queue.md"
+        # A page with any line in the review queue is waiting on the operator: its
+        # proposals are already queued, and re-staging it would only re-dispatch the
+        # matcher. Render applies the operator's [accept]/[reject] and prunes the
+        # lines; the page is evaluated again on the following fetch (D127).
+        awaiting_review = (
+            {e.slug for e in parse_review_queue(queue_path.read_text(encoding="utf-8"))}
+            if queue_path.exists()
+            else set[str]()
+        )
+        skipped_for_review = 0
         markers = settings.lawbrain.commentary_only_slug_markers
         candidates: list[dict[str, object]] = []
         for page in reader.pages():
@@ -1743,6 +1754,9 @@ def fetch_lawbrain_candidates(
             # Without a key it cannot deterministically attach; with no single subject
             # it must not go to the matcher either, so it is skipped entirely (D60).
             if not keys and _is_marker_slug(page.slug, markers):
+                continue
+            if page.slug in awaiting_review:
+                skipped_for_review += 1
                 continue
             classified = matcher.classify(page, keys)
             decided = registry.decision_for(page.slug)
@@ -1801,6 +1815,10 @@ def fetch_lawbrain_candidates(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"staged {len(candidates)} law-brain candidate(s) to {path.parent}")
+    if skipped_for_review:
+        typer.echo(
+            f"  {skipped_for_review} page(s) awaiting review in review-queue.md (skipped)"
+        )
     if reader.malformed:
         typer.echo(
             f"  {len(reader.malformed)} malformed law-brain page(s) skipped:"

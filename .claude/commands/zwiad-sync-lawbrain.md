@@ -46,7 +46,7 @@ path it prints** — you use it in steps 2–5.
 `Read` both files it wrote:
 - `lawbrain-candidates.json` — each entry: `slug, title, type, jurisdiction, tags,
   citation, summary_excerpt, keys, keys_hash, match ("deterministic" | "keyless" |
-  "collision" | "not_in_scope" | "override"), target_id?, shortlist?`
+  "collision" | "not_in_scope" | "override" | "refresh"), target_id?, shortlist?`
 - `targets.json` — the tracked items as `{id, kind, jurisdiction, title, keys}`.
 
 A `match: "deterministic"` entry already has its `target_id` (exactly one shared key,
@@ -57,7 +57,10 @@ no shortlist candidate cleared the topical floor — it is already decided; stag
 `not_in_scope` without a dispatch. A `match: "override"` entry is a link the operator
 accepted in `review-queue.md` whose commentary is not yet on its target — it carries its
 `target_id`; stage it as `matched_by: "llm"`, `confidence: 1.0` without a dispatch
-(render honors the recorded override for that target only). Only `match: "keyless"`
+(render honors the recorded override for that target only). A `match: "refresh"` entry
+is an existing deterministic link whose law-brain page changed since it was copied —
+stage it like a deterministic link (`matched_by: "deterministic"`, `confidence: 1.0`) so
+the block is re-copied. Only `match: "keyless"`
 entries (zero shared keys, non-empty shortlist) need the LLM step.
 
 ### 3. Judge keyless pages (subagent: `lawbrain-matcher`)
@@ -79,7 +82,7 @@ Note: `render-lawbrain-commentary` re-confirms every `llm` link deterministicall
 ### 4. Stage the classified items
 
 `Write` the decided entries to `classified.json` in the run directory:
-- every deterministic-link entry, every `override` entry, and every `llm`
+- every deterministic-link, `refresh` and `override` entry, and every `llm`
   `decision: "link"` entry, each with
   `slug`, `target_id`, `matched_by` (`"deterministic"` | `"llm"`) and `confidence`;
 - every `not_in_scope` entry — both `match: "not_in_scope"` candidates and keyless

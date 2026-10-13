@@ -1753,19 +1753,22 @@ def fetch_lawbrain_candidates(
             shortlist: list[str] | None = (
                 None if classified.match == "deterministic" else classified.target_ids
             )
+            override = decided is not None and decided.matched_by == "llm"
             if (
                 decided is not None
                 and decided.decision == "link"
-                and decided.matched_by == "llm"
                 and decided.target_id in tracked.commentary_hashes
+                and (override or decided.keys_hash == classified.decision_hash)
             ):
-                # An operator-accepted (or LLM-confirmed) link is held by the decision
-                # itself, not by key matching: settled once the page's current content
-                # is on that target, otherwise proposed for (re-)attachment.
+                # A standing link is settled only while the page's current content is
+                # what was copied onto its target; an edited law-brain page is proposed
+                # again so its block is re-copied (D20). An operator-accepted (or
+                # LLM-confirmed) link is held by the decision itself, not key matching.
                 copied = tracked.commentary_hashes[decided.target_id].get(page.slug)
                 if copied == page.content_hash:
                     continue
-                match, target_id, shortlist = "override", decided.target_id, None
+                match = "override" if override else "refresh"
+                target_id, shortlist = decided.target_id, None
             elif decided is not None and decided.keys_hash == classified.decision_hash:
                 # Settled unless its decision hash moved — its keys, or for a keyless
                 # page its candidate shortlist (D9).

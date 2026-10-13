@@ -352,7 +352,8 @@ def test_fetch_lawbrain_candidates_should_skip_recorded_not_in_scope_until_short
 def test_fetch_lawbrain_candidates_skips_settled_registry_page(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Arrange — record a link decision whose keys_hash matches the live key-set.
+    # Arrange — record a reject decision whose keys_hash matches the live key-set.
+    # (A link is settled by its copied content instead — see the refresh test.)
     from zwiadbrain.pipeline.lawbrain_keys import keys_hash, page_keys
     from zwiadbrain.pipeline.lawbrain_registry import LinkDecision, LinkRegistry
     from zwiadbrain.sources.lawbrain import LawBrainReader
@@ -380,9 +381,9 @@ def test_fetch_lawbrain_candidates_skips_settled_registry_page(
     registry.record(
         LinkDecision(
             lawbrain_slug="regulation-california-sb53-tfaia",
-            decision="link",
+            decision="reject",
             target_id="ca-2025-sb-53",
-            matched_by="deterministic",
+            matched_by=None,
             keys_hash=live_hash,
             decided=dt.date(2026, 5, 29),
         )
@@ -1233,6 +1234,43 @@ def test_fetch_lawbrain_candidates_should_emit_accepted_override_until_it_is_att
     assert entry["target_id"] == "ca-2025-sb-53"
     assert "1 linked" in output
     assert "concept-keyless-note" not in second
+
+
+def test_fetch_lawbrain_candidates_should_propose_refresh_when_linked_page_content_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange — link SB 53 commentary once from a writable copy of the fixture brain.
+    law_brain = tmp_path / "law"
+    shutil.copytree(_FIXTURE_LAWBRAIN, law_brain)
+    wiki = tmp_path / "wiki"
+    _seed_sb53_target(wiki)
+    monkeypatch.setattr("zwiadbrain.cli.load_settings", lambda: _settings(law_brain))
+    _render(tmp_path, wiki, _classified_deterministic())
+    unchanged = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run1")}
+    source = law_brain / "wiki" / "regulation-california-sb53-tfaia.md"
+    source.write_text(
+        source.read_text(encoding="utf-8") + "\nNewly added analysis paragraph.\n",
+        encoding="utf-8",
+    )
+
+    # Act — fetch after the edit, stage the refresh as the skill would, fetch again.
+    edited = {str(c["slug"]): c for c in _fetch(wiki, tmp_path / "run2")}
+    entry = edited["regulation-california-sb53-tfaia"]
+    _render(
+        tmp_path,
+        wiki,
+        [{"slug": entry["slug"], "target_id": entry["target_id"],
+          "matched_by": "deterministic", "confidence": 1.0}],
+    )
+    after = {str(c["slug"]) for c in _fetch(wiki, tmp_path / "run3")}
+
+    # Assert — unchanged content is settled; edited content is re-copied once.
+    assert "regulation-california-sb53-tfaia" not in unchanged
+    assert entry["match"] == "refresh"
+    assert entry["target_id"] == "ca-2025-sb-53"
+    page = (wiki / Path(*_SB53_PAGE)).read_text(encoding="utf-8")
+    assert "Newly added analysis paragraph." in page
+    assert "regulation-california-sb53-tfaia" not in after
 
 
 def test_render_lawbrain_should_parse_the_law_brain_once_when_rendering_many_items(
